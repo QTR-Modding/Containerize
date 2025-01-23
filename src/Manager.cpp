@@ -117,7 +117,7 @@ void Manager::UnHideReal(const FormID fakeid) {
     UpdateFakeWV(fake_bound, chest, src->weight_ratio);
 }
 
-void Manager::DropTake(const FormID realcontainer_formid, const uint32_t native_handle)
+void Manager::DropTake(const FormID realcontainer_formid, const RefID refid)
 {
     // Assumes that the real container is in the player's inventory!
 
@@ -132,11 +132,14 @@ void Manager::DropTake(const FormID realcontainer_formid, const uint32_t native_
     
     const auto src = GetContainerSource(realcontainer_formid);
     const auto refhandle = RemoveItem(player_ref, nullptr, realcontainer_formid, RE::ITEM_REMOVE_REASON::kDropping);
-    if (refhandle.get()->GetFormID() == native_handle) {
+	if (!refhandle) return RaiseMngrErr("Real refhandle is null.");
+#ifndef NDEBUG
+    if (refhandle.get()->GetFormID() == refid) {
         logger::trace("Native handle is the same as the refhandle refid");
     }
     else logger::trace("Native handle is NOT the same as the refhandle refid");
-    const auto chest_refid = GetRealContainerChest(native_handle);
+#endif
+    const auto chest_refid = GetRealContainerChest(refid);
     auto* fake_bound = RE::TESForm::LookupByID<RE::TESBoundObject>(ChestToFakeContainer[chest_refid].innerKey);
     WorldObject::SwapObjects(refhandle.get().get(), fake_bound,false);
     if (!PickUpItem(refhandle.get().get())) {
@@ -1881,7 +1884,7 @@ void Manager::ReceiveData() {
                     std::format("RefID {:x} or RefID {:x} at formid {:x} already exists in sources data.", chestRef,
                                 contRef, realcontForm));
             }
-            if (!ChestToFakeContainer.insert({chestRef, {realcontForm, fakecontForm.id}}).second) {
+            if (!ChestToFakeContainer.insert({chestRef, {.outerKey= realcontForm, .innerKey= fakecontForm.id}}).second) {
                 return RaiseMngrErr(
                     std::format("realcontForm {:x} with fakecontForm {:x} at chestref {:x} already exists in "
                                 "ChestToFakeContainer.",
@@ -1893,7 +1896,7 @@ void Manager::ReceiveData() {
             no_match = false;
             break;
         }
-        if (no_match) unmathced_chests[chestRef] = {realcontForm, fakecontForm.id};
+        if (no_match) unmathced_chests[chestRef] = {.outerKey= realcontForm, .innerKey= fakecontForm.id};
     }
 
     // handle the unmathced chests
@@ -1901,7 +1904,7 @@ void Manager::ReceiveData() {
     for (const auto& [chestRef_, RealFakeForm_] : unmathced_chests) {
         logger::warn("FormID {:x} not found in sources.", RealFakeForm_.outerKey);
         if (other_settings[Settings::otherstuffKeys[0]]) {
-            MsgBoxesNotifs::InGame::ProblemWithContainer(std::to_string(RealFakeForm_.outerKey));
+            MsgBoxesNotifs::InGame::ProblemWithContainer(RealFakeForm_.outerKey);
         }
         logger::info("Deregistering chest");
 

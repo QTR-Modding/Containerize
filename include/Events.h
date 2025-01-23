@@ -1,15 +1,14 @@
 #pragma once
 #include "Hooks.h"
+#include "Manager.h"
 
 // Thanks and credits to Bloc: https://discord.com/channels/874895328938172446/945560222670393406/1093262407989731338
 class ConversationCallbackFunctor final : public RE::BSScript::IStackCallbackFunctor {
 
-
-
     std::string rename;
 	Manager* M;
 
-    void operator()(RE::BSScript::Variable a_result) override {
+    void operator()(const RE::BSScript::Variable a_result) override {
         if (a_result.IsNoneObject()) {
             logger::trace("Result: None");
         } else if (a_result.IsString()) {
@@ -21,7 +20,7 @@ class ConversationCallbackFunctor final : public RE::BSScript::IStackCallbackFun
         }
     }
 
-    void SetObject(const RE::BSTSmartPointer<RE::BSScript::Object>&) override {};
+    void SetObject(const RE::BSTSmartPointer<RE::BSScript::Object>&) override {}
 
 public:
     explicit ConversationCallbackFunctor(Manager* mngr) : M(mngr) {}

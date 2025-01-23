@@ -295,11 +295,14 @@ RE::BSEventNotifyControl OurEventSink::ProcessEvent(const RE::TESContainerChange
     if (event->newContainer == 20) {
         if (event->itemCount == 1 && M->IsRealContainer(event->baseObj) &&
             M->RealContainerHasRegistry(event->baseObj)) {
-            if (const auto reference_ = event->reference; !block_droptake.load() && M->IsARegistry(reference_.native_handle())) {
+            RE::NiPointer<RE::TESObjectREFR> ref_ptr;
+            if (RE::BSPointerHandleManagerInterface<RE::TESObjectREFR>::GetSmartPointer(event->reference,ref_ptr);
+                !block_droptake.load() && 
+                ref_ptr.get() && 
+                M->IsARegistry(ref_ptr->GetFormID())) {
                 // somehow, including ref=0 bcs that happens sometimes when NPCs give you your dropped items back...
                 logger::info("Item {} went into player inventory from unknown container.", event->baseObj);
-                logger::trace("Dropped item native_handle: {}", reference_.native_handle());
-                M->DropTake(event->baseObj, reference_.native_handle());
+                M->DropTake(event->baseObj, ref_ptr->GetFormID());
                 M->Print();
             }
         } else if (M->IsFakeContainer(event->baseObj) && M->ExternalContainerIsRegistered(event->baseObj,event->oldContainer)) {
@@ -411,7 +414,6 @@ RE::BSEventNotifyControl OurEventSink::ProcessEvent(RE::InputEvent* const* evns,
                     // we accept : "accept","RightEquip", "LeftEquip", "equip", "toggleFavorite"
                     if (const auto userevents = RE::UserEvents::GetSingleton(); !(userEvent == userevents->accept || userEvent == userevents->rightEquip ||
                         userEvent == userevents->leftEquip || userEvent == userevents->equip)) {
-                        logger::trace("User event not accepted.");
                         continue;
                     }
 					if (HideMenuOnEquipHeld()) {

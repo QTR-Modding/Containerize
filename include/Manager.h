@@ -194,7 +194,7 @@ public:
     [[nodiscard]] bool RealContainerHasRegistry(FormID realcontainer_formid) const;
 
     // hopefully this works.
-    void DropTake(FormID realcontainer_formid, uint32_t native_handle);
+    void DropTake(FormID realcontainer_formid, RefID refid);
 
     // external container can be found in the values of src.data
     [[nodiscard]] bool ExternalContainerIsRegistered(FormID fake_container_formid,

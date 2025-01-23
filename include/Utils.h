@@ -228,9 +228,9 @@ namespace MsgBoxesNotifs {
 				std::format("{}: Uninstall failed. Please contact the mod author.", mod_name).c_str());
         }
 
-        inline void ProblemWithContainer(std::string id) {
+        inline void ProblemWithContainer(int id) {
                 RE::DebugMessageBox(
-					std::format("{}: Problem with one of the items with the form id ({}). This is expected if you have changed the list of containers in the INI file between saves. Corresponding items will be returned to your inventory. You can suppress this message by changing the setting in your INI.",
+					std::format("{}: Problem with one of the items with the form id ({:x}). This is expected if you have changed the list of containers in the INI file between saves. Corresponding items will be returned to your inventory. You can suppress this message by changing the setting in your INI.",
                         								mod_name, id)
 						.c_str());
             };
