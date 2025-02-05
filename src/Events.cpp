@@ -143,17 +143,17 @@ RE::BSEventNotifyControl OurEventSink::ProcessEvent(const RE::TESActivateEvent* 
     if (event->objectActivated == RE::PlayerCharacter::GetSingleton()->GetGrabbedRef()) return RE::BSEventNotifyControl::kContinue;
     if (!M->IsRealContainer(event->objectActivated.get())) return RE::BSEventNotifyControl::kContinue;
 
-    bool skip_interface = false;
-    if (po3_use_or_take) {
-        if (const auto base = event->objectActivated->GetBaseObject()) {
-            RE::BSString str;
-            base->GetActivateText(RE::PlayerCharacter::GetSingleton(), str);
-            if (String::includesWord(str.c_str(), {"Equip", "Eat", "Drink"})) skip_interface = true;
-        }
-    }
+    //bool skip_interface = false;
+    //if (po3_use_or_take) {
+    //    if (const auto base = event->objectActivated->GetBaseObject()) {
+    //        RE::BSString str;
+    //        base->GetActivateText(RE::PlayerCharacter::GetSingleton(), str);
+    //        if (String::includesWord(str.c_str(), {"Equip", "Eat", "Drink"})) skip_interface = true;
+    //    }
+    //}
         
     logger::trace("Container activated");
-    M->OnActivateContainer(event->objectActivated.get(),skip_interface);
+    /*M->OnActivateContainer(event->objectActivated.get(),skip_interface);*/
 
 #ifndef NDEBUG
     M->Print();
@@ -171,34 +171,23 @@ RE::BSEventNotifyControl OurEventSink::ProcessEvent(const SKSE::CrosshairRefEven
     if (event->crosshairRef->extraList.GetCount()>1) return RE::BSEventNotifyControl::kContinue;
     if (!listen_crosshair_ref) return RE::BSEventNotifyControl::kContinue;
 
-    // prevent player to catch it in the air
-    //if (M->IsFakeContainer(event->crosshairRef.get()->GetBaseObject()->GetFormID())) event->crosshairRef->SetActivationBlocked(1);
-
-    logger::trace("Crosshair ref.");
-
     if (const auto crosshair_refr = event->crosshairRef.get(); !M->IsRealContainer(crosshair_refr)) {
-            
         // if the fake items are not in it we need to place them (this happens upon load game)
         listen_crosshair_ref = false;
         M->HandleFakePlacement(crosshair_refr);
         listen_crosshair_ref = true;
-
-        /*SKSE::GetTaskInterface()->AddTask([crosshair_refr]() { 
-                }
-            );*/
-
         return RE::BSEventNotifyControl::kContinue;
         
     }
 
-    if (event->crosshairRef->IsActivationBlocked() && !M->isUninstalled.load()) return RE::BSEventNotifyControl::kContinue;
+    //if (event->crosshairRef->IsActivationBlocked() && !M->isUninstalled.load()) return RE::BSEventNotifyControl::kContinue;
 
-        
-    if (M->isUninstalled.load()) {
-        event->crosshairRef->SetActivationBlocked(false);
-    } else {
-        event->crosshairRef->SetActivationBlocked(true);
-    }
+    //    
+    //if (M->isUninstalled.load()) {
+    //    event->crosshairRef->SetActivationBlocked(false);
+    //} else {
+    //    event->crosshairRef->SetActivationBlocked(true);
+    //}
     return RE::BSEventNotifyControl::kContinue;
 }
 
@@ -206,35 +195,35 @@ RE::BSEventNotifyControl OurEventSink::ProcessEvent(const RE::MenuOpenCloseEvent
     RE::BSTEventSource<RE::MenuOpenCloseEvent>*) {
 
         
-    if (block_eventsinks.load()) return RE::BSEventNotifyControl::kContinue;
-    if (!event) return RE::BSEventNotifyControl::kContinue;
-    if (const auto ui = RE::UI::GetSingleton(); event->menuName == "CustomMenu" && 
-        !ui->IsMenuOpen(RE::ContainerMenu::MENU_NAME) &&
-        !ui->IsMenuOpen(RE::InventoryMenu::MENU_NAME) &&
-        !ui->IsMenuOpen(RE::BarterMenu::MENU_NAME) &&
-        !ui->IsMenuOpen(RE::FavoritesMenu::MENU_NAME) &&
-        !event->opening && M->listen_menu_close.load()) {
-		return OnRename();
-    }
+  //  if (!event) return RE::BSEventNotifyControl::kContinue;
+  //  if (const auto ui = RE::UI::GetSingleton(); event->menuName == "CustomMenu" && 
+  //      !ui->IsMenuOpen(RE::ContainerMenu::MENU_NAME) &&
+  //      !ui->IsMenuOpen(RE::InventoryMenu::MENU_NAME) &&
+  //      !ui->IsMenuOpen(RE::BarterMenu::MENU_NAME) &&
+  //      !ui->IsMenuOpen(RE::FavoritesMenu::MENU_NAME) &&
+  //      !event->opening && M->listen_menu_close.load()) {
+		//return OnRename();
+  //  }
 
-    if (equipped && event->menuName.c_str() == ReShowMenu && !event->opening) {
-        logger::trace("menu closed: {}", event->menuName.c_str());
-		return ToggleEquipOpenContainer();
-    }
+  //  if (equipped && event->menuName.c_str() == ReShowMenu && !event->opening) {
+  //      logger::trace("menu closed: {}", event->menuName.c_str());
+		//return ToggleEquipOpenContainer();
+  //  }
 
-    if (!M->listen_menu_close.load()) return RE::BSEventNotifyControl::kContinue;
+  //  if (!M->listen_menu_close.load()) return RE::BSEventNotifyControl::kContinue;
 
-    if (event->menuName != RE::ContainerMenu::MENU_NAME) return RE::BSEventNotifyControl::kContinue;
+  //  if (event->menuName != RE::ContainerMenu::MENU_NAME) return RE::BSEventNotifyControl::kContinue;
 
-    if (event->opening) listen_weight_limit = true;
-    else {
-        //logger::trace("Our Container menu closed.");
-        listen_weight_limit.store(false);
-        listen_menu_close.store(false);
-        //logger::trace("listen_menuclose: {}", M->listen_menu_close.load());
-        if (!ReShowMenu.empty()) ReShow();
-        else M->HandleContainerMenuExit();
-    }
+  //  if (event->opening) listen_weight_limit = true;
+  //  else {
+  //      //logger::trace("Our Container menu closed.");
+  //      listen_weight_limit.store(false);
+  //      listen_menu_close.store(false);
+  //      //logger::trace("listen_menuclose: {}", M->listen_menu_close.load());
+  //      if (!ReShowMenu.empty()) ReShow();
+  //      else M->HandleContainerMenuExit();
+  //  }
+
     return RE::BSEventNotifyControl::kContinue;
 }
 
@@ -288,29 +277,26 @@ RE::BSEventNotifyControl OurEventSink::ProcessEvent(const RE::TESContainerChange
     if (!event->itemCount) return RE::BSEventNotifyControl::kContinue;
     if (event->oldContainer != 20 && event->newContainer != 20) return RE::BSEventNotifyControl::kContinue;
 
-
-    logger::trace("Container changed event.");
-
-    // to player inventory <-
-    if (event->newContainer == 20) {
-        if (event->itemCount == 1 && M->IsRealContainer(event->baseObj) &&
-            M->RealContainerHasRegistry(event->baseObj)) {
-            RE::NiPointer<RE::TESObjectREFR> ref_ptr;
-            if (RE::BSPointerHandleManagerInterface<RE::TESObjectREFR>::GetSmartPointer(event->reference,ref_ptr);
-                !block_droptake.load() && 
-                ref_ptr.get() && 
-                M->IsARegistry(ref_ptr->GetFormID())) {
-                // somehow, including ref=0 bcs that happens sometimes when NPCs give you your dropped items back...
-                logger::info("Item {} went into player inventory from unknown container.", event->baseObj);
-                M->DropTake(event->baseObj, ref_ptr->GetFormID());
-                M->Print();
-            }
-        } else if (M->IsFakeContainer(event->baseObj) && M->ExternalContainerIsRegistered(event->baseObj,event->oldContainer)) {
-            logger::trace("Unlinking external container.");
-            M->UnLinkExternalContainer(event->baseObj, event->oldContainer);
-            M->Print();
-        }
-    }
+    //// to player inventory <-
+    //if (event->newContainer == 20) {
+    //    if (event->itemCount == 1 && M->IsRealContainer(event->baseObj) &&
+    //        M->RealContainerHasRegistry(event->baseObj)) {
+    //        RE::NiPointer<RE::TESObjectREFR> ref_ptr;
+    //        if (RE::BSPointerHandleManagerInterface<RE::TESObjectREFR>::GetSmartPointer(event->reference,ref_ptr);
+    //            !block_droptake.load() && 
+    //            ref_ptr.get() && 
+    //            M->IsARegistry(ref_ptr->GetFormID())) {
+    //            // somehow, including ref=0 bcs that happens sometimes when NPCs give you your dropped items back...
+    //            logger::info("Item {} went into player inventory from unknown container.", event->baseObj);
+    //            M->DropTake(event->baseObj, ref_ptr->GetFormID());
+    //            M->Print();
+    //        }
+    //    } else if (M->IsFakeContainer(event->baseObj) && M->ExternalContainerIsRegistered(event->baseObj,event->oldContainer)) {
+    //        logger::trace("Unlinking external container.");
+    //        M->UnLinkExternalContainer(event->baseObj, event->oldContainer);
+    //        M->Print();
+    //    }
+    //}
 
 
     // from player inventory ->

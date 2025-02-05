@@ -33,11 +33,9 @@ class Manager : public SaveLoadData {
     std::pair<FormID, RefID> real_to_sendback = {0,0};  // pff
 
 
-    void SendBackReal(FormID real_formid, RE::TESObjectREFR* chest);
+    void SendReal(FormID real_formid, RE::TESObjectREFR* chest);
 
     [[nodiscard]] RE::TESBoundObject* FakeToRealContainer(FormID fake);
-
-    [[nodiscard]] RefID GetRealContainerChest(RefID real_refid);
 
     // Activates a container
     void Activate(RE::TESObjectREFR* a_objref);
@@ -46,7 +44,7 @@ class Manager : public SaveLoadData {
 
     [[nodiscard]] int GetChestValue(RE::TESObjectREFR* a_chest);
 
-    // OK. from container out in the world to linked chest
+    // from container out in the world to linked chest
     [[nodiscard]] RE::TESObjectREFR* GetRealContainerChest(const RE::TESObjectREFR* real_container);
 
     [[nodiscard]] uint32_t GetNoChests() const;
@@ -80,7 +78,7 @@ class Manager : public SaveLoadData {
     [[nodiscard]] bool PickUpItem(RE::TESObjectREFR* item, unsigned int max_try = 3);
 
     // Removes the object from the world and adds it to an inventory
-    [[nodiscard]] bool MoveObject(RE::TESObjectREFR* ref, RE::TESObjectREFR* move2container, bool owned = true);
+    [[nodiscard]] static bool MoveObject(RE::TESObjectREFR* ref, RE::TESObjectREFR* move2container, bool owned = true);
 
     template <typename T>
     void UpdateFakeWV(T* fake_form, RE::TESObjectREFR* chest_linked, float weight_ratio);
@@ -146,6 +144,10 @@ class Manager : public SaveLoadData {
 
 public:
 
+    [[nodiscard]] RefID GetRealContainerChestID(RefID real_refid) const;
+    RE::TESBoundObject* GetFakeBound(RefID chest_id) const;
+    void HandlePickup(const RE::TESObjectREFR* picked_up_by, RE::TESObjectREFR * a_object);
+
     explicit Manager(const std::vector<Source>& data) : sources(data) { Init(); }
 
     static Manager* GetSingleton(const std::vector<Source>& data) {
@@ -161,7 +163,7 @@ public:
     std::atomic<bool> listen_container_change = true;
 
 
-    void OnActivateContainer(RE::TESObjectREFR* a_container, bool equip=false);;
+    void OnActivateContainer(RE::TESObjectREFR* a_container);
 
     // places fake objects in external containers after load game
     void HandleFakePlacement(RE::TESObjectREFR* external_cont);

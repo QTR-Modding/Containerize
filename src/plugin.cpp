@@ -17,6 +17,7 @@ void OnMessage(SKSE::MessagingInterface::Message* message) {
 			logger::critical("Failed to load Manager.");
 			return;
 		}
+        Hooks::SetManager(M);
         eventSink = OurEventSink::GetSingleton(M);
         UI::Register(M);
         logger::info("MCP registered.");
@@ -27,14 +28,14 @@ void OnMessage(SKSE::MessagingInterface::Message* message) {
         if (!M || !eventSink) return;
         // EventSink
         auto* eventSourceHolder = RE::ScriptEventSourceHolder::GetSingleton();
-        eventSourceHolder->AddEventSink<RE::TESEquipEvent>(eventSink);
-        eventSourceHolder->AddEventSink<RE::TESActivateEvent>(eventSink);
-        eventSourceHolder->AddEventSink<RE::TESContainerChangedEvent>(eventSink);
+        //eventSourceHolder->AddEventSink<RE::TESEquipEvent>(eventSink);
+        //eventSourceHolder->AddEventSink<RE::TESActivateEvent>(eventSink);
+        //eventSourceHolder->AddEventSink<RE::TESContainerChangedEvent>(eventSink);
         eventSourceHolder->AddEventSink<RE::TESFurnitureEvent>(eventSink);
         eventSourceHolder->AddEventSink<RE::TESFormDeleteEvent>(eventSink);
         RE::UI::GetSingleton()->AddEventSink<RE::MenuOpenCloseEvent>(eventSink);
-        RE::BSInputDeviceManager::GetSingleton()->AddEventSink(eventSink);
-        SKSE::GetCrosshairRefEventSource()->AddEventSink(eventSink);
+        /*RE::BSInputDeviceManager::GetSingleton()->AddEventSink(eventSink);
+        SKSE::GetCrosshairRefEventSource()->AddEventSink(eventSink);*/
         eventsinks_added = true;
     }
 }
@@ -150,5 +151,6 @@ SKSEPluginLoad(const SKSE::LoadInterface *skse) {
     LoadOtherSettings();
     InitializeSerialization();
     SKSE::GetMessagingInterface()->RegisterListener(OnMessage);
+	Hooks::Install();
     return true;
 }
