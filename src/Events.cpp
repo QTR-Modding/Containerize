@@ -18,7 +18,7 @@ RE::BSEventNotifyControl OurEventSink::ToggleEquipOpenContainer()
     equipped = false;
     logger::trace("Reverting equip...");
 	const auto fake_id = fake_id_;
-	SKSE::GetTaskInterface()->AddTask([fake_id]() { Manager::RevertEquip(fake_id); });
+	//SKSE::GetTaskInterface()->AddTask([fake_id]() { Manager::RevertEquip(fake_id); });
     //Manager::RevertEquip(fake_id_);
     logger::trace("Reverted equip.");
     M->ActivateContainer(fake_id_, true);
@@ -366,7 +366,7 @@ RE::BSEventNotifyControl OurEventSink::ProcessEvent(const RE::TESContainerChange
                 logger::trace("Container transfer.");
                 // need to register the container: chestrefid -> thiscontainerrefid
                 logger::trace("Container menu is open.");
-                M->LinkExternalContainer(event->baseObj, event->newContainer);
+                //M->LinkExternalContainer(event->baseObj, event->newContainer);
                 M->Print();
             }
             else {

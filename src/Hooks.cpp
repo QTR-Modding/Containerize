@@ -19,7 +19,7 @@ void Hooks::Install()
 template<typename RefType>
 void Hooks::MoveItemHooks<RefType>::pickUpObject(RefType * a_this, RE::TESObjectREFR * a_object, int32_t a_count, bool a_arg3, bool a_play_sound)
 {
-	if (!a_object || a_count>1) {
+	if (!a_this || !a_object || a_count>1) {
 		return pick_up_object_(a_this, a_object, a_count, a_arg3, a_play_sound);
 	}
 	logger::info("Pickup event.");
@@ -37,6 +37,23 @@ void Hooks::MoveItemHooks<RefType>::addObjectToContainer(RefType* a_this, RE::TE
 template<typename RefType>
 RE::ObjectRefHandle * Hooks::MoveItemHooks<RefType>::RemoveItem(RefType * a_this, RE::ObjectRefHandle & a_hidden_return_argument, RE::TESBoundObject * a_item, std::int32_t a_count, RE::ITEM_REMOVE_REASON a_reason, RE::ExtraDataList * a_extra_list, RE::TESObjectREFR * a_move_to_ref, const RE::NiPoint3 * a_drop_loc, const RE::NiPoint3 * a_rotate)
 {
+	if (!a_this || !a_item || a_count > 1 || !a_item->IsDynamicForm()) {
+		return remove_item_(a_this, a_hidden_return_argument, a_item, a_count, a_reason, a_extra_list, a_move_to_ref, a_drop_loc, a_rotate);
+	}
+
+	if (a_reason == RE::ITEM_REMOVE_REASON::kDropping) {
+		RE::ObjectRefHandle* res = remove_item_(a_this, a_hidden_return_argument, a_item, a_count, a_reason, a_extra_list, a_move_to_ref, a_drop_loc, a_rotate);
+		if (res && res->get()) {
+			M->HandleDrop(res->get().get());
+		}
+		return res;
+	}
+	if (!a_move_to_ref) {
+        if (const auto a_formid = a_item->GetFormID(); M->IsFakeContainer(a_formid)) {
+			M->DeRegister(a_formid);
+	    }
+	}
+
 	return remove_item_(a_this, a_hidden_return_argument, a_item, a_count, a_reason, a_extra_list, a_move_to_ref, a_drop_loc, a_rotate);
 }
 

@@ -30,22 +30,24 @@ class Manager : public SaveLoadData {
     std::vector<FormID> external_favs; // runtime specific, FormIDs of fake containers if faved
     std::vector<RefID> handled_external_conts; // runtime specific to prevent unnecessary checks in HandleFakePlacement
     std::map<FormID,std::string> renames;  // runtime specific, custom names for fake containers
-    std::pair<FormID, RefID> real_to_sendback = {0,0};  // pff
+    std::pair<RE::TESBoundObject*, RefID> real_to_sendback = {nullptr,0};  // pff
 
 
-    void SendReal(FormID real_formid, RE::TESObjectREFR* chest);
+    void SendReal(RE::TESBoundObject* real_obj, RE::TESObjectREFR* chest);
 
     [[nodiscard]] RE::TESBoundObject* FakeToRealContainer(FormID fake);
 
     // Activates a container
-    void Activate(RE::TESObjectREFR* a_objref);
+    //void Activate(RE::TESObjectREFR* a_objref);
 
-    void ActivateChest(RE::TESObjectREFR* chest, const char* chest_name);
+    [[nodiscard]] bool ActivateChest(RE::TESObjectREFR* chest, const char* chest_name);
 
     [[nodiscard]] int GetChestValue(RE::TESObjectREFR* a_chest);
 
     // from container out in the world to linked chest
-    [[nodiscard]] RE::TESObjectREFR* GetRealContainerChest(const RE::TESObjectREFR* real_container);
+    [[nodiscard]] RE::TESObjectREFR* GetRealContainerChest(const RE::TESObjectREFR* real_container) const;
+    [[nodiscard]] RE::TESObjectREFR* GetFakeContainerChest(const RE::TESObjectREFR* fake_container);
+    [[nodiscard]] RefID GetFakeContainerChest(FormID fake_id);
 
     [[nodiscard]] uint32_t GetNoChests() const;
 
@@ -59,7 +61,6 @@ class Manager : public SaveLoadData {
 
     [[nodiscard]] RE::TESObjectREFR* FindNotMatchedChest() const;
 
-    [[nodiscard]] RefID GetFakeContainerChest(FormID fake_id);
 
     std::vector<FormID> RemoveAllItemsFromChest(RE::TESObjectREFR* chest, RE::TESObjectREFR* move2ref = nullptr);
 
@@ -69,10 +70,10 @@ class Manager : public SaveLoadData {
     [[nodiscard]] Source* GetContainerSource(FormID container_formid);
 
     // returns true only if the item is in the inventory with positive count. removes the item if it is in the inventory with 0 count
-    [[nodiscard]] bool HasItemPlusCleanUp(RE::TESBoundObject* item, RE::TESObjectREFR* item_owner);
+    [[nodiscard]] static bool HasItemPlusCleanUp(RE::TESBoundObject* item, RE::TESObjectREFR* item_owner);
 
     // removes only one unit of the item
-    RE::ObjectRefHandle RemoveItem(RE::TESObjectREFR* moveFrom, RE::TESObjectREFR* moveTo, FormID item_id,
+    static RE::ObjectRefHandle RemoveItem(RE::TESObjectREFR* moveFrom, RE::TESObjectREFR* moveTo, RE::TESBoundObject* a_item,
                                           RE::ITEM_REMOVE_REASON reason);
 
     [[nodiscard]] bool PickUpItem(RE::TESObjectREFR* item, unsigned int max_try = 3);
@@ -86,8 +87,8 @@ class Manager : public SaveLoadData {
     // Updates weight and value of fake container and uses Copy and applies renaming
     void UpdateFakeWV(RE::TESBoundObject* fake_form, RE::TESObjectREFR* chest_linked, float weight_ratio);
 
-    [[nodiscard]] bool UpdateExtrasInInventory(RE::TESObjectREFR* from_inv, FormID from_item_formid,
-                                               RE::TESObjectREFR* to_inv, FormID to_item_formid);
+    [[nodiscard]] static bool UpdateExtrasInInventory(RE::TESObjectREFR* from_inv, FormID from_item_formid,
+                                                      RE::TESObjectREFR* to_inv, FormID to_item_formid);
 
     void HandleFormDelete_(RefID chest_refid);
 
@@ -146,7 +147,9 @@ public:
 
     [[nodiscard]] RefID GetRealContainerChestID(RefID real_refid) const;
     RE::TESBoundObject* GetFakeBound(RefID chest_id) const;
-    void HandlePickup(const RE::TESObjectREFR* picked_up_by, RE::TESObjectREFR * a_object);
+    void HandlePickup(RE::TESObjectREFR* picked_up_by, RE::TESObjectREFR * a_object);
+	void HandleDrop(RE::TESObjectREFR* fake_object);
+    void DeRegister(FormID fake_id);
 
     explicit Manager(const std::vector<Source>& data) : sources(data) { Init(); }
 
@@ -178,12 +181,6 @@ public:
 
     void RenameContainer(const std::string& new_name);
 
-    // reverts inside the same inventory
-    static void RevertEquip(FormID fakeid);
-
-    // reverts by sending it back to the initial inventory
-    void RevertEquip(FormID fakeid, RefID external_container_id);
-
     void HandleContainerMenuExit();
 
     void ActivateContainer(FormID fakeid, bool hide_real = false);
@@ -194,9 +191,6 @@ public:
 
     // if the src with this formid has some data, then we say it has registry
     [[nodiscard]] bool RealContainerHasRegistry(FormID realcontainer_formid) const;
-
-    // hopefully this works.
-    void DropTake(FormID realcontainer_formid, RefID refid);
 
     // external container can be found in the values of src.data
     [[nodiscard]] bool ExternalContainerIsRegistered(FormID fake_container_formid,
@@ -220,7 +214,7 @@ public:
     [[nodiscard]] bool IsChest(const RefID chest_refid) const { return ChestToFakeContainer.contains(chest_refid); }
 
     // Register an external container (technically could be another unownedchest of another of our containers) to the source data so that chestrefid of currentcontainer -> external container
-    void LinkExternalContainer(FormID fakecontainer, RefID externalcontainer_refid);
+    static void LinkExternalContainer(FormID fakecontainer, RefID externalcontainer_refid);
 
     void InspectItemTransfer(RefID chest_refid, FormID item_id);
 
