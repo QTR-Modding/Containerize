@@ -47,11 +47,10 @@ class Manager : public SaveLoadData {
     // from container out in the world to linked chest
     [[nodiscard]] RE::TESObjectREFR* GetRealContainerChest(const RE::TESObjectREFR* real_container) const;
     [[nodiscard]] RE::TESObjectREFR* GetFakeContainerChest(const RE::TESObjectREFR* fake_container);
-    [[nodiscard]] RefID GetFakeContainerChest(FormID fake_id);
 
     [[nodiscard]] uint32_t GetNoChests() const;
 
-    [[nodiscard]] std::vector<RefID> ConnectedChests(RefID chestRef);
+    [[nodiscard]] std::vector<RefID> GetConnectedChests(RefID chestID);
 
     [[nodiscard]] bool IsUnownedChest(RefID refid) const;
 
@@ -64,10 +63,10 @@ class Manager : public SaveLoadData {
 
     std::vector<FormID> RemoveAllItemsFromChest(RE::TESObjectREFR* chest, RE::TESObjectREFR* move2ref = nullptr);
 
-    std::vector<FormID> DeRegisterChest(RefID chest_ref);
+    void DeRegisterChest(RefID chest_ref);
 
     // OK. from real container formid to linked source
-    [[nodiscard]] Source* GetContainerSource(FormID container_formid);
+    [[nodiscard]] Source* GetContainerSource(FormID real_id);
 
     // returns true only if the item is in the inventory with positive count. removes the item if it is in the inventory with 0 count
     [[nodiscard]] static bool HasItemPlusCleanUp(RE::TESBoundObject* item, RE::TESObjectREFR* item_owner);
@@ -103,18 +102,11 @@ class Manager : public SaveLoadData {
 
     void Init();
 
-
     template <typename T>
     FormID CreateFakeContainer(T* realcontainer, RefID connected_chest, RE::ExtraDataList*);
 
     // Creates new form for fake container // pre 0.7.1: and adds it to unownedChestOG
     FormID CreateFakeContainer(RE::TESBoundObject* container, RefID connected_chest, RE::ExtraDataList* el);
-
-    
-
-
-    // external refid is in one of the source data. unownedchests are allowed
-    [[nodiscard]] bool ExternalContainerIsRegistered(RefID external_container_id);
 
     // for the cases when real container is in its chest and fake container is in some other inventory (player,unownedchest,external_container)
     // DOES NOT UPDATE THE SOURCE DATA and CHESTTOFAKECONTAINER !!!
@@ -146,10 +138,12 @@ class Manager : public SaveLoadData {
 public:
 
     [[nodiscard]] RefID GetRealContainerChestID(RefID real_refid) const;
+    [[nodiscard]] RefID GetFakeContainerChestID(FormID fake_id);
     RE::TESBoundObject* GetFakeBound(RefID chest_id) const;
     void HandlePickup(RE::TESObjectREFR* picked_up_by, RE::TESObjectREFR * a_object);
 	void HandleDrop(RE::TESObjectREFR* fake_object);
     void DeRegister(FormID fake_id);
+    void UpdateData(RefID chestID, RefID loc_id);
 
     explicit Manager(const std::vector<Source>& data) : sources(data) { Init(); }
 
@@ -188,10 +182,6 @@ public:
 
     // if the src with this formid has some data, then we say it has registry
     [[nodiscard]] bool RealContainerHasRegistry(FormID realcontainer_formid) const;
-
-    // external container can be found in the values of src.data
-    [[nodiscard]] bool ExternalContainerIsRegistered(FormID fake_container_formid,
-                                                     RefID external_container_id);
 
     void HandleCraftingExit();
 

@@ -66,7 +66,7 @@ void Manager::HandleDrop(RE::TESObjectREFR* fake_object)
 		if (real_fake_id.innerKey == fake_object->GetBaseObject()->GetFormID()) {
 			const auto real_bound = RE::TESForm::LookupByID<RE::TESBoundObject>(real_fake_id.outerKey);
 			WorldObject::SwapObjects(fake_object, real_bound, false);
-			GetContainerSource(real_fake_id.outerKey)->data.at(chest_refid) = fake_object->GetFormID();
+            UpdateData(chest_refid,fake_object->GetFormID());
             break;
 		}
 	}
@@ -74,9 +74,22 @@ void Manager::HandleDrop(RE::TESObjectREFR* fake_object)
 
 void Manager::DeRegister(const FormID fake_id)
 {
-	if (const auto chest_refid = GetFakeContainerChest(fake_id)) {
+	if (const auto chest_refid = GetFakeContainerChestID(fake_id)) {
 		DeRegisterChest(chest_refid);
 	}
+}
+
+void Manager::UpdateData(const RefID chestID, const RefID loc_id)
+{
+    if (ChestToFakeContainer.contains(chestID)) {
+		const auto real_id = ChestToFakeContainer.at(chestID).outerKey;
+		const auto src = GetContainerSource(real_id);
+		src->data.at(chestID) = loc_id;
+        
+    }
+    else {
+		logger::error("Chest ID not found in ChestToFakeContainer.");
+    }
 }
 
 bool Manager::RealContainerHasRegistry(const FormID realcontainer_formid) const
@@ -104,7 +117,7 @@ bool Manager::ActivateChest(RE::TESObjectREFR* chest, const char* chest_name) {
 
 void Manager::ActivateContainer(const FormID fakeid, const bool hide_real) {
     logger::trace("ActivateContainer 2 args");
-    const auto chest_refid = GetFakeContainerChest(fakeid);
+    const auto chest_refid = GetFakeContainerChestID(fakeid);
     const auto chest = RE::TESForm::LookupByID<RE::TESObjectREFR>(chest_refid);
     const auto real_container_formid = FakeToRealContainer(fakeid)->GetFormID();
 	const auto real_bound = RE::TESForm::LookupByID<RE::TESBoundObject>(real_container_formid);
@@ -150,42 +163,36 @@ void Manager::HandleCraftingExit() {
             }
         }
     }
-
-
 }
 
 void Manager::HandleConsume(const FormID fake_formid) {
     logger::trace("HandleConsume");
     // check if player has the fake item
     // sometimes player does not have the fake item but it can still be there with count = 0.
-    const auto fake_obj = RE::TESForm::LookupByID<RE::TESBoundObject>(fake_formid);
-    if (!fake_obj) return RaiseMngrErr("Fake object not found.");
-        
-    // the cleanup might actually not be necessary since DeRegisterChest will remove it from player
-    if (HasItemPlusCleanUp(fake_obj,player_ref)) return; // false alarm
-    // ok. player does not have the fake item.
-    // make sure unownedOG does not have it in inventory
-    // < v0.7.1
-    //if (HasItemPlusCleanUp(fake_obj, unownedChestOG)) { // false alarm???
-    //    logger::warn("UnownedchestOG has item.");
-    //    return;
-    //}
+    if (const auto fake_obj = RE::TESForm::LookupByID<RE::TESBoundObject>(fake_formid)) {
+        // the cleanup might actually not be necessary since DeRegisterChest will remove it from player
+        if (RE::PlayerCharacter::GetSingleton()->GetItemCount(fake_obj)>0) {
+            if (const auto real_obj = FakeToRealContainer(fake_formid)) {
+                const auto chest_refid = GetFakeContainerChestID(fake_formid);
+                const auto chest_ref = RE::TESForm::LookupByID<RE::TESObjectREFR>(chest_refid);
 
-    // make also sure that the real counterpart is still in unowned
-    const auto chest_refid = GetFakeContainerChest(fake_formid);
-    const auto chest_ref = RE::TESForm::LookupByID<RE::TESObjectREFR>(chest_refid);
-    const auto real_obj = FakeToRealContainer(fake_formid);
-    if (!real_obj) return RaiseMngrErr("Real counterpart not found.");
-    if (!Inventory::HasItem(real_obj, chest_ref)) return RaiseMngrErr("Real counterpart not found in unowned chest.");
-        
-    logger::info("Deregistering bcs Item consumed.");
-    RemoveItem(chest_ref, nullptr, real_obj, RE::ITEM_REMOVE_REASON::kRemove);
-    for (const auto temp_formids = DeRegisterChest(chest_refid); auto& temp_formid : temp_formids){
-        if (const auto temp_bound = RE::TESForm::LookupByID<RE::TESBoundObject>(temp_formid)){
-            RE::SendUIMessage::SendInventoryUpdateMessage(player_ref, temp_bound);
+                // make also sure that the real counterpart is still in unowned
+                if (!Inventory::HasItem(real_obj, chest_ref)) return RaiseMngrErr("Real counterpart not found in unowned chest.");
+                    
+                logger::info("Deregistering bcs Item consumed.");
+                RemoveItem(chest_ref, nullptr, real_obj, RE::ITEM_REMOVE_REASON::kRemove);
+                DeRegisterChest(chest_refid);
+                RE::SendUIMessage::SendInventoryUpdateMessage(player_ref, nullptr);
+                
+            }
+            else {
+				logger::error("Real counterpart not found.");
+            }
         }
     }
-
+    else {
+		logger::error("Fake object not found.");
+    }
 }
 
 bool Manager::IsCONT(const RefID refid) {
@@ -242,17 +249,17 @@ uint32_t Manager::GetNoChests() const {
     return no_chests;
 }
 
-std::vector<RefID> Manager::ConnectedChests(const RefID chestRef) {
+std::vector<RefID> Manager::GetConnectedChests(const RefID chestID) {
     std::vector<RefID> connected_chests;
-    for (const auto& [chest_ref, cont_ref] : ChestToFakeContainer) {
-        const auto src = GetContainerSource(cont_ref.outerKey);
-        if (!src) {
-            logger::error("Source not found for formid: {:x}", cont_ref.outerKey);
-            continue;
+    for (const auto& [a_chestID, cont_ref] : ChestToFakeContainer) {
+        if (const auto src = GetContainerSource(cont_ref.outerKey)) {
+            if (chestID != a_chestID && src->data.at(a_chestID) == chestID) {
+                connected_chests.push_back(a_chestID);
+            }
         }
-        if (chestRef != chest_ref && src->data[chest_ref] == chestRef) {
-            connected_chests.push_back(chest_ref);
-        }
+		else {
+			logger::error("Source not found for formid: {:x}", cont_ref.outerKey);
+		}
     }
     return connected_chests;
 }
@@ -315,7 +322,7 @@ RE::TESObjectREFR* Manager::FindNotMatchedChest() const {
     return AddChest(GetNoChests());
 }
 
-RefID Manager::GetFakeContainerChest(const FormID fake_id) {
+RefID Manager::GetFakeContainerChestID(const FormID fake_id) {
 
     for (const auto& [chest_ref, cont_forms] : ChestToFakeContainer) {
         if (cont_forms.innerKey == fake_id) return chest_ref;
@@ -393,48 +400,40 @@ std::vector<FormID> Manager::RemoveAllItemsFromChest(RE::TESObjectREFR* chest, R
     return removed_objects;
 }
 
-std::vector<FormID> Manager::DeRegisterChest(const RefID chest_ref) {
+void Manager::DeRegisterChest(const RefID chest_ref) {
 
     logger::info("Deregistering chest");
 
-    std::vector<FormID> removed_stuff;
     const auto chest = RE::TESForm::LookupByID<RE::TESObjectREFR>(chest_ref);
     if (!chest) {
         RaiseMngrErr("Chest not found");
-        return removed_stuff;
+        return;
     }
     const auto src = GetContainerSource(ChestToFakeContainer[chest_ref].outerKey);
     if (!src) {
         RaiseMngrErr("Source not found");
-        return removed_stuff;
+        return;
     }
-    removed_stuff = RemoveAllItemsFromChest(chest, player_ref);
-    // also remove the associated fake item from player or unowned chest// (<0.7.1)
-    //auto fake_id = ChestToFakeContainer[chest_ref].innerKey;
-    //if (fake_id) {
-    //    RemoveItem(player_ref, nullptr, fake_id, RE::ITEM_REMOVE_REASON::kRemove);
-    //    RemoveItem(unownedChestOG, nullptr, fake_id, RE::ITEM_REMOVE_REASON::kRemove); 
-    //}
+    RemoveAllItemsFromChest(chest, player_ref);
+
     if (!src->data.erase(chest_ref)) {
         RaiseMngrErr("Failed to remove chest refid from source");
-        return removed_stuff;
+        return;
     }
     if (!ChestToFakeContainer.erase(chest_ref)) {
         RaiseMngrErr("Failed to erase chest refid from ChestToFakeContainer");
-        return removed_stuff;
+        return;
     }
     // make sure no item is left in the chest
     if (!chest->GetInventory().empty()) {
         RaiseMngrErr("Chest still has items in it. Degistering failed");
-        return removed_stuff;
+        return;
     }   
-
-    return removed_stuff;
 }
 
-Source* Manager::GetContainerSource(const FormID container_formid) {
+Source* Manager::GetContainerSource(const FormID real_id) {
     for (auto& src : sources) {
-        if (src.formid == container_formid) {
+        if (src.formid == real_id) {
             return &src;
         }
     }
@@ -635,7 +634,7 @@ void Manager::HandleSell(const FormID fake_container, const RefID sell_refid) {
 
     if (const auto sell_ref = RE::TESForm::LookupByID<RE::TESObjectREFR>(sell_refid)) {
         // add the real container to the vendor from the unownedchest
-        const auto chest_refid = GetFakeContainerChest(fake_container);
+        const auto chest_refid = GetFakeContainerChestID(fake_container);
         if (const auto chest = RE::TESForm::LookupByID<RE::TESObjectREFR>(chest_refid)) {
 			const auto fake_bound = RE::TESForm::LookupByID<RE::TESBoundObject>(fake_container);
             RemoveItem(sell_ref, nullptr, fake_bound, RE::ITEM_REMOVE_REASON::kRemove);
@@ -713,16 +712,12 @@ void Manager::OnActivateContainer(RE::TESObjectREFR* a_container) {
 void Manager::HandleFakePlacement(RE::TESObjectREFR* external_cont) {
     logger::trace("HandleFakePlacement");
     // if the external container is already handled (handled_external_conts) return
-    if (const auto it = std::find(handled_external_conts.begin(), handled_external_conts.end(), external_cont->GetFormID()); it != handled_external_conts.end()) return;
-        
+    if (const auto it = std::ranges::find(handled_external_conts, external_cont->GetFormID()); it != handled_external_conts.end()) return;
     if (!external_cont) return RaiseMngrErr("external_cont is null");
-    if (IsRealContainer(external_cont)) return;
     if (!external_cont->HasContainer()) return;
-    if (!ExternalContainerIsRegistered(external_cont->GetFormID())) return;
     if (IsUnownedChest(external_cont->GetFormID())) return;
+    if (!IsARegistry(external_cont->GetFormID())) return;
 
-
-    if (!external_cont) return RaiseMngrErr("external_cont is null");
     for (auto& src : sources) {
         if (!Functions::containsValue(src.data, external_cont->GetFormID())) continue;
         for (const auto& [chest_ref, cont_ref] : src.data) {
@@ -803,30 +798,6 @@ bool Manager::IsARegistry(const RefID registry) const {
         }
     }
     return false;
-}
-
-bool Manager::ExternalContainerIsRegistered(const RefID external_container_id) {
-    logger::trace("ExternalContainerIsRegistered");
-    if (!external_container_id) return false;
-    if (!RE::TESForm::LookupByID<RE::TESObjectREFR>(external_container_id)->HasContainer()) {
-        RaiseMngrErr("External container does not have a container.");
-        return false;
-    }
-    return IsARegistry(external_container_id);
-}
-
-bool Manager::ExternalContainerIsRegistered(const FormID fake_container_formid, const RefID external_container_id) {
-    logger::trace("ExternalContainerIsRegistered2");
-    if (!external_container_id) return false;
-    if (!RE::TESForm::LookupByID<RE::TESObjectREFR>(external_container_id)) return false;
-    if (!RE::TESForm::LookupByID<RE::TESObjectREFR>(external_container_id)->HasContainer()) {
-        RaiseMngrErr("External container does not have a container.");
-        return false;
-    }
-    const auto real_container_formid = FakeToRealContainer(fake_container_formid)->GetFormID();
-    const auto src = GetContainerSource(real_container_formid);
-    if (!src) return false;
-    return Functions::containsValue(src->data,external_container_id);
 }
 
 void Manager::qTRICK_(const SourceDataKey chest_ref, const SourceDataVal cont_ref, const bool fake_nonexistent) {
@@ -911,16 +882,17 @@ void Manager::Something2(const RefID chest_ref, std::vector<RefID>& ha) {
     // ha: handled already
     if (std::ranges::find(ha, chest_ref) != ha.end()) return;
     logger::info("-------------------chest_ref: {:x} -------------------", chest_ref);
-    for (const auto connected_chests = ConnectedChests(chest_ref); const auto& connected_chest : connected_chests) {
+    for (const auto connected_chests = GetConnectedChests(chest_ref); const auto& connected_chest : connected_chests) {
         logger::info("Connected chest: {}", connected_chest);
         Something2(connected_chest,ha);
         //ha.push_back(connected_chest);
     }
-    const auto src = GetContainerSource(ChestToFakeContainer[chest_ref].outerKey);
-    if (!src) return RaiseMngrErr("Could not find source for container");
-    FakePlacement(src->data[chest_ref], chest_ref);
-    ha.push_back(chest_ref);
-    logger::info("-------------------chest_ref: {:x} DONE -------------------", chest_ref);
+    if (const auto src = GetContainerSource(ChestToFakeContainer.at(chest_ref).outerKey)) {
+        FakePlacement(src->data.at(chest_ref), chest_ref);
+        ha.push_back(chest_ref);
+        logger::info("-------------------chest_ref: {:x} DONE -------------------", chest_ref);
+    }
+    else return RaiseMngrErr("Could not find source for container");
         
 }
 
@@ -1671,7 +1643,7 @@ void Manager::ReceiveData() {
             continue;
         }
         if (auto fake_formid = (*it)->object->GetFormID(); IsFakeContainer(fake_formid)) {
-			const auto fakecontainerchestid = GetFakeContainerChest(fake_formid);
+			const auto fakecontainerchestid = GetFakeContainerChestID(fake_formid);
             const auto [is_equipped_x,is_faved_x ] = chest_equipped_fav[fakecontainerchestid];
             if (is_equipped_x) {
                 logger::trace("Equipping fake container with formid {:x}", fake_formid);

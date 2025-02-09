@@ -31,8 +31,16 @@ void Hooks::MoveItemHooks<RefType>::pickUpObject(RefType * a_this, RE::TESObject
 template<typename RefType>
 void Hooks::MoveItemHooks<RefType>::addObjectToContainer(RefType* a_this, RE::TESBoundObject* a_object, RE::ExtraDataList* a_extraList, std::int32_t a_count, RE::TESObjectREFR* a_fromRefr)
 {
-	logger::info("Object {} {:x} added to {} {:x} from {} {:x}", a_object->GetName(), a_object->GetFormID(),
-		a_this->GetName(), a_this->GetFormID(), a_fromRefr->GetName(), a_fromRefr->GetFormID());
+	if (!a_this || !a_object || a_count > 1 || !a_object->IsDynamicForm()) {
+		return add_object_to_container_(a_this, a_object, a_extraList, a_count, a_fromRefr);
+	}
+
+    /*logger::trace("Object {} {:x} added to {} {:x} from {} {:x}", a_object->GetName(), a_object->GetFormID(),
+		a_this->GetName(), a_this->GetFormID(), a_fromRefr->GetName(), a_fromRefr->GetFormID());*/
+
+	if (const auto chest_id = M->GetFakeContainerChestID(a_object->GetFormID())) {
+		M->UpdateData(chest_id,a_this->GetFormID());
+	}
     return add_object_to_container_(a_this, a_object, a_extraList, a_count, a_fromRefr);
 }
 
@@ -52,7 +60,7 @@ RE::ObjectRefHandle * Hooks::MoveItemHooks<RefType>::RemoveItem(RefType * a_this
 	}
 	if (!a_move_to_ref) {
         if (const auto a_formid = a_item->GetFormID(); M->IsFakeContainer(a_formid)) {
-			M->DeRegister(a_formid);
+			M->HandleConsume(a_formid);
 	    }
 	}
 
