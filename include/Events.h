@@ -26,13 +26,7 @@ public:
     explicit ConversationCallbackFunctor(Manager* mngr) : M(mngr) {}
 };
 
-class OurEventSink final : public RE::BSTEventSink<RE::TESEquipEvent>,
-                           public RE::BSTEventSink<RE::TESActivateEvent>,
-                           public RE::BSTEventSink<SKSE::CrosshairRefEvent>,
-                           public RE::BSTEventSink<RE::MenuOpenCloseEvent>,
-                           public RE::BSTEventSink<RE::TESFurnitureEvent>,
-                           public RE::BSTEventSink<RE::TESContainerChangedEvent>,
-                           public RE::BSTEventSink<RE::InputEvent*>,
+class OurEventSink final : public RE::BSTEventSink<RE::TESFurnitureEvent>,
                            public RE::BSTEventSink<RE::TESFormDeleteEvent> {
 
     OurEventSink() = default;
@@ -46,28 +40,19 @@ class OurEventSink final : public RE::BSTEventSink<RE::TESEquipEvent>,
 	std::atomic<bool> listen_menu_close = true;
 
 
-    FormID fake_equipped_id = 0;
-	FormID fake_id_ = 0;
-
-	bool equipped = false;
 
     std::string ReShowMenu;
 
     RE::NiPointer<RE::TESObjectREFR> furniture;
 
     RE::BSEventNotifyControl OnRename() const;
-    RE::BSEventNotifyControl ToggleEquipOpenContainer();
-    void ReShow();
-    bool HideMenuOnEquipHeld();
 
 public:
 
 	std::atomic<bool> block_eventsinks = false;
-	std::atomic<bool> listen_crosshair_ref = true;
 	std::atomic<bool> furniture_entered = false;
 	std::atomic<bool> listen_weight_limit = false;
     Manager* M = nullptr;
-    RefID external_container_refid = 0;  // set in input event
 
     explicit OurEventSink(Manager* mngr)
         :  M(mngr){}
@@ -83,28 +68,8 @@ public:
 
     void Reset();
 
-	// for opening container from inventory
-    RE::BSEventNotifyControl ProcessEvent(const RE::TESEquipEvent* event, RE::BSTEventSource<RE::TESEquipEvent>*) override;
-
-    // Prompts Messagebox
-    RE::BSEventNotifyControl ProcessEvent(const RE::TESActivateEvent* event,
-                                          RE::BSTEventSource<RE::TESActivateEvent>*) override;
-
-    // to disable ref activation and external container-fake container placement
-    RE::BSEventNotifyControl ProcessEvent(const SKSE::CrosshairRefEvent* event,
-                                          RE::BSTEventSource<SKSE::CrosshairRefEvent>*) override;
-
-    // to close chest and save the contents and remove items
-    RE::BSEventNotifyControl ProcessEvent(const RE::MenuOpenCloseEvent* event,
-                                          RE::BSTEventSource<RE::MenuOpenCloseEvent>*) override;
-
     RE::BSEventNotifyControl ProcessEvent(const RE::TESFurnitureEvent* event,
                                           RE::BSTEventSource<RE::TESFurnitureEvent>*) override;
-
-    RE::BSEventNotifyControl ProcessEvent(const RE::TESContainerChangedEvent* event,
-                                          RE::BSTEventSource<RE::TESContainerChangedEvent>*) override;
-
-    RE::BSEventNotifyControl ProcessEvent(RE::InputEvent* const* evns, RE::BSTEventSource<RE::InputEvent*>*) override;
 
     RE::BSEventNotifyControl ProcessEvent(const RE::TESFormDeleteEvent* a_event,
                                           RE::BSTEventSource<RE::TESFormDeleteEvent>*) override;

@@ -28,14 +28,8 @@ void OnMessage(SKSE::MessagingInterface::Message* message) {
         if (!M || !eventSink) return;
         // EventSink
         auto* eventSourceHolder = RE::ScriptEventSourceHolder::GetSingleton();
-        //eventSourceHolder->AddEventSink<RE::TESEquipEvent>(eventSink);
-        //eventSourceHolder->AddEventSink<RE::TESActivateEvent>(eventSink);
-        //eventSourceHolder->AddEventSink<RE::TESContainerChangedEvent>(eventSink);
         eventSourceHolder->AddEventSink<RE::TESFurnitureEvent>(eventSink);
         eventSourceHolder->AddEventSink<RE::TESFormDeleteEvent>(eventSink);
-        RE::UI::GetSingleton()->AddEventSink<RE::MenuOpenCloseEvent>(eventSink);
-        /*RE::BSInputDeviceManager::GetSingleton()->AddEventSink(eventSink);
-        SKSE::GetCrosshairRefEventSource()->AddEventSink(eventSink);*/
         eventsinks_added = true;
     }
 }
