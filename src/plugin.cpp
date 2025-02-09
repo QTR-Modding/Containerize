@@ -2,7 +2,6 @@
 
 Manager* M = nullptr;
 OurEventSink* eventSink;
-bool eventsinks_added = false;
 
 void OnMessage(SKSE::MessagingInterface::Message* message) {
     if (message->type == SKSE::MessagingInterface::kDataLoaded) {
@@ -21,16 +20,14 @@ void OnMessage(SKSE::MessagingInterface::Message* message) {
         eventSink = OurEventSink::GetSingleton(M);
         UI::Register(M);
         logger::info("MCP registered.");
-    }
-    if (message->type == SKSE::MessagingInterface::kPostLoadGame ||
-        message->type == SKSE::MessagingInterface::kNewGame) {
-        if (eventsinks_added) return;
-        if (!M || !eventSink) return;
-        // EventSink
+
         auto* eventSourceHolder = RE::ScriptEventSourceHolder::GetSingleton();
         eventSourceHolder->AddEventSink<RE::TESFurnitureEvent>(eventSink);
         eventSourceHolder->AddEventSink<RE::TESFormDeleteEvent>(eventSink);
-        eventsinks_added = true;
+		logger::info("EventSinks added.");
+    }
+    if (message->type == SKSE::MessagingInterface::kPostLoadGame ||
+        message->type == SKSE::MessagingInterface::kNewGame) {
     }
 }
 

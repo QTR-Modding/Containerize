@@ -163,7 +163,6 @@ public:
 	std::atomic<bool> isUninstalled = false;
 	std::atomic<bool> listen_menu_close = false;
     std::atomic<bool> listen_activate = true;
-    std::atomic<bool> listen_container_change = true;
 
 
     void OnActivateContainer(RE::TESObjectREFR* a_container);
@@ -196,10 +195,6 @@ public:
     [[nodiscard]] bool ExternalContainerIsRegistered(FormID fake_container_formid,
                                                      RefID external_container_id);
 
-    void UnLinkExternalContainer(FormID fake_container_formid, RefID externalcontainer);
-
-    [[nodiscard]] bool SwapDroppedFakeContainer(RE::TESObjectREFR* ref_fake);
-
     void HandleCraftingExit();
 
     void HandleConsume(FormID fake_formid);
@@ -212,9 +207,6 @@ public:
 
     // checks if the refid is in the ChestToFakeContainer, i.e. if it is an unownedchest
     [[nodiscard]] bool IsChest(const RefID chest_refid) const { return ChestToFakeContainer.contains(chest_refid); }
-
-    // Register an external container (technically could be another unownedchest of another of our containers) to the source data so that chestrefid of currentcontainer -> external container
-    static void LinkExternalContainer(FormID fakecontainer, RefID externalcontainer_refid);
 
     void InspectItemTransfer(RefID chest_refid, FormID item_id);
 
@@ -236,27 +228,22 @@ public:
 
 template <typename T>
 void Manager::UpdateFakeWV(T* fake_form, RE::TESObjectREFR* chest_linked, float weight_ratio) {
-    logger::trace("UpdateFakeWV");
-        
+
     // assumes base container is already in the chest
     if (!chest_linked || !fake_form) return RaiseMngrErr("Failed to get chest.");
     const auto fake_formid = fake_form->GetFormID();
     auto real_container = FakeToRealContainer(fake_formid);
-    logger::trace("Copying from real container to fake container. Real container: {}, Fake container: {}",
-                  real_container->GetFormID(), fake_formid);
     fake_form->Copy(real_container->As<T>());
-    logger::trace("Copied from real container to fake container");
-    logger::trace("if it was renamed, rename it back");
     if (!renames.empty() && renames.count(fake_formid)) fake_form->fullName = renames[fake_form->GetFormID()];
 
     if (weight_ratio > 0.f) FunctionsSkyrim::FormTraits<T>::SetWeight(fake_form, weight_ratio*chest_linked->GetWeightInContainer() + (1-weight_ratio)*real_container->GetWeight());
 
     auto chest_inventory = chest_linked->GetInventory();
-#ifndef NDEBUG
-    for (auto& [key, value] : chest_inventory) {
-        logger::trace("Item: {}, Count: {}", key->GetName(), value.first);
-    }
-#endif
+//#ifndef NDEBUG
+//    for (auto& [key, value] : chest_inventory) {
+//        logger::trace("Item: {}, Count: {}", key->GetName(), value.first);
+//    }
+//#endif
 
     // get the ench costoverride of fake in player inventory
 
@@ -264,18 +251,13 @@ void Manager::UpdateFakeWV(T* fake_form, RE::TESObjectREFR* chest_linked, float 
     const int target_value = Inventory::GetValueInContainer(chest_linked);
 
     if (other_settings[Settings::otherstuffKeys[3]]) {
-        logger::trace("VALUE BEFORE {}", x_0);
         auto temp_entry = chest_inventory.find(real_container);
         const auto extracost = Inventory::EntryHasXData(temp_entry->second.second.get()) ? xData::GetXDataCostOverride(temp_entry->second.second->extraLists->front()) : 0;
-        logger::trace("extracost {}", extracost);
         x_0 = target_value - extracost;
-        logger::trace("VALUE AFTER {}", x_0);
     }
     x_0 = std::max(x_0, 0);
 
-    logger::trace("Setting weight and value for fake form");
     FunctionsSkyrim::FormTraits<T>::SetValue(fake_form, x_0);
-    logger::trace("ACTUAL VALUE {}", FunctionsSkyrim::FormTraits<T>::GetValue(fake_form));
         
     if (!Inventory::HasItem(fake_form, player_ref) || x_0 == 0) return;
 
@@ -283,10 +265,7 @@ void Manager::UpdateFakeWV(T* fake_form, RE::TESObjectREFR* chest_linked, float 
     if (!fake_bound) return RaiseMngrErr("Fake bound is null");
     const int f_0 = Inventory::GetItemValue(fake_bound, player_ref->GetInventory());
     int f_search = f_0;
-    logger::trace("Value in inventory: {}, Target value: {}", f_0, target_value);
-    //if (f_0 <= target_value) return;
 
-    logger::trace("Player has the fake form, try to correct the value");
     // do binary search to find the correct value up to a tolerance
     constexpr float tolerance = 0.01f; // 1%
     const float tolerance_val = std::max(2.0f, std::floor(tolerance * target_value) + 1);  // at least 2
@@ -296,9 +275,6 @@ void Manager::UpdateFakeWV(T* fake_form, RE::TESObjectREFR* chest_linked, float 
     int lower_bound = 0;
     int upper_bound = x_0;
     int x_search = (lower_bound + upper_bound) / 2;
-
-    logger::trace("Value in inventory: {}", f_search);
-    logger::trace("x_0: {}", x_0);
 
     while (std::abs(f_search - target_value) > tolerance_val && curr_iter > 0) {
         FunctionsSkyrim::FormTraits<T>::SetValue(fake_form, x_search);
@@ -315,8 +291,6 @@ void Manager::UpdateFakeWV(T* fake_form, RE::TESObjectREFR* chest_linked, float 
         x_search = new_x_search;
         curr_iter--;
     }
-
-    logger::trace("iter: {}", max_iter - curr_iter);
 
     if (curr_iter == 0) {
         logger::warn("Max iterations reached.");

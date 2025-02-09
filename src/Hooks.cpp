@@ -31,7 +31,8 @@ void Hooks::MoveItemHooks<RefType>::pickUpObject(RefType * a_this, RE::TESObject
 template<typename RefType>
 void Hooks::MoveItemHooks<RefType>::addObjectToContainer(RefType* a_this, RE::TESBoundObject* a_object, RE::ExtraDataList* a_extraList, std::int32_t a_count, RE::TESObjectREFR* a_fromRefr)
 {
-	return add_object_to_container_(a_this, a_object, a_extraList, a_count, a_fromRefr);
+	logger::info("Object {} added to {} from {}", a_object->GetName(), a_this->GetName(), a_fromRefr->GetName());
+    return add_object_to_container_(a_this, a_object, a_extraList, a_count, a_fromRefr);
 }
 
 template<typename RefType>
