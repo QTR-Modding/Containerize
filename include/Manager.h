@@ -184,8 +184,6 @@ public:
 
     void ActivateContainer(FormID fakeid, bool hide_real = false);
 
-    void UnHideReal(FormID fakeid);
-
     [[nodiscard]] bool IsARegistry(RefID registry) const;
 
     // if the src with this formid has some data, then we say it has registry
@@ -303,8 +301,6 @@ void Manager::UpdateFakeWV(T* fake_form, RE::TESObjectREFR* chest_linked, float 
 
 template <typename T>
 FormID Manager::CreateFakeContainer(T* realcontainer, const RefID connected_chest, RE::ExtraDataList*) {
-    logger::trace("CreateFakeContainer");
-    //new_form = realcontainer->CreateDuplicateForm(true, (void*)new_form)->As<T>();
     const auto real_container_formid = realcontainer->GetFormID();
     const auto real_container_editorid = clib_util::editorID::get_editorID(realcontainer);
     if (real_container_editorid.empty()) {
@@ -321,7 +317,5 @@ FormID Manager::CreateFakeContainer(T* realcontainer, const RefID connected_ches
     new_form->fullName = realcontainer->GetFullName();
     logger::info("Created form with type: {}, Base ID: {:x}, Name: {}",
                  RE::FormTypeToString(new_form->GetFormType()), new_form_id, new_form->GetName());
-    //unownedChestOG->AddObjectToContainer(new_form, extralist, 1, nullptr); // pre 0.7.1
-
     return new_form_id;
 }

@@ -143,7 +143,7 @@ std::string GetEditorID(const FormID a_formid) {
     return "";
 }
 
-FormID GetFormEditorIDFromString(const std::string formEditorId)
+FormID GetFormEditorIDFromString(const std::string& formEditorId)
 {
     if (formEditorId.empty()) return 0;
     if (isValidHexWithLength7or8(formEditorId.c_str())) {
@@ -225,7 +225,6 @@ std::size_t FunctionsSkyrim::GetExtraDataListLength(const RE::ExtraDataList* dat
 
 
 bool xData::UpdateExtras(RE::TESObjectREFR* copy_from, RE::TESObjectREFR* copy_to) {
-    logger::trace("UpdateExtras");
     if (!copy_from || !copy_to) {
         logger::error("copy_from or copy_to is null");
         return false;
@@ -238,7 +237,6 @@ bool xData::UpdateExtras(RE::TESObjectREFR* copy_from, RE::TESObjectREFR* copy_t
 
 bool xData::UpdateExtras(RE::ExtraDataList* copy_from, RE::ExtraDataList* copy_to)
 {
-    logger::trace("UpdateExtras");
     if (!copy_from || !copy_to) return false;
     // Enchantment
     if (copy_from->HasType(RE::ExtraDataType::kEnchantment)) {
@@ -610,14 +608,8 @@ int Inventory::GetValueInContainer(RE::TESObjectREFR* container) {
     for (auto inventory = container->GetInventory(); auto& [fst, snd] : inventory) {
 		if (snd.first <= 0) continue;
         auto gold_value = fst->GetGoldValue();
-        logger::trace("Gold value: {}", gold_value);
         total_value += gold_value * snd.first;
         int extra_costs = 0;
-        /*if (auto ench = it->second.second->GetEnchantment()) {
-            auto costoverride = ench->GetData()->costOverride;
-            logger::trace("Base enchantment cost: {}", costoverride);
-            extra_costs += costoverride;
-        }*/
         extra_costs += GetEntryCostOverride(snd.second.get());
         total_value += extra_costs;
     }
@@ -965,7 +957,7 @@ void xData::Copy::CopyOwnership(const RE::ExtraOwnership* from, RE::ExtraOwnersh
 	to->owner = from->owner;
 }
 
-void MsgBoxesNotifs::SkyrimMessageBox::Show(const std::string& bodyText, std::vector<std::string> buttonTextValues, std::function<void(unsigned int)> callback)
+void MsgBoxesNotifs::SkyrimMessageBox::Show(const std::string& bodyText, const std::vector<std::string>& buttonTextValues, std::function<void(unsigned int)> callback)
 {
     const auto* factoryManager = RE::MessageDataFactoryManager::GetSingleton();
     const auto* uiStringHolder = RE::InterfaceStrings::GetSingleton();

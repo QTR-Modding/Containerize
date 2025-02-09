@@ -2,8 +2,6 @@
 #include <windows.h>
 #include "ClibUtil/editorID.hpp"
 #include "SimpleIni.h"
-#include <unordered_set>
-#include <ranges>
 
 
 bool GetDllVersion(const std::wstring& dllPath, DWORD& major, DWORD& minor, DWORD& build, DWORD& revision);
@@ -50,7 +48,7 @@ static T* GetFormByID(const RE::FormID id, const std::string& editor_id="") {
 };
 
 std::string GetEditorID(const FormID a_formid);
-FormID GetFormEditorIDFromString(const std::string formEditorId);
+FormID GetFormEditorIDFromString(const std::string& formEditorId);
 
 namespace Functions {
 
@@ -190,7 +188,7 @@ namespace MsgBoxesNotifs {
         };
 
     public:
-        static void Show(const std::string& bodyText, std::vector<std::string> buttonTextValues,
+        static void Show(const std::string& bodyText, const std::vector<std::string>& buttonTextValues,
                          std::function<void(unsigned int)> callback);
     };
 

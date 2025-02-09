@@ -1,6 +1,7 @@
 #pragma once
 #include "CustomObjects.h"
 #include <yaml-cpp/yaml.h>
+#include <unordered_set>
 
 namespace Settings {
 

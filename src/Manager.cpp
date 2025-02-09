@@ -11,7 +11,6 @@ void Manager::SendReal(RE::TESBoundObject* real_obj, RE::TESObjectREFR* chest) {
 }
 
 RE::TESBoundObject* Manager::FakeToRealContainer(const FormID fake) {
-    logger::trace("FakeToRealContainer");
     for (const auto& cont_forms : ChestToFakeContainer | std::views::values) {
         if (cont_forms.innerKey == fake) {
             return RE::TESForm::LookupByID<RE::TESBoundObject>(cont_forms.outerKey);
@@ -127,18 +126,17 @@ void Manager::ActivateContainer(const FormID fakeid, const bool hide_real) {
 void Manager::HandleCraftingExit() {
     logger::trace("HandleCraftingExit");
 
-
     logger::trace("Crafting menu closed");
     for (auto& src : sources) {
         for (const auto& [chest_refid, cont_refid] : src.data) {
             // we trust that the player will leave the crafting menu at some point and everything will be reverted
-            if (chest_refid != cont_refid) continue;  // playerda deilse continue
-            const auto fake_formid = ChestToFakeContainer[chest_refid].innerKey;
+            if (cont_refid != 20) continue;  // playerda deilse continue
+            const auto fake_formid = ChestToFakeContainer.at(chest_refid).innerKey;
             const auto fake_bound = RE::TESForm::LookupByID<RE::TESBoundObject>(fake_formid);
             if (!fake_bound) return RaiseMngrErr("Fake bound not found.");
             const auto chest = RE::TESForm::LookupByID<RE::TESObjectREFR>(chest_refid);
             if (!chest) return RaiseMngrErr("Chest is null");
-            if (!Inventory::HasItem(fake_bound,player_ref)){
+            if (!Inventory::HasItem(fake_bound,player_ref)) {
                 // it can happen when using arcane enchanter to destroy the item
                 logger::info("Player does not have fake item. Probably destroyed in arcane enchanter.");
 				const auto real_bound = RE::TESForm::LookupByID<RE::TESBoundObject>(src.formid);
@@ -150,13 +148,6 @@ void Manager::HandleCraftingExit() {
                 logger::error("Failed to update extras in player's inventory.");
                 return;
             }
-                
-            /*auto fake_refhandle = RemoveItem(player_ref, nullptr, src.formid, RE::ITEM_REMOVE_REASON::kDropping);
-                auto fake_formid = ChestToFakeContainer[chest_ref].innerKey;*/
-            /*if (is_equipped[fake_formid]) EquipItem(fake_bound);
-                if (is_faved[fake_formid]) FaveItem(fake_bound);*/
-                
-            //FetchFake(nullptr, fake_formid, chest_ref, real_refhandle.get().get()); // (< v0.7.1)
         }
     }
 
@@ -204,7 +195,6 @@ bool Manager::IsCONT(const RefID refid) {
 }
 
 int Manager::GetChestValue(RE::TESObjectREFR* a_chest) {
-    logger::trace("GetChestValue");
     if (!a_chest) {
         RaiseMngrErr("Chest is null");
         return 0;
@@ -239,7 +229,6 @@ RE::TESObjectREFR* Manager::GetFakeContainerChest(const RE::TESObjectREFR* fake_
 }
 
 uint32_t Manager::GetNoChests() const {
-    logger::trace("Getting number of chests");
     uint32_t no_chests = 0;
     auto& runtimeData = unownedCell->GetRuntimeData();
     RE::BSSpinLockGuard locker(runtimeData.spinLock);
@@ -269,7 +258,6 @@ std::vector<RefID> Manager::ConnectedChests(const RefID chestRef) {
 }
 
 bool Manager::IsUnownedChest(const RefID refid) const {
-    logger::trace("IsUnownedChest");
     const auto* temp = RE::TESForm::LookupByID<RE::TESObjectREFR>(refid);
     if (!temp) return false;
     const auto base = temp->GetBaseObject();
@@ -277,7 +265,6 @@ bool Manager::IsUnownedChest(const RefID refid) const {
 }
 
 RE::TESObjectREFR* Manager::MakeChest(const RE::NiPoint3 Pos3) const {
-    logger::info("Making chest");
     const auto item = unownedChest->As<RE::TESBoundObject>();
 
     const auto newPropRef = RE::TESDataHandler::GetSingleton()
@@ -289,7 +276,6 @@ RE::TESObjectREFR* Manager::MakeChest(const RE::NiPoint3 Pos3) const {
 }
 
 RE::TESObjectREFR* Manager::AddChest(const uint32_t chest_no) const {
-    logger::trace("Adding chest");
     int total_chests = static_cast<int>(chest_no);
     total_chests += 1;
     /*int total_chests_x = (((total_chests - 1) + 2) % 5) - 2;
@@ -702,7 +688,6 @@ FormID Manager::CreateFakeContainer(RE::TESBoundObject* container, const RefID c
 }
 
 bool Manager::IsRealContainer(const FormID formid) const {
-    logger::trace("IsRealContainer");
 	return std::ranges::any_of(sources, [formid](const Source& src) { return src.formid == formid; });
 }
 
@@ -1097,7 +1082,6 @@ bool Manager::HandleRegistration(RE::TESObjectREFR* a_container) {
 }
 
 void Manager::MsgBoxCallback(const int result) {
-    logger::trace("Result: {}", result);
 
     if (result != 0 && result != 1 && result != 2 && result != 3) return;
 

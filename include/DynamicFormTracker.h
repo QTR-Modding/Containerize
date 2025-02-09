@@ -1,5 +1,6 @@
 #pragma once
 #include "Serialization.h"
+#include <ranges>
 
 struct ActEff {
     FormID baseFormid;
