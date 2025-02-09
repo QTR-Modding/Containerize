@@ -1,30 +1,5 @@
 #pragma once
-#include "Hooks.h"
 #include "Manager.h"
-
-// Thanks and credits to Bloc: https://discord.com/channels/874895328938172446/945560222670393406/1093262407989731338
-class ConversationCallbackFunctor final : public RE::BSScript::IStackCallbackFunctor {
-
-    std::string rename;
-	Manager* M;
-
-    void operator()(const RE::BSScript::Variable a_result) override {
-        if (a_result.IsNoneObject()) {
-            logger::trace("Result: None");
-        } else if (a_result.IsString()) {
-            rename = a_result.GetString();
-            logger::trace("Result: {}", rename);
-            if (!rename.empty()) {
-				M->RenameContainer(rename);
-			}
-        }
-    }
-
-    void SetObject(const RE::BSTSmartPointer<RE::BSScript::Object>&) override {}
-
-public:
-    explicit ConversationCallbackFunctor(Manager* mngr) : M(mngr) {}
-};
 
 class OurEventSink final : public RE::BSTEventSink<RE::TESFurnitureEvent>,
                            public RE::BSTEventSink<RE::TESFormDeleteEvent> {
@@ -37,9 +12,6 @@ class OurEventSink final : public RE::BSTEventSink<RE::TESFurnitureEvent>,
 
 
 	std::atomic<bool> block_droptake = false;
-	std::atomic<bool> listen_menu_close = true;
-
-
 
     std::string ReShowMenu;
 

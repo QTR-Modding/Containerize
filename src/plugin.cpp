@@ -1,3 +1,4 @@
+#include "Hooks.h"
 #include "MCP.h"
 
 Manager* M = nullptr;

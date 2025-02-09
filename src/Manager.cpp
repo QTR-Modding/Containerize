@@ -1,6 +1,8 @@
 #include "Manager.h"
 #include <ranges>
 
+#include "Events.h"
+
 void Manager::SendReal(RE::TESBoundObject* real_obj, RE::TESObjectREFR* chest) {
     const auto unownedChestOG = RE::TESForm::LookupByID<RE::TESObjectREFR>(unownedChestOGRefID);
     if (!unownedChestOG) return RaiseMngrErr("MsgBoxCallback unownedChestOG is null");
@@ -623,7 +625,10 @@ void Manager::Init() {
     const auto data_handler = RE::TESDataHandler::GetSingleton();
     if (!data_handler) return RaiseMngrErr("Data handler is null");
     if (!data_handler->LookupModByName("UIExtensions.esp")) uiextensions_is_present = false;
-    else uiextensions_is_present = true;
+
+    else {
+        uiextensions_is_present = true;
+    }
         
 
     logger::info("Manager initialized.");
@@ -750,7 +755,7 @@ void Manager::RenameContainer(const std::string& new_name) {
 
     logger::trace("RenameContainer");
     if (!current_container) {
-		logger::trace("Current container is null");
+		logger::error("Current container is null");
 		return;
     }
     const auto chest = GetRealContainerChest(current_container);
@@ -779,6 +784,7 @@ void Manager::RenameContainer(const std::string& new_name) {
 
     // if reopeninitialmenu is true, then PromptInterface
     if (other_settings[Settings::otherstuffKeys[2]]) PromptInterface();
+    else MsgBoxCallback(3);
 }
 
 void Manager::HandleContainerMenuExit() { 
@@ -1116,28 +1122,35 @@ void Manager::MsgBoxCallbackMore(const int result) {
 
     // Rename
     if (result == 0) {
-            
         if (!uiextensions_is_present) return MsgBoxCallback(3);
-            
-        // Thanks and credits to Bloc: https://discord.com/channels/874895328938172446/945560222670393406/1093262407989731338
-        const auto skyrimVM = RE::SkyrimVM::GetSingleton();
-        if (const auto vm = skyrimVM ? skyrimVM->impl : nullptr) {
-            RE::TESForm* emptyForm = nullptr;
-            RE::TESForm* emptyForm2 = nullptr;
-            RE::BSTSmartPointer<RE::BSScript::IStackCallbackFunctor> callback;
-            const char* menuID = "UITextEntryMenu";
-            const char* container_name =
-                RE::TESForm::LookupByID<RE::TESBoundObject>(
-                    ChestToFakeContainer[GetRealContainerChest(current_container)->GetFormID()].innerKey)
-                ->GetName();
-            const char* property_name = "text";
-            const auto args = RE::MakeFunctionArguments(std::move(menuID), std::move(emptyForm), std::move(emptyForm2));
-            const auto args2 =
-                RE::MakeFunctionArguments(std::move(menuID), std::move(property_name), std::move(container_name));
-            if (vm->DispatchStaticCall("UIExtensions", "SetMenuPropertyString", args2, callback)) {
-                if (vm->DispatchStaticCall("UIExtensions", "OpenMenu", args, callback)) listen_menu_close.store(true);
-            }
-        }
+        const char* menuID = "UITextEntryMenu";
+        const char* property_name = "text";
+        const char* container_name =
+            RE::TESForm::LookupByID<RE::TESBoundObject>(
+                ChestToFakeContainer.at(GetRealContainerChest(current_container)->GetFormID()).innerKey)
+            ->GetName();
+        if (Papyrus::CallFunction("UIExtensions","SetMenuPropertyString",menuID,property_name,container_name)) {
+            const auto skyrimVM = RE::SkyrimVM::GetSingleton();
+            if (const auto vm = skyrimVM ? skyrimVM->impl : nullptr) {
+                RE::TESForm* emptyForm = nullptr;
+                RE::TESForm* emptyForm2 = nullptr;
+                const auto args = RE::MakeFunctionArguments(std::move(menuID), std::move(emptyForm),
+                                                            std::move(emptyForm2));
+                RE::BSTSmartPointer<RE::BSScript::IStackCallbackFunctor> callback(new RenameCallbackFunctor(this));
+			    if (!vm->DispatchStaticCall("UIExtensions", "OpenMenu", args, callback)) {
+					logger::error("Failed to call UIExtensions OpenMenu.");
+					MsgBoxCallback(3);
+			    }
+		    }
+			else {
+				logger::error("Failed to get SkyrimVM.");
+				MsgBoxCallback(3);
+			}
+		}
+		else {
+			logger::error("Failed to call UIExtensions functions.");
+			MsgBoxCallback(3);
+		}
         return;
     }
 
@@ -1482,7 +1495,6 @@ void Manager::Reset() {
     Clear();
     //handled_external_conts.clear();
     current_container = nullptr;
-    listen_menu_close.store(false);
     listen_activate.store(true);
     isUninstalled.store(false);
     logger::info("Manager reset.");

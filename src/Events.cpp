@@ -1,18 +1,5 @@
 #include "Events.h"
 
-RE::BSEventNotifyControl OurEventSink::OnRename() const {
-    logger::trace("Rename menu closed.");
-    M->listen_menu_close.store(false);
-    const auto skyrimVM = RE::SkyrimVM::GetSingleton();
-    const auto vm = skyrimVM ? skyrimVM->impl : nullptr;
-    if (!vm) return RE::BSEventNotifyControl::kContinue;
-    const char* menuID = "UITextEntryMenu";
-    RE::BSTSmartPointer<RE::BSScript::IStackCallbackFunctor> callback(new ConversationCallbackFunctor(M));
-    const auto args = RE::MakeFunctionArguments(std::move(menuID));
-    vm->DispatchStaticCall("UIExtensions", "GetMenuResultString", args, callback);
-    return RE::BSEventNotifyControl::kContinue;
-}
-
 void OurEventSink::Reset() {
 	ReShowMenu = "";
 	furniture = nullptr;

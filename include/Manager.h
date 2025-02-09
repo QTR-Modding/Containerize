@@ -3,7 +3,6 @@
 #include <algorithm>
 #include <shared_mutex>
 
-
 class Manager : public SaveLoadData {
     // private variables
     const std::vector<std::string> buttons = {"Open", "Take", "More...", "Close"};
@@ -31,6 +30,62 @@ class Manager : public SaveLoadData {
     std::vector<RefID> handled_external_conts; // runtime specific to prevent unnecessary checks in HandleFakePlacement
     std::map<FormID,std::string> renames;  // runtime specific, custom names for fake containers
     std::pair<RE::TESBoundObject*, RefID> real_to_sendback = {nullptr,0};  // pff
+
+    class RenameCallbackFunctor final : public RE::BSScript::IStackCallbackFunctor {
+
+		void operator()(const RE::BSScript::Variable a_result) override {
+            OnRename();
+        }
+
+        void OnRename() const {
+            logger::trace("Rename menu closed.");
+            const auto skyrimVM = RE::SkyrimVM::GetSingleton();
+            if (const auto vm = skyrimVM ? skyrimVM->impl : nullptr) {
+                const char* menuID = "UITextEntryMenu";
+                RE::BSTSmartPointer<RE::BSScript::IStackCallbackFunctor> callback(new ConversationCallbackFunctor(M));
+                const auto args = RE::MakeFunctionArguments(std::move(menuID));
+                if (!vm->DispatchStaticCall("UIExtensions", "GetMenuResultString", args, callback)) {
+			        M->MsgBoxCallback(3);
+                }
+            }
+            else {
+                M->MsgBoxCallback(3);
+            }
+        }
+
+        void SetObject(const RE::BSTSmartPointer<RE::BSScript::Object>&) override {}
+
+		Manager* M = nullptr;
+
+    public:
+		explicit RenameCallbackFunctor(Manager* mngr) : M(mngr) {}
+    };
+
+    // Thanks and credits to Bloc: https://discord.com/channels/874895328938172446/945560222670393406/1093262407989731338
+    class ConversationCallbackFunctor final : public RE::BSScript::IStackCallbackFunctor {
+
+        std::string rename;
+	    Manager* M;
+
+        void operator()(const RE::BSScript::Variable a_result) override {
+            if (a_result.IsNoneObject()) {
+                logger::trace("Result: None");
+            } else if (a_result.IsString()) {
+                rename = a_result.GetString();
+                logger::trace("Result rename: {}", rename);
+                if (!rename.empty()) {
+				    M->RenameContainer(rename);
+                    return;
+			    }
+            }
+            M->MsgBoxCallback(3);
+        }
+
+        void SetObject(const RE::BSTSmartPointer<RE::BSScript::Object>&) override {}
+
+    public:
+        explicit ConversationCallbackFunctor(Manager* mngr) : M(mngr) {}
+    };
 
 
     void SendReal(RE::TESBoundObject* real_obj, RE::TESObjectREFR* chest);
@@ -75,7 +130,7 @@ class Manager : public SaveLoadData {
     static RE::ObjectRefHandle RemoveItem(RE::TESObjectREFR* moveFrom, RE::TESObjectREFR* moveTo, RE::TESBoundObject* a_item,
                                           RE::ITEM_REMOVE_REASON reason);
 
-    [[nodiscard]] bool PickUpItem(RE::TESObjectREFR* item, unsigned int max_try = 3);
+    [[nodiscard]] static bool PickUpItem(RE::TESObjectREFR* item, unsigned int max_try = 3);
 
     // Removes the object from the world and adds it to an inventory
     [[nodiscard]] static bool MoveObject(RE::TESObjectREFR* ref, RE::TESObjectREFR* move2container, bool owned = true);
@@ -155,7 +210,6 @@ public:
     const char* GetType() override { return "Manager"; }
 
 	std::atomic<bool> isUninstalled = false;
-	std::atomic<bool> listen_menu_close = false;
     std::atomic<bool> listen_activate = true;
 
 

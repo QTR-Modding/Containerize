@@ -50,6 +50,43 @@ static T* GetFormByID(const RE::FormID id, const std::string& editor_id="") {
 std::string GetEditorID(const FormID a_formid);
 FormID GetFormEditorIDFromString(const std::string& formEditorId);
 
+namespace Papyrus {
+
+    using VM = RE::BSScript::Internal::VirtualMachine;
+    using ObjectPtr = RE::BSTSmartPointer<RE::BSScript::Object>;
+
+    inline RE::VMHandle GetHandle(const RE::TESForm* a_form)
+    {
+	    const auto vm = VM::GetSingleton();
+	    const auto policy = vm->GetObjectHandlePolicy();
+	    return policy->GetHandleForObject(a_form->GetFormType(), a_form);
+    }
+
+    inline ObjectPtr GetObjectPtr(const RE::TESForm* a_form, const char* a_class, const bool a_create) {
+	    const auto vm = VM::GetSingleton();
+	    const auto handle = GetHandle(a_form);
+
+	    ObjectPtr object = nullptr;
+        if (const bool found = vm->FindBoundObject(handle, a_class, object); !found && a_create) {
+		    vm->CreateObject2(a_class, object);
+		    vm->BindObject(object, handle, false);
+	    }
+	    return object;
+    }
+
+    template <class... Args>
+	bool CallFunction(const std::string_view functionClass, const std::string_view function, Args... a_args)
+	{
+		const auto skyrimVM = RE::SkyrimVM::GetSingleton();
+        if (const auto vm = skyrimVM ? skyrimVM->impl : nullptr) {
+			RE::BSTSmartPointer<RE::BSScript::IStackCallbackFunctor> callback;
+			auto args = RE::MakeFunctionArguments(std::forward<Args>(a_args)...);
+			return vm->DispatchStaticCall(std::string(functionClass).c_str(), std::string(function).c_str(), args, callback);
+		}
+		return false;
+	}
+}
+
 namespace Functions {
 
     template <typename Key, typename Value>
@@ -145,7 +182,7 @@ namespace FunctionsSkyrim {
         static int GetValue(RE::TESAmmo* form) {
 			return form->value;
 		}
-        static void SetValue(RE::TESAmmo* form, int value) {
+        static void SetValue(RE::TESAmmo* form, const int value) {
 			form->value = value;
 		}
     };
@@ -156,21 +193,20 @@ namespace FunctionsSkyrim {
             return form->weight;
         }
 
-        static void SetWeight(RE::AlchemyItem* form, float weight) { 
+        static void SetWeight(RE::AlchemyItem* form, const float weight) { 
             form->weight = weight;
         }
 
         static int GetValue(RE::AlchemyItem* form) {
         	return form->GetGoldValue();
         }
-        static void SetValue(RE::AlchemyItem* form, int value) { 
+        static void SetValue(RE::AlchemyItem* form, const int value) { 
             logger::trace("CostOverride: {}", form->data.costOverride);
             form->data.costOverride = value;
         }
     };
 
 }
-
 
 namespace MsgBoxesNotifs {
 
@@ -264,7 +300,7 @@ namespace Inventory {
 
     void EquipItem(const RE::TESBoundObject* item, bool unequip = false);
 
-    inline void EquipItem(const FormID formid, bool unequip = false) {
+    inline void EquipItem(const FormID formid, const bool unequip = false) {
 	    EquipItem(GetFormByID<RE::TESBoundObject>(formid), unequip);
     }
 
@@ -276,7 +312,6 @@ namespace Inventory {
 
 };
 
-
 namespace WorldObject {
 
     RE::TESObjectREFR* DropObjectIntoTheWorld(RE::TESBoundObject* obj, Count count=1, bool player_owned=true);
@@ -286,7 +321,7 @@ namespace WorldObject {
     inline void StartDraggingObject(RE::TESObjectREFR* ref) {
         using func_t = void(*)(RE::TESObjectREFR*);
         static auto ObjectManipulationOverhaul = GetModuleHandle(L"ObjectManipulationOverhaul");
-        func_t func = reinterpret_cast<func_t>(GetProcAddress(ObjectManipulationOverhaul, "StartDraggingObject"));
+        const func_t func = reinterpret_cast<func_t>(GetProcAddress(ObjectManipulationOverhaul, "StartDraggingObject"));
         return func(ref);
     }
 };
