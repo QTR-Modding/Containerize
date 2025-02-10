@@ -1,9 +1,6 @@
 #include "Manager.h"
 #include <ranges>
 
-#include "Events.h"
-#include "Hooks.h"
-
 void Manager::SendReal(RE::TESBoundObject* real_obj, RE::TESObjectREFR* chest) {
     const auto unownedChestOG = RE::TESForm::LookupByID<RE::TESObjectREFR>(unownedChestOGRefID);
     if (!unownedChestOG) return RaiseMngrErr("MsgBoxCallback unownedChestOG is null");
@@ -136,7 +133,7 @@ void Manager::HandleCraftingExit() {
     for (auto& src : sources) {
         for (const auto& [chest_refid, cont_refid] : src.data) {
             // we trust that the player will leave the crafting menu at some point and everything will be reverted
-            if (cont_refid != 20) continue;  // playerda deilse continue
+            if (cont_refid != 0x14) continue;  // playerda deilse continue
             const auto fake_formid = ChestToFakeContainer.at(chest_refid).innerKey;
             const auto fake_bound = RE::TESForm::LookupByID<RE::TESBoundObject>(fake_formid);
             if (!fake_bound) return RaiseMngrErr("Fake bound not found.");
@@ -687,23 +684,22 @@ void Manager::OnActivateContainer(RE::TESObjectREFR* a_container) {
 }
 
 void Manager::HandleFakePlacement(RE::TESObjectREFR* external_cont) {
-    logger::trace("HandleFakePlacement");
     // if the external container is already handled (handled_external_conts) return
     if (const auto it = std::ranges::find(handled_external_conts, external_cont->GetFormID()); it != handled_external_conts.end()) return;
-    if (!external_cont) return RaiseMngrErr("external_cont is null");
     if (!external_cont->HasContainer()) return;
     if (IsUnownedChest(external_cont->GetFormID())) return;
-    if (!IsARegistry(external_cont->GetFormID())) return;
+
+	const auto refid = external_cont->GetFormID();
+    if (!IsARegistry(refid)) return;
 
     for (auto& src : sources) {
-        if (!Functions::containsValue(src.data, external_cont->GetFormID())) continue;
         for (const auto& [chest_ref, cont_ref] : src.data) {
-            if (external_cont->GetFormID() != cont_ref) continue;
-            FakePlacement(src.data[chest_ref], chest_ref, external_cont);
+            if (refid != cont_ref) continue;
+            FakePlacement(src.data.at(chest_ref), chest_ref, external_cont);
             // break yok cunku baska fakeler de external_cont un icinde olabilir
         }
     }
-    handled_external_conts.push_back(external_cont->GetFormID());
+    handled_external_conts.push_back(refid);
 }
 
 bool Manager::IsFakeContainer(const FormID formid) {
@@ -912,7 +908,7 @@ void Manager::FakePlacement(const RefID saved_ref, const RefID chest_ref, RE::TE
     // bu sadece load sirasinda
     // ya playerda olcak ya da unownedlardan birinde (containerception)
     // bu ikisi disindaki seylere load_game safhasinda bisey yapamiyorum external_cont nullptr sa
-    if (!external_cont && chest_ref != saved_ref && !IsChest(saved_ref)) return;
+    if (!external_cont && chest_ref != 0x14 && !IsChest(saved_ref)) return;
 
     // saved_ref should not be realcontainer out in the world!
     if (IsRealContainer(external_cont)) {
@@ -921,7 +917,8 @@ void Manager::FakePlacement(const RefID saved_ref, const RefID chest_ref, RE::TE
     }
 
     // external cont mu yoksa ya playerda ya da unownedlardan birinde miyi anliyoruz
-    const RefID cont_ref = chest_ref == saved_ref ? 0x14 : saved_ref; // only changing in the case of indication of player has fake container
+    // pre 0.10: //const RefID cont_ref = chest_ref == saved_ref ? 0x14 : saved_ref; // only changing in the case of indication of player has fake container
+    const RefID cont_ref = saved_ref;
     const auto cont_of_fakecont = external_cont ? external_cont : RE::TESForm::LookupByID<RE::TESObjectREFR>(cont_ref);
     if (!cont_of_fakecont) return RaiseMngrErr("cont_of_fakecont not found");
 
@@ -949,8 +946,9 @@ void Manager::FakePlacement(const RefID saved_ref, const RefID chest_ref, RE::TE
         qTRICK_(chest_ref, cont_ref);
     }
         
-    // yani playerda deilse
-    if (chest_ref != saved_ref) {
+    // (pre 0.10) yani playerda deilse
+    //if (chest_ref != saved_ref) {
+    if (saved_ref != 0x14) {
 		const auto fake_bound_2 = RE::TESForm::LookupByID<RE::TESBoundObject>(ChestToFakeContainer[chest_ref].innerKey);
         RemoveItem(player_ref, cont_of_fakecont, fake_bound_2,
                    RE::ITEM_REMOVE_REASON::kStoreInContainer);
@@ -1488,7 +1486,7 @@ void Manager::SendData() {
             bool is_favorited_x = false;
             if (!chest_ref) return RaiseMngrErr("Chest refid is null");
             auto fake_formid = ChestToFakeContainer[chest_ref].innerKey;
-            if (chest_ref == cont_ref) {
+            if (cont_ref == 0x14) {
                 const auto fake_bound = RE::TESForm::LookupByID<RE::TESBoundObject>(fake_formid);
                 is_equipped_x = Inventory::IsEquipped(fake_bound);
                 is_favorited_x = Inventory::IsFavorited(fake_bound,player_ref);
@@ -1537,7 +1535,7 @@ void Manager::ReceiveData() {
                                 chestRef, realcontForm, fakecontForm.id));
             }
             if (!fakecontForm.name.empty()) renames[fakecontForm.id] = fakecontForm.name;
-            if (chestRef == contRef) chest_equipped_fav[chestRef] = {fakecontForm.equipped, fakecontForm.favorited};
+            if (contRef == 0x14) chest_equipped_fav[chestRef] = {fakecontForm.equipped, fakecontForm.favorited};
             else if (fakecontForm.favorited) external_favs.push_back(fakecontForm.id);
             no_match = false;
             break;
