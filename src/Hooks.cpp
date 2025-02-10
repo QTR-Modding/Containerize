@@ -80,15 +80,7 @@ bool Hooks::HandleEquip(RE::InputEvent* event)
 						}
 					}
 					else {
-						if (Inventory::IsEquipped(selected_item)) {
-							logger::info("Unequipping item.");
-							RE::ActorEquipManager::GetSingleton()->UnequipObject(player,selected_item);
-						}
-						else {
-							logger::info("Equipping item.");
-						    RE::ActorEquipManager::GetSingleton()->EquipObject(
-							    player, selected_item);
-						}
+						Inventory::ToggleEquip(selected_item);
 					}
 					RE::SendUIMessage::SendInventoryUpdateMessage(player,nullptr);
 				}
