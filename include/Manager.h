@@ -164,7 +164,7 @@ class Manager : public SaveLoadData {
     void qTRICK_(SourceDataKey chest_ref, SourceDataVal cont_ref,bool fake_nonexistent = false);
 
     // places fakes according to loaded data to player or unowned chests
-    void Something2(const RefID chest_ref, std::vector<RefID>& ha);
+    void FakePlacementCeption(const RefID chest_ref, std::vector<RefID>& ha);
 
     void FakePlacement(RefID saved_ref, RefID chest_ref, RE::TESObjectREFR* external_cont = nullptr);
 

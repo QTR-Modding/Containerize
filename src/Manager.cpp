@@ -222,11 +222,11 @@ uint32_t Manager::GetNoChests() const {
 }
 
 std::vector<RefID> Manager::GetConnectedChests(const RefID chestID) {
-    std::vector<RefID> connected_chests;
-    for (const auto& [a_chestID, cont_ref] : ChestToFakeContainer) {
+    std::vector<RefID> connected_chests; // chestID nin icindeki chestler
+    for (const auto& [a_chest_id, cont_ref] : ChestToFakeContainer) {
         if (const auto src = GetContainerSource(cont_ref.outerKey)) {
-            if (chestID != a_chestID && src->data.at(a_chestID) == chestID) {
-                connected_chests.push_back(a_chestID);
+            if (chestID != a_chest_id && src->data.at(a_chest_id) == chestID) {
+                connected_chests.push_back(a_chest_id);
             }
         }
 		else {
@@ -882,15 +882,14 @@ void Manager::qTRICK_(const SourceDataKey chest_ref, const SourceDataVal cont_re
     if (other_settings[Settings::otherstuffKeys[1]]) RemoveCarryWeightBoost(fake_formid, to_inv);
 }
 
-void Manager::Something2(const RefID chest_ref, std::vector<RefID>& ha) {
+void Manager::FakePlacementCeption(const RefID chest_ref, std::vector<RefID>& ha) {
 
     // ha: handled already
     if (std::ranges::find(ha, chest_ref) != ha.end()) return;
     logger::info("-------------------chest_ref: {:x} -------------------", chest_ref);
     for (const auto connected_chests = GetConnectedChests(chest_ref); const auto& connected_chest : connected_chests) {
-        logger::info("Connected chest: {}", connected_chest);
-        Something2(connected_chest,ha);
-        //ha.push_back(connected_chest);
+        logger::info("Connected chest: {:x}", connected_chest);
+        FakePlacementCeption(connected_chest,ha);
     }
     if (const auto src = GetContainerSource(ChestToFakeContainer.at(chest_ref).outerKey)) {
         FakePlacement(src->data.at(chest_ref), chest_ref);
@@ -902,8 +901,6 @@ void Manager::Something2(const RefID chest_ref, std::vector<RefID>& ha) {
 }
 
 void Manager::FakePlacement(const RefID saved_ref, const RefID chest_ref, RE::TESObjectREFR* external_cont) {
-
-    logger::trace("FakePlacement");
 
     // bu sadece load sirasinda
     // ya playerda olcak ya da unownedlardan birinde (containerception)
@@ -1485,19 +1482,17 @@ void Manager::SendData() {
             bool is_equipped_x = false;
             bool is_favorited_x = false;
             if (!chest_ref) return RaiseMngrErr("Chest refid is null");
-            auto fake_formid = ChestToFakeContainer[chest_ref].innerKey;
+            auto fake_formid = ChestToFakeContainer.at(chest_ref).innerKey;
             if (cont_ref == 0x14) {
                 const auto fake_bound = RE::TESForm::LookupByID<RE::TESBoundObject>(fake_formid);
                 is_equipped_x = Inventory::IsEquipped(fake_bound);
                 is_favorited_x = Inventory::IsFavorited(fake_bound,player_ref);
                 if (const auto chest = RE::TESForm::LookupByID<RE::TESObjectREFR>(chest_ref); !chest) return RaiseMngrErr("Chest not found");
-                /*if (!UpdateExtrasInInventory(player_ref, fake_formid, chest, src.formid)) {
-						logger::error("Failed to update extras in player's inventory.");
-					}*/
             } 
             // check if the fake container is faved in an external container
-            else {
-                if (auto it = std::ranges::find(external_favs, fake_formid); it != external_favs.end()) is_favorited_x = true;
+            else if (auto it = std::ranges::find(external_favs, fake_formid); 
+                it != external_favs.end()) {
+                is_favorited_x = true;
             }
             const auto rename_ = renames.contains(fake_formid) ? renames[fake_formid] : "";
             FormIDX fake_container_x(ChestToFakeContainer[chest_ref].innerKey, is_equipped_x, is_favorited_x, rename_);
@@ -1508,6 +1503,7 @@ void Manager::SendData() {
 }
 
 void Manager::ReceiveData() {
+
     logger::info("--------Receiving data---------");
 
     std::map<RefID,std::pair<bool,bool>> chest_equipped_fav;
@@ -1581,7 +1577,7 @@ void Manager::ReceiveData() {
         if (std::ranges::find(handled_already, chest_ref) != handled_already.end()) {
             continue;
         }
-        Something2(chest_ref,handled_already);
+        FakePlacementCeption(chest_ref,handled_already);
         const auto _real_fid = ChestToFakeContainer[chest_ref].outerKey;
         const auto real_editorid = GetEditorID(_real_fid);
         if (real_editorid.empty()) {
@@ -1620,13 +1616,10 @@ void Manager::ReceiveData() {
             if (is_equipped_x) {
                 logger::trace("Equipping fake container with formid {:x}", fake_formid);
                 Inventory::EquipItem((*it)->object);
-                /*RE::ActorEquipManager::GetSingleton()->EquipObject(player_ref->As<RE::Actor>(), (*it)->object, 
-                        nullptr,1,(const RE::BGSEquipSlot*)nullptr,true,false,false,false);*/
             }
             if (is_faved_x) {
                 logger::trace("Favoriting fake container with formid {:x}", fake_formid);
                 Inventory::FavoriteItem((*it)->object,player_ref);
-                //inventory_changes->SetFavorite((*it), (*it)->extraLists->front());
             }
 			if (const auto src = GetContainerSource(ChestToFakeContainer[fakecontainerchestid].outerKey)) {
 				if (const auto fakecontainer_chest = RE::TESForm::LookupByID<RE::TESObjectREFR>(fakecontainerchestid)) {
