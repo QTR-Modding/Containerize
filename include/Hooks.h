@@ -13,6 +13,7 @@ namespace Hooks {
 
     inline bool HandleEquip(RE::InputEvent* event);
     RE::TESBoundObject* GetSelectedItemInMenu();
+	inline std::atomic_bool equip_was_pressed = false;
 
     struct InputHook {
 		static void thunk(RE::BSTEventSource<RE::InputEvent*>* a_dispatcher, RE::InputEvent* const* a_event);

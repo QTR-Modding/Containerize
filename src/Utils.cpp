@@ -736,6 +736,17 @@ bool Inventory::IsEquipped(RE::TESBoundObject* item)
     return false;
 }
 
+void Inventory::ToggleEquip(RE::TESBoundObject* item)
+{
+	const auto player = RE::PlayerCharacter::GetSingleton();
+    if (Inventory::IsEquipped(item)) {
+		RE::ActorEquipManager::GetSingleton()->UnequipObject(player,item);
+	}
+	else {
+		RE::ActorEquipManager::GetSingleton()->EquipObject(player, item);
+	}
+}
+
 RE::TESObjectREFR* WorldObject::DropObjectIntoTheWorld(RE::TESBoundObject* obj, const Count count, const bool player_owned)
 {
     const auto player_ch = RE::PlayerCharacter::GetSingleton();

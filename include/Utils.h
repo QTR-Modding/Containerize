@@ -310,6 +310,8 @@ namespace Inventory {
 	    return IsEquipped(GetFormByID<RE::TESBoundObject>(formid));
     }
 
+    void ToggleEquip(RE::TESBoundObject* item);
+
 };
 
 namespace WorldObject {

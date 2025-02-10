@@ -21,22 +21,76 @@ void Hooks::Install()
 bool Hooks::HandleEquip(RE::InputEvent* event)
 {
 #undef GetObject
+	const auto ui = RE::UI::GetSingleton();
+	if (!ui->IsMenuOpen(RE::ContainerMenu::MENU_NAME) &&
+		!ui->IsMenuOpen(RE::InventoryMenu::MENU_NAME)&&
+		!ui->IsMenuOpen(RE::FavoritesMenu::MENU_NAME)) {
+		equip_was_pressed.store(false);
+		return false;
+	}
+
 	const auto user_events = RE::UserEvents::GetSingleton();
     if (const auto button_event = event->AsButtonEvent()) {
+		//logger::info("HandleEquip event. {}",button_event->userEvent);
 		if (const auto user_event = button_event->userEvent;
 			user_event == user_events->accept ||
 			user_event == user_events->leftEquip ||
 			user_event == user_events->rightEquip
 			) {
+			if (button_event->IsDown()) {
+				equip_was_pressed.store(true);
+			}
+			if (!equip_was_pressed.load()) {
+				return false;
+			}
 			if (const auto selected_item = GetSelectedItemInMenu(); 
 				selected_item && M->IsFakeContainer(selected_item->GetFormID())) {
 				if (button_event->HeldDuration()>0.25f) {
 					M->OnLongPressEquip(selected_item);
 				}
 				else if (button_event->IsUp()) {
-					button_event->value = 1.f;
-					button_event->heldDownSecs = 0.f;
-					return false;
+					const auto player = RE::PlayerCharacter::GetSingleton();
+					if (ui->IsMenuOpen(RE::ContainerMenu::MENU_NAME)) {
+						RE::TESObjectREFRPtr refr_container;
+						if (LookupReferenceByHandle(RE::ContainerMenu::GetTargetRefHandle(), refr_container)) {
+						    const auto container_menu = ui->GetMenu<RE::ContainerMenu>();
+						    const auto item_list = container_menu->GetRuntimeData().itemList;
+							for (const auto a_item : item_list->items) {
+								if (a_item->data.objDesc->GetObject()->GetFormID() == selected_item->GetFormID()) {
+                                    if (RE::TESObjectREFRPtr refr_owner; LookupReferenceByHandle(a_item->data.owner,refr_owner)) {
+									    if (refr_owner->IsPlayerRef()) {
+											if (user_event == user_events->leftEquip || user_event == user_events->rightEquip) {
+												Inventory::ToggleEquip(selected_item);
+											}
+											else {
+											    refr_owner->RemoveItem(selected_item,1,RE::ITEM_REMOVE_REASON::kStoreInContainer,nullptr,refr_container.get());
+											}
+									    }
+										else {
+										    refr_owner->RemoveItem(selected_item,1,RE::ITEM_REMOVE_REASON::kStoreInContainer,nullptr,player);
+											if (user_event == user_events->leftEquip || user_event == user_events->rightEquip) {
+											    Inventory::ToggleEquip(selected_item);
+											}
+										}
+									}
+									break;
+								}
+							}
+					        RE::SendUIMessage::SendInventoryUpdateMessage(refr_container.get(),nullptr);
+						}
+					}
+					else {
+						if (Inventory::IsEquipped(selected_item)) {
+							logger::info("Unequipping item.");
+							RE::ActorEquipManager::GetSingleton()->UnequipObject(player,selected_item);
+						}
+						else {
+							logger::info("Equipping item.");
+						    RE::ActorEquipManager::GetSingleton()->EquipObject(
+							    player, selected_item);
+						}
+					}
+					RE::SendUIMessage::SendInventoryUpdateMessage(player,nullptr);
 				}
 			    return true;
 			}
@@ -147,6 +201,7 @@ RE::ObjectRefHandle * Hooks::MoveItemHooks<RefType>::RemoveItem(RefType * a_this
 	}
 	if (!a_move_to_ref) {
         if (const auto a_formid = a_item->GetFormID(); M->IsFakeContainer(a_formid)) {
+			logger::info("Item removed from {} to nowhere for reason {}", a_this->GetName(), static_cast<int>(a_reason));
 			M->OnConsume(a_formid);
 	    }
 	}
@@ -224,19 +279,14 @@ bool Hooks::InputHook::ProcessInput(RE::InputEvent* event)
 			}
 		}
     }
-	block |= HandleEquip(event);
-	return block;
+	return block ? block : HandleEquip(event);
 }
 
 bool Hooks::InputHook::IsOtherButtonHeld(RE::InputEvent* const* a_event) {
-	bool one_button_held = false;
 	for (auto current = *a_event; current; current = current->next) {
 		if (const auto button_event = current->AsButtonEvent()) {
-			if (one_button_held) {
-				return true;
-			}
 			if (button_event->IsHeld()) {
-				one_button_held = true;
+				return true;
 			}
 		}
 	}
