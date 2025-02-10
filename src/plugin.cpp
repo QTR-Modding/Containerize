@@ -25,6 +25,7 @@ void OnMessage(SKSE::MessagingInterface::Message* message) {
         auto* eventSourceHolder = RE::ScriptEventSourceHolder::GetSingleton();
         eventSourceHolder->AddEventSink<RE::TESFurnitureEvent>(eventSink);
         eventSourceHolder->AddEventSink<RE::TESFormDeleteEvent>(eventSink);
+		SKSE::GetCrosshairRefEventSource()->AddEventSink(eventSink);
 		logger::info("EventSinks added.");
     }
     if (message->type == SKSE::MessagingInterface::kPostLoadGame ||

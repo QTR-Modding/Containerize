@@ -7,6 +7,14 @@ void OurEventSink::Reset() {
 	block_eventsinks.store(false);
 }
 
+RE::BSEventNotifyControl OurEventSink::ProcessEvent(const SKSE::CrosshairRefEvent* a_event, RE::BSTEventSource<SKSE::CrosshairRefEvent>*)
+{
+    if (const auto ref = a_event->crosshairRef.get()) {
+		M->HandleFakePlacement(ref);
+    }
+	return RE::BSEventNotifyControl::kContinue;
+}
+
 RE::BSEventNotifyControl OurEventSink::ProcessEvent(const RE::TESFurnitureEvent* event,
     RE::BSTEventSource<RE::TESFurnitureEvent>*) {
         

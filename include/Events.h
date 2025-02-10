@@ -2,6 +2,7 @@
 #include "Manager.h"
 
 class OurEventSink final : public RE::BSTEventSink<RE::TESFurnitureEvent>,
+                            public RE::BSTEventSink<SKSE::CrosshairRefEvent>,
                            public RE::BSTEventSink<RE::TESFormDeleteEvent> {
 
     OurEventSink() = default;
@@ -34,6 +35,8 @@ public:
 	}
 
     void Reset();
+
+    RE::BSEventNotifyControl ProcessEvent(const SKSE::CrosshairRefEvent* a_event, RE::BSTEventSource<SKSE::CrosshairRefEvent>* a_eventSource) override;
 
     RE::BSEventNotifyControl ProcessEvent(const RE::TESFurnitureEvent* event,
                                           RE::BSTEventSource<RE::TESFurnitureEvent>*) override;
