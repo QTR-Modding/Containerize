@@ -38,7 +38,7 @@ RE::TESBoundObject* Manager::GetFakeBound(const RefID chest_id) const {
     return nullptr;
 }
 
-void Manager::HandlePickup(RE::TESObjectREFR* picked_up_by, RE::TESObjectREFR* a_object)
+void Manager::OnPickup(RE::TESObjectREFR* picked_up_by, RE::TESObjectREFR* a_object)
 {
     if (const auto chest = GetRealContainerChest(a_object)) {
 	    const auto src = GetContainerSource(a_object->GetBaseObject()->GetFormID());
@@ -47,7 +47,7 @@ void Manager::HandlePickup(RE::TESObjectREFR* picked_up_by, RE::TESObjectREFR* a
 			const auto fake_id = fake_bound->GetFormID();
 			src->data.at(chest_refid) = picked_up_by->GetFormID();
             WorldObject::SwapObjects(a_object, fake_bound,false);
-            UpdateFakeWV(RE::TESForm::LookupByID<RE::TESBoundObject>(fake_id), chest, src->weight_ratio);
+            UpdateFakeWV(fake_bound, chest, src->weight_ratio);
             if (other_settings[Settings::otherstuffKeys[1]]) {
 				auto ref_handle = picked_up_by->GetHandle();
 			    SKSE::GetTaskInterface()->AddTask([this, fake_id, ref_handle]() {
@@ -116,17 +116,6 @@ void Manager::OnLongPressEquip(const RE::TESBoundObject* a_selected_item)
 	}
 }
 
-bool Manager::RealContainerHasRegistry(const FormID realcontainer_formid) const
-{
-    for (const auto& src : sources) {
-        if (src.formid == realcontainer_formid) {
-            if (!src.data.empty()) return true;
-            break;
-        }
-	}
-	return false;
-}
-
 bool Manager::ActivateChest(const RE::TESObjectREFR* chest, const char* chest_name) const {
 
     unownedChest->fullName = chest_name;
@@ -169,8 +158,8 @@ void Manager::HandleCraftingExit() {
     }
 }
 
-void Manager::HandleConsume(const FormID fake_formid) {
-    logger::trace("HandleConsume");
+void Manager::OnConsume(const FormID fake_formid) {
+    logger::trace("OnConsume");
     // check if player has the fake item
     // sometimes player does not have the fake item but it can still be there with count = 0.
     if (const auto fake_obj = RE::TESForm::LookupByID<RE::TESBoundObject>(fake_formid)) {
@@ -199,12 +188,6 @@ void Manager::HandleConsume(const FormID fake_formid) {
     }
 }
 
-bool Manager::IsCONT(const RefID refid) {
-    logger::trace("IsCONT");
-    return RE::FormTypeToString(
-               RE::TESForm::LookupByID<RE::TESObjectREFR>(refid)->GetObjectReference()->GetFormType()) == "CONT";
-}
-
 int Manager::GetChestValue(RE::TESObjectREFR* a_chest) {
     if (!a_chest) {
         RaiseMngrErr("Chest is null");
@@ -225,18 +208,6 @@ RE::TESObjectREFR* Manager::GetRealContainerChest(const RE::TESObjectREFR* real_
 		return RE::TESForm::LookupByID<RE::TESObjectREFR>(chest_refid);
     }
     return nullptr;
-}
-
-RE::TESObjectREFR* Manager::GetFakeContainerChest(const RE::TESObjectREFR* fake_container)
-{
-	const RefID fake_refid = fake_container->GetFormID();
-	for (const auto& [chest_refid, cont_forms] : ChestToFakeContainer) {
-		if (cont_forms.innerKey == fake_refid) {
-			return RE::TESForm::LookupByID<RE::TESObjectREFR>(chest_refid);
-		}
-	}
-	return nullptr;
-
 }
 
 uint32_t Manager::GetNoChests() const {
@@ -541,7 +512,6 @@ void Manager::Uninstall() {
         MsgBoxesNotifs::InGame::UninstallFailed();
     }
 
-    listen_activate.store(true); // this one stays
     // set uninstalled flag to true
     isUninstalled.store(true);
 }
@@ -794,6 +764,8 @@ void Manager::OnContainerMenuExit() {
         const auto chest = RE::TESForm::LookupByID<RE::TESObjectREFR>(real_to_sendback.second);
         if (!chest) return RaiseMngrErr("OnContainerMenuExit: Chest is null");
         SendReal(real_to_sendback.first, chest);
+        const auto fake_bound = RE::TESForm::LookupByID<RE::TESBoundObject>(ChestToFakeContainer.at(real_to_sendback.second).innerKey);
+		fake_bound->formFlags = real_to_sendback.first->formFlags;
 		if (other_settings.at(Settings::otherstuffKeys[2])) {
             if (closed_menu == RE::ContainerMenu::MENU_NAME) {
 				SKSE::GetTaskInterface()->AddTask([this]() {
@@ -809,6 +781,7 @@ void Manager::OnContainerMenuExit() {
             }
             closed_menu = "";
 		}
+		UpdateFakeWV(ChestToFakeContainer.at(real_to_sendback.second).innerKey);
         real_to_sendback = {nullptr,0};
     }
 }
@@ -820,6 +793,8 @@ void Manager::OnContainerMenuEnter()
 		const auto chest = RE::TESForm::LookupByID<RE::TESObjectREFR>(real_to_sendback.second);
 		const auto unownedChestOG = RE::TESForm::LookupByID<RE::TESObjectREFR>(unownedChestOGRefID);
 		RemoveItem(chest, unownedChestOG, real_to_sendback.first, RE::ITEM_REMOVE_REASON::kStoreInContainer);
+		const auto fake_bound = RE::TESForm::LookupByID<RE::TESBoundObject>(ChestToFakeContainer.at(real_to_sendback.second).innerKey);
+		fake_bound->formFlags = 13;
     }
 	queued_real_to_sendback = { nullptr,0 };
 }
@@ -1402,6 +1377,25 @@ void Manager::UpdateFakeWV(RE::TESBoundObject* fake_form, RE::TESObjectREFR* che
         
 }
 
+void Manager::UpdateFakeWV(const FormID fake_formid)
+{
+	if (const auto fake_form = RE::TESForm::LookupByID<RE::TESBoundObject>(fake_formid)) {
+		const auto chestID = GetFakeContainerChestID(fake_formid);
+		if (const auto chestRef = RE::TESForm::LookupByID<RE::TESObjectREFR>(chestID)) {
+			if (const auto src = GetContainerSource(ChestToFakeContainer.at(chestID).outerKey)) {
+			    UpdateFakeWV(fake_form, chestRef, src->weight_ratio);
+			}
+			else {
+				logger::error("Source not found.");
+			}
+		}
+		else {
+			logger::error("Chest ref not found.");
+		}
+	    
+	}
+}
+
 bool Manager::UpdateExtrasInInventory(RE::TESObjectREFR* from_inv, const FormID from_item_formid,
                                       RE::TESObjectREFR* to_inv, const FormID to_item_formid) {
     const auto from_item = RE::TESForm::LookupByID<RE::TESBoundObject>(from_item_formid);
@@ -1429,17 +1423,6 @@ bool Manager::UpdateExtrasInInventory(RE::TESObjectREFR* from_inv, const FormID 
     } else {
         logger::warn("No extra data list found in from item in inventory");
         return true;
-        /*auto from_refhandle =
-                RemoveItem(from_inv, nullptr, from_item_formid, RE::ITEM_REMOVE_REASON::kDropping);
-            if (!from_refhandle) {
-                logger::error("Failed to remove item from inventory (from)");
-                return false;
-            }
-            logger::trace("from_refhandle.get().get()");
-            removed_from = true;
-            ref_from = from_refhandle.get().get();
-            extralist_from = &from_refhandle.get()->extraList;
-            logger::trace("extralist_from");*/
     }
     if (!extralist_from) {
         logger::warn("Extra data list is null (from)");
@@ -1481,8 +1464,6 @@ bool Manager::UpdateExtrasInInventory(RE::TESObjectREFR* from_inv, const FormID 
 
 void Manager::HandleFormDelete_(const RefID chest_refid) {
 
-    std::unique_lock lock(sharedMutex_);
-
     auto real_formid = ChestToFakeContainer[chest_refid].outerKey;
     if (const auto real_item = RE::TESForm::LookupByID<RE::TESBoundObject>(real_formid)) {
         const auto msg =
@@ -1521,7 +1502,6 @@ void Manager::Reset() {
     Clear();
     //handled_external_conts.clear();
     current_container = nullptr;
-    listen_activate.store(true);
     isUninstalled.store(false);
     logger::info("Manager reset.");
 }

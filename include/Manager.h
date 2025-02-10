@@ -15,7 +15,6 @@ class Manager : public SaveLoadData {
     // runtime specific
     std::map<RefID,FormFormID> ChestToFakeContainer; // chest refid -> {real container formid (outerKey), fake container formid (innerKey)}
     RE::TESObjectREFR* current_container = nullptr;
-    RE::TESObjectREFR* hidden_real_ref = nullptr;
 
     // unowned stuff
     const RefID unownedChestOGRefID = 0x000EA29A;
@@ -90,7 +89,6 @@ class Manager : public SaveLoadData {
         explicit ConversationCallbackFunctor(Manager* mngr) : M(mngr) {}
     };
 
-
     void SendReal(RE::TESBoundObject* real_obj, RE::TESObjectREFR* chest);
 
     [[nodiscard]] RE::TESBoundObject* FakeToRealContainer(FormID fake);
@@ -104,7 +102,6 @@ class Manager : public SaveLoadData {
 
     // from container out in the world to linked chest
     [[nodiscard]] RE::TESObjectREFR* GetRealContainerChest(const RE::TESObjectREFR* real_container) const;
-    [[nodiscard]] RE::TESObjectREFR* GetFakeContainerChest(const RE::TESObjectREFR* fake_container);
 
     [[nodiscard]] uint32_t GetNoChests() const;
 
@@ -117,7 +114,6 @@ class Manager : public SaveLoadData {
     [[nodiscard]] RE::TESObjectREFR* AddChest(uint32_t chest_no) const;
 
     [[nodiscard]] RE::TESObjectREFR* FindNotMatchedChest() const;
-
 
     std::vector<FormID> RemoveAllItemsFromChest(RE::TESObjectREFR* chest, RE::TESObjectREFR* move2ref = nullptr);
 
@@ -144,15 +140,15 @@ class Manager : public SaveLoadData {
     // Updates weight and value of fake container and uses Copy and applies renaming
     void UpdateFakeWV(RE::TESBoundObject* fake_form, RE::TESObjectREFR* chest_linked, float weight_ratio);
 
+	void UpdateFakeWV(FormID fake_formid);
+
     [[nodiscard]] static bool UpdateExtrasInInventory(RE::TESObjectREFR* from_inv, FormID from_item_formid,
                                                       RE::TESObjectREFR* to_inv, FormID to_item_formid);
 
     void HandleFormDelete_(RefID chest_refid);
 
 
-    std::shared_mutex sharedMutex_;
     std::vector<Source> sources;
-
 
     void RaiseMngrErr(const std::string& err_msg_ = "Error");
 
@@ -192,13 +188,12 @@ class Manager : public SaveLoadData {
         else item->fullName = new_name;
     }
 
-
 public:
 
     [[nodiscard]] RefID GetRealContainerChestID(RefID real_refid) const;
     [[nodiscard]] RefID GetFakeContainerChestID(FormID fake_id);
     RE::TESBoundObject* GetFakeBound(RefID chest_id) const;
-    void HandlePickup(RE::TESObjectREFR* picked_up_by, RE::TESObjectREFR * a_object);
+    void OnPickup(RE::TESObjectREFR* picked_up_by, RE::TESObjectREFR * a_object);
 	void HandleDrop(RE::TESObjectREFR* fake_object);
     void DeRegister(FormID fake_id);
     void UpdateData(RefID chestID, RefID loc_id);
@@ -214,7 +209,6 @@ public:
     const char* GetType() override { return "Manager"; }
 
 	std::atomic<bool> isUninstalled = false;
-    std::atomic<bool> listen_activate = true;
 
 
     void OnActivateContainer(RE::TESObjectREFR* a_container);
@@ -237,18 +231,13 @@ public:
 
     [[nodiscard]] bool IsARegistry(RefID registry) const;
 
-    // if the src with this formid has some data, then we say it has registry
-    [[nodiscard]] bool RealContainerHasRegistry(FormID realcontainer_formid) const;
-
     void HandleCraftingExit();
 
-    void HandleConsume(FormID fake_formid);
+    void OnConsume(FormID fake_formid);
 
     void HandleSell(FormID fake_container, RefID sell_refid);
 
     void HandleFormDelete(RefID refid);
-
-    [[nodiscard]] static bool IsCONT(RefID refid);
 
     // checks if the refid is in the ChestToFakeContainer, i.e. if it is an unownedchest
     [[nodiscard]] bool IsChest(const RefID chest_refid) const { return ChestToFakeContainer.contains(chest_refid); }
@@ -269,8 +258,6 @@ public:
 
 };
 
-
-
 template <typename T>
 void Manager::UpdateFakeWV(T* fake_form, RE::TESObjectREFR* chest_linked, float weight_ratio) {
 
@@ -284,6 +271,7 @@ void Manager::UpdateFakeWV(T* fake_form, RE::TESObjectREFR* chest_linked, float 
     if (weight_ratio > 0.f) FunctionsSkyrim::FormTraits<T>::SetWeight(fake_form, weight_ratio*chest_linked->GetWeightInContainer() + (1-weight_ratio)*real_container->GetWeight());
 
     auto chest_inventory = chest_linked->GetInventory();
+
 //#ifndef NDEBUG
 //    for (auto& [key, value] : chest_inventory) {
 //        logger::trace("Item: {}, Count: {}", key->GetName(), value.first);
