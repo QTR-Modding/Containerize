@@ -33,6 +33,9 @@ class Manager : public SaveLoadData {
     std::string closed_menu;
 	RE::TESObjectREFRPtr containermenu_owner = nullptr;
 
+    mutable std::shared_mutex source_mutex_;
+	mutable std::shared_mutex chest2fake_mutex_;
+
     class RenameCallbackFunctor final : public RE::BSScript::IStackCallbackFunctor {
 
 		void operator()(const RE::BSScript::Variable a_result) override {
@@ -190,6 +193,8 @@ public:
     [[nodiscard]] RefID GetRealContainerChestID(RefID real_refid) const;
     [[nodiscard]] RefID GetFakeContainerChestID(FormID fake_id);
     RE::TESBoundObject* GetFakeBound(RefID chest_id) const;
+    FormID GetFakeID(RefID chest_id) const;
+    FormID GetRealID(RefID chest_id) const;
     void OnPickup(RE::TESObjectREFR* picked_up_by, RE::TESObjectREFR * a_object);
 	void HandleDrop(RE::TESObjectREFR* fake_object);
     void DeRegister(FormID fake_id);
@@ -233,9 +238,9 @@ public:
 
     void HandleCraftingExit();
 
-    void OnConsume(FormID fake_formid);
+    void OnConsume(FormID fake_formid, RE::TESObjectREFR* consumed_by);
 
-    void HandleSell(FormID fake_container, RefID sell_refid);
+    void HandleSell(FormID fake_container, RE::TESObjectREFR* sell_ref);
 
     void HandleFormDelete(RefID refid);
 

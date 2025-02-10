@@ -184,6 +184,7 @@ RE::ObjectRefHandle * Hooks::MoveItemHooks<RefType>::RemoveItem(RefType * a_this
 		return remove_item_(a_this, a_hidden_return_argument, a_item, a_count, a_reason, a_extra_list, a_move_to_ref, a_drop_loc, a_rotate);
 	}
 
+
 	if (a_reason == RE::ITEM_REMOVE_REASON::kDropping) {
 		RE::ObjectRefHandle* res = remove_item_(a_this, a_hidden_return_argument, a_item, a_count, a_reason, a_extra_list, a_move_to_ref, a_drop_loc, a_rotate);
 		if (res && res->get()) {
@@ -191,10 +192,18 @@ RE::ObjectRefHandle * Hooks::MoveItemHooks<RefType>::RemoveItem(RefType * a_this
 		}
 		return res;
 	}
+
+    if (a_reason == RE::ITEM_REMOVE_REASON::kSelling && M->IsFakeContainer(a_item->GetFormID())) {
+		RE::ObjectRefHandle* res = remove_item_(a_this, a_hidden_return_argument, a_item, a_count, a_reason, a_extra_list, a_move_to_ref, a_drop_loc, a_rotate);
+		M->UpdateData(M->GetFakeContainerChestID(a_item->GetFormID()),a_move_to_ref->GetFormID());
+        M->HandleSell(a_item->GetFormID(),a_move_to_ref);
+		return res;
+	}
+
 	if (!a_move_to_ref) {
         if (const auto a_formid = a_item->GetFormID(); M->IsFakeContainer(a_formid)) {
-			logger::info("Item removed from {} to nowhere for reason {}", a_this->GetName(), static_cast<int>(a_reason));
-			M->OnConsume(a_formid);
+			logger::trace("Item removed from {} to nowhere for reason {}", a_this->GetName(), static_cast<int>(a_reason));
+			M->OnConsume(a_formid, a_this);
 	    }
 	}
 
