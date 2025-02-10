@@ -781,7 +781,7 @@ void Manager::OnContainerMenuExit() {
             }
             closed_menu = "";
 		}
-		UpdateFakeWV(ChestToFakeContainer.at(real_to_sendback.second).innerKey);
+		UpdateFakeWV(fake_bound);
         real_to_sendback = {nullptr,0};
     }
 }
@@ -1190,72 +1190,6 @@ void Manager::PromptInterface() {
         [this](const int result) { this->MsgBoxCallback(result); });
 }
 
-void Manager::InspectItemTransfer(const RefID chest_refid, const FormID item_id) {
-    logger::trace("InspectItemTransfer");
-    // check if container has enough capacity
-    const auto chest = RE::TESForm::LookupByID<RE::TESObjectREFR>(chest_refid);
-    const auto src = GetContainerSource(ChestToFakeContainer[chest_refid].outerKey);
-    if (!src) return RaiseMngrErr("Could not find source for container");
-    if (src->capacity<=0) return;
-    const auto weight_limit = src->capacity;
-
-    const auto current_weight = chest->GetWeightInContainer();
-    auto excess_weight = current_weight - weight_limit;
-
-    if (excess_weight <= 0) return;
-
-    const auto inventory = chest->GetInventory();
-    // prioritize the item that was recently added
-    int temp_count = 0;
-	auto item_bound = RE::TESForm::LookupByID<RE::TESBoundObject>(item_id);
-    if (!item_bound || !inventory.contains(item_bound)) {
-		logger::critical("Supposedly recently added item not found in inventory.");
-        return;
-    }
-	const auto max_count = inventory.find(item_bound)->second.first;
-	const auto item_weight = item_bound->GetWeight();
-	if (item_weight <= 0.001) return;
-    while (excess_weight > 0 && max_count>temp_count) {
-		excess_weight -= item_weight;
-		temp_count++;
-    }
-
-    const std::pair<RE::TESBoundObject*, Count> recent_item_to_remove = std::make_pair(item_bound, temp_count);
-
-    std::vector<std::pair<RE::TESBoundObject*,Count>> items_to_remove;
-    for (const auto& [item_obj, snd] : inventory) {
-		if (item_obj->GetFormID() == item_id) continue;
-        const auto item_weight_= item_bound->GetWeight();
-        if (item_weight_<=0.001) continue;
-		const auto max_count_= snd.first;
-		if (max_count_ <= 0) continue;
-        int temp_count_ = 0;
-        while (excess_weight > 0 && max_count_>temp_count_) {
-		    excess_weight -= item_weight_;
-			temp_count_++;
-        }
-		if (temp_count_>0) items_to_remove.emplace_back(item_obj, temp_count_);
-	}
-
-    std::ranges::sort(items_to_remove,
-                      [](const auto& a, const auto& b) {
-                          return a.first->GetWeight() > b.first->GetWeight();
-                      });
-
-
-	if (recent_item_to_remove.second > 0) {
-	    chest->RemoveItem(recent_item_to_remove.first, recent_item_to_remove.second, RE::ITEM_REMOVE_REASON::kStoreInContainer, nullptr, player_ref);
-        RE::DebugNotification(
-                std::format("{} is fully packed! Putting {} {} back.", chest->GetDisplayFullName(),recent_item_to_remove.second,
-                            recent_item_to_remove.first->GetName()).c_str());
-	}
-	for (const auto& [item_obj, count] : items_to_remove) {
-		chest->RemoveItem(item_obj, count, RE::ITEM_REMOVE_REASON::kStoreInContainer, nullptr, player_ref);
-		RE::DebugNotification(
-			std::format("{} is fully packed! Putting {} {} back.", chest->GetDisplayFullName(), count, item_obj->GetName()).c_str());
-	}
-}
-
 RE::ObjectRefHandle Manager::RemoveItem(RE::TESObjectREFR* moveFrom, RE::TESObjectREFR* moveTo, RE::TESBoundObject* a_item,
                                         const RE::ITEM_REMOVE_REASON reason) {
 
@@ -1377,23 +1311,45 @@ void Manager::UpdateFakeWV(RE::TESBoundObject* fake_form, RE::TESObjectREFR* che
         
 }
 
-void Manager::UpdateFakeWV(const FormID fake_formid)
+void Manager::UpdateFakeWV(RE::TESBoundObject* fake_form)
 {
-	if (const auto fake_form = RE::TESForm::LookupByID<RE::TESBoundObject>(fake_formid)) {
-		const auto chestID = GetFakeContainerChestID(fake_formid);
-		if (const auto chestRef = RE::TESForm::LookupByID<RE::TESObjectREFR>(chestID)) {
-			if (const auto src = GetContainerSource(ChestToFakeContainer.at(chestID).outerKey)) {
-			    UpdateFakeWV(fake_form, chestRef, src->weight_ratio);
-			}
-			else {
-				logger::error("Source not found.");
-			}
+	const auto chestID = GetFakeContainerChestID(fake_form->GetFormID());
+	if (const auto chestRef = RE::TESForm::LookupByID<RE::TESObjectREFR>(chestID)) {
+		if (const auto src = GetContainerSource(ChestToFakeContainer.at(chestID).outerKey)) {
+			UpdateFakeWV(fake_form, chestRef, src->weight_ratio);
 		}
 		else {
-			logger::error("Chest ref not found.");
+			logger::error("Source not found.");
 		}
-	    
 	}
+	else {
+		logger::error("Chest ref not found.");
+	}
+}
+
+Count Manager::CanBeAdded(const RE::TESBoundObject* a_item, const Count a_count, const RE::TESBoundObject* fake_container)
+{
+	if (a_item->GetWeight() < 0.001f) return a_count;
+
+    const auto chestID = GetFakeContainerChestID(fake_container->GetFormID());
+	if (const auto chestRef = RE::TESForm::LookupByID<RE::TESObjectREFR>(chestID)) {
+		if (const auto src = GetContainerSource(ChestToFakeContainer.at(chestID).outerKey)) {
+            const auto remaining_capacity = src->capacity - chestRef->GetWeightInContainer() * src->weight_ratio;
+			logger::trace("Remaining capacity: {}", remaining_capacity);
+			logger::trace("Item weight: {}", a_item->GetWeight());
+			logger::trace("Weight ratio: {}", src->weight_ratio);
+			const auto item_weight = a_item->GetWeight() * src->weight_ratio;
+			const auto can_be_added = static_cast<Count>(remaining_capacity / item_weight);
+			return std::max(0,std::min(can_be_added, a_count));
+		}
+		else {
+			logger::error("Source not found.");
+		}
+	}
+	else {
+		logger::error("Chest ref not found.");
+	}
+    return 0;
 }
 
 bool Manager::UpdateExtrasInInventory(RE::TESObjectREFR* from_inv, const FormID from_item_formid,

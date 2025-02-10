@@ -91,8 +91,6 @@ class Manager : public SaveLoadData {
 
     void SendReal(RE::TESBoundObject* real_obj, RE::TESObjectREFR* chest);
 
-    [[nodiscard]] RE::TESBoundObject* FakeToRealContainer(FormID fake);
-
     // Activates a container
     //void Activate(RE::TESObjectREFR* a_objref);
 
@@ -140,7 +138,6 @@ class Manager : public SaveLoadData {
     // Updates weight and value of fake container and uses Copy and applies renaming
     void UpdateFakeWV(RE::TESBoundObject* fake_form, RE::TESObjectREFR* chest_linked, float weight_ratio);
 
-	void UpdateFakeWV(FormID fake_formid);
 
     [[nodiscard]] static bool UpdateExtrasInInventory(RE::TESObjectREFR* from_inv, FormID from_item_formid,
                                                       RE::TESObjectREFR* to_inv, FormID to_item_formid);
@@ -198,6 +195,9 @@ public:
     void DeRegister(FormID fake_id);
     void UpdateData(RefID chestID, RefID loc_id);
     void OnLongPressEquip(const RE::TESBoundObject* a_selected_item);
+	void UpdateFakeWV(RE::TESBoundObject* fake_form);
+    Count CanBeAdded(const RE::TESBoundObject* a_item, Count a_count, const RE::TESBoundObject* fake_container);
+    [[nodiscard]] RE::TESBoundObject* FakeToRealContainer(FormID fake);
 
     explicit Manager(const std::vector<Source>& data) : sources(data) { Init(); }
 
@@ -242,8 +242,6 @@ public:
     // checks if the refid is in the ChestToFakeContainer, i.e. if it is an unownedchest
     [[nodiscard]] bool IsChest(const RefID chest_refid) const { return ChestToFakeContainer.contains(chest_refid); }
 
-    void InspectItemTransfer(RefID chest_refid, FormID item_id);
-
     void Reset();
 
     void Print();
@@ -259,7 +257,7 @@ public:
 };
 
 template <typename T>
-void Manager::UpdateFakeWV(T* fake_form, RE::TESObjectREFR* chest_linked, float weight_ratio) {
+void Manager::UpdateFakeWV(T* fake_form, RE::TESObjectREFR* chest_linked, const float weight_ratio) {
 
     // assumes base container is already in the chest
     if (!chest_linked || !fake_form) return RaiseMngrErr("Failed to get chest.");
