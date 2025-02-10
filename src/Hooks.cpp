@@ -14,7 +14,7 @@ void Hooks::Install()
 	const REL::Relocation<std::uintptr_t> target4{REL::RelocationID(67315, 68617)};
     InputHook::func = trampoline.write_call<5>(target4.address() + 0x7B, InputHook::thunk);
 
-	REL::Relocation<std::uintptr_t> add_item_functor_hook{ RELOCATION_ID(55946, 56490) };
+	const REL::Relocation<std::uintptr_t> add_item_functor_hook{ RELOCATION_ID(55946, 56490) };
 	add_item_functor_ = trampoline.write_call<5>(add_item_functor_hook.address() + 0x15D, add_item_functor);
 
 }
@@ -23,12 +23,12 @@ bool Hooks::HandleEquip(RE::InputEvent* event)
 #undef GetObject
 	const auto user_events = RE::UserEvents::GetSingleton();
     if (const auto button_event = event->AsButtonEvent()) {
-		if (auto user_event = button_event->userEvent;
+		if (const auto user_event = button_event->userEvent;
 			user_event == user_events->accept ||
 			user_event == user_events->leftEquip ||
 			user_event == user_events->rightEquip
 			) {
-			if (auto selected_item = GetSelectedItemInMenu(); 
+			if (const auto selected_item = GetSelectedItemInMenu(); 
 				selected_item && M->IsFakeContainer(selected_item->GetFormID())) {
 				if (button_event->HeldDuration()>0.25f) {
 					M->OnLongPressEquip(selected_item);
@@ -47,28 +47,30 @@ bool Hooks::HandleEquip(RE::InputEvent* event)
 
 RE::TESBoundObject* Hooks::GetSelectedItemInMenu()
 {
-	if (auto ui = RE::UI::GetSingleton()) {
-	    if (auto menu_c = ui->GetMenu<RE::ContainerMenu>()) {
-		    if (auto item = menu_c->GetRuntimeData().itemList->GetSelectedItem()) {
+	if (const auto ui = RE::UI::GetSingleton()) {
+	    if (const auto menu_c = ui->GetMenu<RE::ContainerMenu>()) {
+		    if (const auto item = menu_c->GetRuntimeData().itemList->GetSelectedItem()) {
 				return item->data.objDesc->GetObject();
 		    }
 	    }
-	    else if (auto menu_i = ui->GetMenu<RE::InventoryMenu>()) {
-		    if (auto item = menu_i->GetRuntimeData().itemList->GetSelectedItem()) {
+	    else if (const auto menu_i = ui->GetMenu<RE::InventoryMenu>()) {
+		    if (const auto item = menu_i->GetRuntimeData().itemList->GetSelectedItem()) {
 				return item->data.objDesc->GetObject();
 		    }
 	    }
-	    else if (auto menu_f = ui->GetMenu<RE::FavoritesMenu>()) {
+	    else if (const auto menu_f = ui->GetMenu<RE::FavoritesMenu>()) {
 		    RE::GFxValue selectedIndex;
 		    const auto& runtime_data = menu_f->GetRuntimeData();
-		    if (runtime_data.root.GetMember("selectedIndex", &selectedIndex)) {
+		    if (runtime_data.root.GetMember("selectedIndex", &selectedIndex) && selectedIndex.IsNumber()) {
                 const std::int32_t selected_index = static_cast<std::int32_t>(selectedIndex.GetNumber());
 			    const auto& items = runtime_data.favorites;
-			    if (const auto item = items[selected_index].item) {
-				    if (const auto bound = skyrim_cast<RE::TESBoundObject*>(item)) {
-						return bound;
-				    }
-			    }
+				if (selected_index >= 0 && selected_index < items.size()) {
+			        if (const auto item = items[selected_index].item) {
+				        if (const auto bound = skyrim_cast<RE::TESBoundObject*>(item)) {
+						    return bound;
+				        }
+			        }
+				}
 		    }
 	    }
 	}
@@ -81,7 +83,7 @@ void Hooks::add_item_functor(RE::TESObjectREFR* a_this, RE::TESObjectREFR* a_obj
 	if (!a_this || !a_object || a_count>1) {
 		return add_item_functor_(a_this, a_object, a_count, a4, a5);
 	}
-	M->HandlePickup(a_this, a_object);
+	M->OnPickup(a_this, a_object);
 	return add_item_functor_(a_this, a_object, a_count, a4, a5);
 }
 
@@ -91,7 +93,7 @@ void Hooks::MoveItemHooks<RefType>::pickUpObject(RefType * a_this, RE::TESObject
 	if (!a_this || !a_object || a_count>1) {
 		return pick_up_object_(a_this, a_object, a_count, a_arg3, a_play_sound);
 	}
-	M->HandlePickup(a_this, a_object);
+	M->OnPickup(a_this, a_object);
 
 	pick_up_object_(a_this, a_object, a_count, a_arg3, a_play_sound);
 }
@@ -129,7 +131,7 @@ RE::ObjectRefHandle * Hooks::MoveItemHooks<RefType>::RemoveItem(RefType * a_this
 	}
 	if (!a_move_to_ref) {
         if (const auto a_formid = a_item->GetFormID(); M->IsFakeContainer(a_formid)) {
-			M->HandleConsume(a_formid);
+			M->OnConsume(a_formid);
 	    }
 	}
 
