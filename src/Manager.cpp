@@ -900,11 +900,14 @@ void Manager::FakePlacementCeption(const RefID chest_ref, std::vector<RefID>& ha
         
 }
 
-void Manager::FakePlacement(const RefID saved_ref, const RefID chest_ref, RE::TESObjectREFR* external_cont) {
+void Manager::FakePlacement(RefID saved_ref, const RefID chest_ref, RE::TESObjectREFR* external_cont) {
 
     // bu sadece load sirasinda
     // ya playerda olcak ya da unownedlardan birinde (containerception)
     // bu ikisi disindaki seylere load_game safhasinda bisey yapamiyorum external_cont nullptr sa
+    if (Settings::is_pre_0_10_0) {
+		if (chest_ref == saved_ref) saved_ref = 0x14;
+    }
     if (!external_cont && chest_ref != 0x14 && !IsChest(saved_ref)) return;
 
     // saved_ref should not be realcontainer out in the world!
@@ -1531,8 +1534,16 @@ void Manager::ReceiveData() {
                                 chestRef, realcontForm, fakecontForm.id));
             }
             if (!fakecontForm.name.empty()) renames[fakecontForm.id] = fakecontForm.name;
-            if (contRef == 0x14) chest_equipped_fav[chestRef] = {fakecontForm.equipped, fakecontForm.favorited};
-            else if (fakecontForm.favorited) external_favs.push_back(fakecontForm.id);
+
+            if (Settings::is_pre_0_10_0) {
+                if (contRef == chestRef) chest_equipped_fav[chestRef] = {fakecontForm.equipped, fakecontForm.favorited};
+                else if (fakecontForm.favorited) external_favs.push_back(fakecontForm.id);    
+            }
+            else {
+                if (contRef == 0x14) chest_equipped_fav[chestRef] = {fakecontForm.equipped, fakecontForm.favorited};
+                else if (fakecontForm.favorited) external_favs.push_back(fakecontForm.id);
+            }
+
             no_match = false;
             break;
         }

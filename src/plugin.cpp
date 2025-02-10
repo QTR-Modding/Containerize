@@ -74,23 +74,35 @@ void LoadCallback(SKSE::SerializationInterface* serializationInterface) {
         
         auto temp = DecodeTypeCode(type);
 
-        if (version == Settings::kSerializationVersion-2) {
-            logger::warn("Loading data is from an older version < v0.7. Recieved ({}) - Expected ({}) for Data Key ({})",
+        if (version == Settings::kSerializationVersion-3) {
+            logger::warn("Loading data is from an older version < v0.7. Received ({}) - Expected ({}) for Data Key ({})",
 							 version, Settings::kSerializationVersion, temp);
-			is_before_0_7= true;
+
+            is_before_0_7 = true;
+            Settings::is_pre_0_7_1 = true;
+            Settings::is_pre_0_10_0 = true;
+
             std::string err_message =
                 "It seems you haven't followed the latest update instructions for the mod correctly. "
                 "Please refer to the mod page for the latest instructions. "
                 "In case of a failure you will see an error message box displayed after this one. If not, you are probably fine.";
             MsgBoxesNotifs::InGame::CustomMsg(err_message);
-            Settings::is_pre_0_7_1 = true;
-        } else if (version == Settings::kSerializationVersion - 1) {
-			logger::warn("Loading data is from an older version < v0.7.1. Recieved ({}) - Expected ({}) for Data Key ({})",
+        }
+        else if (version == Settings::kSerializationVersion - 2) {
+			logger::warn("Loading data is from an older version < v0.7.1. Received ({}) - Expected ({}) for Data Key ({})",
 							 version, Settings::kSerializationVersion, temp);
+
             Settings::is_pre_0_7_1 = true;
+            Settings::is_pre_0_10_0 = true;
+        }
+		else if (version == Settings::kSerializationVersion - 1) {
+			logger::warn("Loading data is from an older version < v0.10.0 Received ({}) - Expected ({}) for Data Key ({})",
+				version, Settings::kSerializationVersion, temp);
+
+			Settings::is_pre_0_10_0 = true;
         }
         else if (version != Settings::kSerializationVersion) {
-            logger::critical("Loaded data has incorrect version. Recieved ({}) - Expected ({}) for Data Key ({})",
+            logger::critical("Loaded data has incorrect version. Received ({}) - Expected ({}) for Data Key ({})",
                              version, Settings::kSerializationVersion, temp);
             continue;
         }
