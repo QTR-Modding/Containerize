@@ -13,17 +13,12 @@ class OurEventSink final : public RE::BSTEventSink<RE::TESFurnitureEvent>,
 
 	std::atomic<bool> block_droptake = false;
 
-    std::string ReShowMenu;
-
     RE::NiPointer<RE::TESObjectREFR> furniture;
-
-    RE::BSEventNotifyControl OnRename() const;
 
 public:
 
 	std::atomic<bool> block_eventsinks = false;
 	std::atomic<bool> furniture_entered = false;
-	std::atomic<bool> listen_weight_limit = false;
     Manager* M = nullptr;
 
     explicit OurEventSink(Manager* mngr)

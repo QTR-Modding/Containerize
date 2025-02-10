@@ -11,6 +11,8 @@ namespace Hooks {
 		M = a_manager;
 	}
 
+    inline bool HandleEquip(RE::InputEvent* event);
+    RE::TESBoundObject* GetSelectedItemInMenu();
 
     struct InputHook {
 		static void thunk(RE::BSTEventSource<RE::InputEvent*>* a_dispatcher, RE::InputEvent* const* a_event);
@@ -68,5 +70,9 @@ namespace Hooks {
         static inline REL::Relocation<decltype(addObjectToContainer)> add_object_to_container_;
 
     };
+
+    static void
+		add_item_functor(RE::TESObjectREFR* a_this, RE::TESObjectREFR* a_object, int32_t a_count, bool a4, bool a5);
+	static inline REL::Relocation<decltype(add_item_functor)> add_item_functor_;
 };
 

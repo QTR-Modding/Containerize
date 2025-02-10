@@ -5,15 +5,84 @@ void Hooks::Install()
 	MoveItemHooks<RE::PlayerCharacter>::install();
 	MoveItemHooks<RE::TESObjectREFR>::install(false);
 	MoveItemHooks<RE::Character>::install();
+	MenuHook<RE::ContainerMenu>::InstallHook(RE::VTABLE_ContainerMenu[0]);
 
 	auto& trampoline = SKSE::GetTrampoline();
     constexpr size_t size_per_hook = 14;
-	trampoline.create(size_per_hook*1);
+	trampoline.create(size_per_hook*2);
 
-	const REL::Relocation<std::uintptr_t> target3{REL::RelocationID(67315, 68617)};
-    InputHook::func = trampoline.write_call<5>(target3.address() + 0x7B, InputHook::thunk);
+	const REL::Relocation<std::uintptr_t> target4{REL::RelocationID(67315, 68617)};
+    InputHook::func = trampoline.write_call<5>(target4.address() + 0x7B, InputHook::thunk);
 
-	MenuHook<RE::ContainerMenu>::InstallHook(RE::VTABLE_ContainerMenu[0]);
+	REL::Relocation<std::uintptr_t> add_item_functor_hook{ RELOCATION_ID(55946, 56490) };
+	add_item_functor_ = trampoline.write_call<5>(add_item_functor_hook.address() + 0x15D, add_item_functor);
+
+}
+bool Hooks::HandleEquip(RE::InputEvent* event)
+{
+#undef GetObject
+	const auto user_events = RE::UserEvents::GetSingleton();
+    if (const auto button_event = event->AsButtonEvent()) {
+		if (auto user_event = button_event->userEvent;
+			user_event == user_events->accept ||
+			user_event == user_events->leftEquip ||
+			user_event == user_events->rightEquip
+			) {
+			if (auto selected_item = GetSelectedItemInMenu(); 
+				selected_item && M->IsFakeContainer(selected_item->GetFormID())) {
+				if (button_event->HeldDuration()>0.25f) {
+					M->OnLongPressEquip(selected_item);
+				}
+				else if (button_event->IsUp()) {
+					button_event->value = 1.f;
+					button_event->heldDownSecs = 0.f;
+					return false;
+				}
+			    return true;
+			}
+		}
+	}
+    return false;
+}
+
+RE::TESBoundObject* Hooks::GetSelectedItemInMenu()
+{
+	if (auto ui = RE::UI::GetSingleton()) {
+	    if (auto menu_c = ui->GetMenu<RE::ContainerMenu>()) {
+		    if (auto item = menu_c->GetRuntimeData().itemList->GetSelectedItem()) {
+				return item->data.objDesc->GetObject();
+		    }
+	    }
+	    else if (auto menu_i = ui->GetMenu<RE::InventoryMenu>()) {
+		    if (auto item = menu_i->GetRuntimeData().itemList->GetSelectedItem()) {
+				return item->data.objDesc->GetObject();
+		    }
+	    }
+	    else if (auto menu_f = ui->GetMenu<RE::FavoritesMenu>()) {
+		    RE::GFxValue selectedIndex;
+		    const auto& runtime_data = menu_f->GetRuntimeData();
+		    if (runtime_data.root.GetMember("selectedIndex", &selectedIndex)) {
+                const std::int32_t selected_index = static_cast<std::int32_t>(selectedIndex.GetNumber());
+			    const auto& items = runtime_data.favorites;
+			    if (const auto item = items[selected_index].item) {
+				    if (const auto bound = skyrim_cast<RE::TESBoundObject*>(item)) {
+						return bound;
+				    }
+			    }
+		    }
+	    }
+	}
+	return nullptr;
+}
+
+void Hooks::add_item_functor(RE::TESObjectREFR* a_this, RE::TESObjectREFR* a_object, int32_t a_count, bool a4, bool a5)
+{
+	logger::info("add_item_functor event.");
+	if (!a_this || !a_object || a_count>1) {
+		return add_item_functor_(a_this, a_object, a_count, a4, a5);
+	}
+	M->HandlePickup(a_this, a_object);
+	return add_item_functor_(a_this, a_object, a_count, a4, a5);
 }
 
 template<typename RefType>
@@ -22,7 +91,6 @@ void Hooks::MoveItemHooks<RefType>::pickUpObject(RefType * a_this, RE::TESObject
 	if (!a_this || !a_object || a_count>1) {
 		return pick_up_object_(a_this, a_object, a_count, a_arg3, a_play_sound);
 	}
-	logger::info("Pickup event.");
 	M->HandlePickup(a_this, a_object);
 
 	pick_up_object_(a_this, a_object, a_count, a_arg3, a_play_sound);
@@ -31,12 +99,13 @@ void Hooks::MoveItemHooks<RefType>::pickUpObject(RefType * a_this, RE::TESObject
 template<typename RefType>
 void Hooks::MoveItemHooks<RefType>::addObjectToContainer(RefType* a_this, RE::TESBoundObject* a_object, RE::ExtraDataList* a_extraList, std::int32_t a_count, RE::TESObjectREFR* a_fromRefr)
 {
+
 	if (!a_this || !a_object || a_count > 1 || !a_object->IsDynamicForm()) {
 		return add_object_to_container_(a_this, a_object, a_extraList, a_count, a_fromRefr);
 	}
 
-    /*logger::trace("Object {} {:x} added to {} {:x} from {} {:x}", a_object->GetName(), a_object->GetFormID(),
-		a_this->GetName(), a_this->GetFormID(), a_fromRefr->GetName(), a_fromRefr->GetFormID());*/
+    logger::trace("Object {} {:x} added to {} {:x} from {} {:x}", a_object->GetName(), a_object->GetFormID(),
+		a_this->GetName(), a_this->GetFormID(), a_fromRefr->GetName(), a_fromRefr->GetFormID());
 
 	if (const auto chest_id = M->GetFakeContainerChestID(a_object->GetFormID())) {
 		M->UpdateData(chest_id,a_this->GetFormID());
@@ -81,9 +150,11 @@ void Hooks::InputHook::thunk(RE::BSTEventSource<RE::InputEvent*>* a_dispatcher, 
 		return func(a_dispatcher, a_event);
 	}
 
-	auto ui = RE::UI::GetSingleton();
-	if (ui->IsItemMenuOpen() || ui->IsMenuOpen(RE::MainMenu::MENU_NAME)) {
-		return func(a_dispatcher, a_event);
+	if (const auto ui = RE::UI::GetSingleton()) {
+	    if (ui->IsMenuOpen(RE::BarterMenu::MENU_NAME) ||
+		    ui->IsMenuOpen(RE::MainMenu::MENU_NAME)) {
+		    return func(a_dispatcher, a_event);
+	    }
 	}
 
     auto first = *a_event;
@@ -135,14 +206,19 @@ bool Hooks::InputHook::ProcessInput(RE::InputEvent* event)
 			}
 		}
     }
+	block |= HandleEquip(event);
 	return block;
 }
 
 bool Hooks::InputHook::IsOtherButtonHeld(RE::InputEvent* const* a_event) {
+	bool one_button_held = false;
 	for (auto current = *a_event; current; current = current->next) {
 		if (const auto button_event = current->AsButtonEvent()) {
-			if (button_event->IsHeld()) {
+			if (one_button_held) {
 				return true;
+			}
+			if (button_event->IsHeld()) {
+				one_button_held = true;
 			}
 		}
 	}
@@ -152,10 +228,17 @@ bool Hooks::InputHook::IsOtherButtonHeld(RE::InputEvent* const* a_event) {
 template<typename MenuType>
 RE::UI_MESSAGE_RESULTS Hooks::MenuHook<MenuType>::ProcessMessage_Hook(RE::UIMessage& a_message)
 {
+	const auto msg_type = static_cast<int>(a_message.type.get());
+	if (msg_type != 3 && msg_type != 1) {
+		return _ProcessMessage(this, a_message);
+	}
 	if (const std::string_view menuname = MenuType::MENU_NAME; a_message.menu==menuname) {
 	    if (menuname == RE::ContainerMenu::MENU_NAME) {
-			if (const auto msg_type = static_cast<int>(a_message.type.get()); msg_type == 3) { // closing
-				M->HandleContainerMenuExit();
+            if (RE::TESObjectREFRPtr refr; LookupReferenceByHandle(RE::ContainerMenu::GetTargetRefHandle(), refr)) {
+				if (M->IsChest(refr->GetFormID())) {
+			        if (msg_type == 3) M->OnContainerMenuExit();
+			        else if (msg_type == 1) M->OnContainerMenuEnter();
+				}
 			}
         }
 	}

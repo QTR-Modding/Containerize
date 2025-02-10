@@ -607,7 +607,7 @@ int Inventory::GetValueInContainer(RE::TESObjectREFR* container) {
     int total_value = 0;
     for (auto inventory = container->GetInventory(); auto& [fst, snd] : inventory) {
 		if (snd.first <= 0) continue;
-        auto gold_value = fst->GetGoldValue();
+        const auto gold_value = fst->GetGoldValue();
         total_value += gold_value * snd.first;
         int extra_costs = 0;
         extra_costs += GetEntryCostOverride(snd.second.get());
@@ -969,4 +969,42 @@ void MsgBoxesNotifs::SkyrimMessageBox::Show(const std::string& bodyText, const s
     messagebox->bodyText = bodyText;
     for (auto& text : buttonTextValues) messagebox->buttonText.push_back(text.c_str());
     messagebox->QueueMessage();
+}
+
+std::string_view Menu::CloseMenu()
+{
+	const auto uiManager = RE::UI::GetSingleton();
+    if (const auto inventoryMenu = uiManager->GetMenu<RE::InventoryMenu>()) {
+        RE::UIMessageQueue::GetSingleton()->AddMessage("InventoryMenu", RE::UI_MESSAGE_TYPE::kHide, nullptr);
+        RE::UIMessageQueue::GetSingleton()->AddMessage("TweenMenu", RE::UI_MESSAGE_TYPE::kHide, nullptr);
+		return RE::InventoryMenu::MENU_NAME;
+    }
+
+    if (const auto favoritesMenu = uiManager->GetMenu<RE::FavoritesMenu>()) {
+        RE::UIMessageQueue::GetSingleton()->AddMessage("FavoritesMenu", RE::UI_MESSAGE_TYPE::kHide, nullptr);
+		return RE::FavoritesMenu::MENU_NAME;
+    }
+
+    if (const auto containerMenu = uiManager->GetMenu<RE::ContainerMenu>()) {
+        RE::UIMessageQueue::GetSingleton()->AddMessage("ContainerMenu", RE::UI_MESSAGE_TYPE::kHide, nullptr);
+		return RE::ContainerMenu::MENU_NAME;
+    }
+    static std::string_view empty_menuname;
+	return empty_menuname;
+}
+
+bool Menu::IsOpen(const RE::BSFixedString& menu_name) {
+    if (const auto ui = RE::UI::GetSingleton()) {
+        return ui->IsMenuOpen(menu_name);
+    }
+    return false;
+}
+
+void Menu::OpenMenu(const std::string_view menuname) {
+	if (menuname.empty()) return;
+    if (IsOpen(menuname)) return;
+    const RE::BSFixedString menuName(menuname);
+    if (const auto queue = RE::UIMessageQueue::GetSingleton()) {
+        queue->AddMessage(menuName, RE::UI_MESSAGE_TYPE::kShow, nullptr);
+    }
 }

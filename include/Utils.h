@@ -454,3 +454,11 @@ namespace DynamicForm {
     void copyAppearence(RE::TESForm* source, RE::TESForm* target);
 
 };
+
+namespace Menu {
+    std::string_view CloseMenu();
+
+    bool IsOpen(const RE::BSFixedString& menu_name);
+
+    void OpenMenu(const std::string_view menuname);;
+};

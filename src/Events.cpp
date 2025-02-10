@@ -1,10 +1,8 @@
 #include "Events.h"
 
 void OurEventSink::Reset() {
-	ReShowMenu = "";
 	furniture = nullptr;
 	furniture_entered.store(false);
-	listen_weight_limit.store(false);
 	block_droptake.store(false);
 	block_eventsinks.store(false);
 }

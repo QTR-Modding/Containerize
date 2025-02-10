@@ -30,6 +30,9 @@ class Manager : public SaveLoadData {
     std::vector<RefID> handled_external_conts; // runtime specific to prevent unnecessary checks in HandleFakePlacement
     std::map<FormID,std::string> renames;  // runtime specific, custom names for fake containers
     std::pair<RE::TESBoundObject*, RefID> real_to_sendback = {nullptr,0};  // pff
+    std::pair<RE::TESBoundObject*, RefID> queued_real_to_sendback = {nullptr,0};  // pff
+    std::string closed_menu;
+	RE::TESObjectREFRPtr containermenu_owner = nullptr;
 
     class RenameCallbackFunctor final : public RE::BSScript::IStackCallbackFunctor {
 
@@ -95,7 +98,7 @@ class Manager : public SaveLoadData {
     // Activates a container
     //void Activate(RE::TESObjectREFR* a_objref);
 
-    [[nodiscard]] bool ActivateChest(RE::TESObjectREFR* chest, const char* chest_name);
+    [[nodiscard]] bool ActivateChest(const RE::TESObjectREFR* chest, const char* chest_name) const;
 
     [[nodiscard]] int GetChestValue(RE::TESObjectREFR* a_chest);
 
@@ -199,6 +202,7 @@ public:
 	void HandleDrop(RE::TESObjectREFR* fake_object);
     void DeRegister(FormID fake_id);
     void UpdateData(RefID chestID, RefID loc_id);
+    void OnLongPressEquip(const RE::TESBoundObject* a_selected_item);
 
     explicit Manager(const std::vector<Source>& data) : sources(data) { Init(); }
 
@@ -228,9 +232,8 @@ public:
 
     void RenameContainer(const std::string& new_name);
 
-    void HandleContainerMenuExit();
-
-    void ActivateContainer(FormID fakeid, bool hide_real = false);
+    void OnContainerMenuExit();
+    void OnContainerMenuEnter();
 
     [[nodiscard]] bool IsARegistry(RefID registry) const;
 
