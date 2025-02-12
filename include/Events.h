@@ -18,7 +18,6 @@ class OurEventSink final : public RE::BSTEventSink<RE::TESFurnitureEvent>,
 
 public:
 
-	std::atomic<bool> block_eventsinks = false;
 	std::atomic<bool> furniture_entered = false;
     Manager* M = nullptr;
 
@@ -29,10 +28,6 @@ public:
         static OurEventSink singleton(manager);
         return &singleton;
     }
-
-	void SetBlockSinks(const bool block) {
-		block_eventsinks = block;
-	}
 
     void Reset();
 

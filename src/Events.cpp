@@ -4,7 +4,6 @@ void OurEventSink::Reset() {
 	furniture = nullptr;
 	furniture_entered.store(false);
 	block_droptake.store(false);
-	block_eventsinks.store(false);
 }
 
 RE::BSEventNotifyControl OurEventSink::ProcessEvent(const SKSE::CrosshairRefEvent* a_event, RE::BSTEventSource<SKSE::CrosshairRefEvent>*)
@@ -18,7 +17,6 @@ RE::BSEventNotifyControl OurEventSink::ProcessEvent(const SKSE::CrosshairRefEven
 RE::BSEventNotifyControl OurEventSink::ProcessEvent(const RE::TESFurnitureEvent* event,
     RE::BSTEventSource<RE::TESFurnitureEvent>*) {
         
-    if (block_eventsinks.load()) return RE::BSEventNotifyControl::kContinue;
     if (!event) return RE::BSEventNotifyControl::kContinue;
     if (!event->actor->IsPlayerRef()) return RE::BSEventNotifyControl::kContinue;
     if (furniture_entered && event->type == RE::TESFurnitureEvent::FurnitureEventType::kEnter)

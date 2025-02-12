@@ -39,7 +39,6 @@ void OnMessage(SKSE::MessagingInterface::Message* message) {
 void SaveCallback(SKSE::SerializationInterface* serializationInterface) {
     DISABLE_IF_UNINSTALLED 
     logger::trace("Saving Data to skse co-save.");
-	eventSink->SetBlockSinks(true);
     M->SendData();
     if (!M->Save(serializationInterface, Settings::kDataKey, Settings::kSerializationVersion)) {
         logger::critical("Failed to save Data");
@@ -50,7 +49,6 @@ void SaveCallback(SKSE::SerializationInterface* serializationInterface) {
         logger::critical("Failed to save Data");
     }
     logger::trace("Data saved to skse co-save.");
-	eventSink->SetBlockSinks(false);
 }
 
 void LoadCallback(SKSE::SerializationInterface* serializationInterface) {
@@ -66,8 +64,6 @@ void LoadCallback(SKSE::SerializationInterface* serializationInterface) {
     std::uint32_t type;
     std::uint32_t version;
     std::uint32_t length;
-
-    eventSink->SetBlockSinks(true);
 
     while (serializationInterface->GetNextRecordInfo(type, version, length)) {
         bool is_before_0_7 = false;
@@ -129,7 +125,6 @@ void LoadCallback(SKSE::SerializationInterface* serializationInterface) {
     SKSE::GetTaskInterface()->AddTask([]() { 
         M->ReceiveData(); 
         logger::info("Data loaded from skse co-save.");
-	    eventSink->SetBlockSinks(false);
         }
     );
 }
