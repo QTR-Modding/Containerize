@@ -1105,7 +1105,10 @@ void Manager::MsgBoxCallback(const int result) {
 
     // More
     if (result == 2) {
-        return MsgBoxesNotifs::ShowMessageBox("...", buttons_more, [this](const int res) { this->MsgBoxCallbackMore(res); });
+		SKSE::GetTaskInterface()->AddTask([this]() {
+            MsgBoxesNotifs::ShowMessageBox("...", buttons_more, [this](const int res) { this->MsgBoxCallbackMore(res); });
+		});
+		return;
     }
 
     if (result == 3 || result == 1){
@@ -1154,7 +1157,6 @@ void Manager::MsgBoxCallback(const int result) {
 }
 
 void Manager::MsgBoxCallbackMore(const int result) {
-    logger::trace("More. Result: {}", result);
 
     if (result != 0 && result != 1 && result != 2 && result != 3) return;
 
@@ -1196,7 +1198,12 @@ void Manager::MsgBoxCallbackMore(const int result) {
     if (result == 3) return;
 
     // Back
-    if (result == 2) return PromptInterface();
+    if (result == 2) {
+		SKSE::GetTaskInterface()->AddTask([this]() {
+            PromptInterface();
+		});
+        return;
+    }
 
     Uninstall();
 

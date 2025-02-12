@@ -268,13 +268,16 @@ bool Hooks::InputHook::ProcessInput(RE::InputEvent* event)
                 if (M->IsRealContainer(crosshair_target.get()->GetBaseObject()->GetFormID())) {
 		            if (button_event->IsDown()) {
 			            block = true;
+						down_pressed.store(true);
                     }
                     else if (button_event->IsUp()) {
 			            block = true;
-                        if (const auto grabbed_ref = RE::PlayerCharacter::GetSingleton()->GetGrabbedRef(); 
-                            !grabbed_ref || crosshair_target.get()->GetFormID() != grabbed_ref->GetFormID()) {
-                            M->OnActivateContainer(crosshair_target.get().get());
-                        }
+						if (down_pressed.exchange(false)) {
+                            if (const auto grabbed_ref = RE::PlayerCharacter::GetSingleton()->GetGrabbedRef(); 
+                                !grabbed_ref || crosshair_target.get()->GetFormID() != grabbed_ref->GetFormID()) {
+                                M->OnActivateContainer(crosshair_target.get().get());
+                            }
+						}
                     }
 				}
 			}

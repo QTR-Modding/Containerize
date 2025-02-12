@@ -20,6 +20,7 @@ namespace Hooks {
 		static inline REL::Relocation<decltype(thunk)> func;
 		static bool ProcessInput(RE::InputEvent* event);
         static bool IsOtherButtonHeld(RE::InputEvent* const* a_event);
+		static inline std::atomic_bool down_pressed = false;
 	};
 
     template <typename MenuType>
