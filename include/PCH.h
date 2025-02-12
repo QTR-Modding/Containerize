@@ -1,3 +1,5 @@
+#pragma once
+
 #include "RE/Skyrim.h"
 #include "SKSE/SKSE.h"
 #include <spdlog/sinks/basic_file_sink.h>
@@ -11,4 +13,4 @@ using FormID = RE::FormID;
 using RefID = RE::FormID;
 using Count = RE::TESObjectREFR::Count;
 
-constexpr float EPSILON = 1e-6f;
+constexpr float EPSILON = 1e-10f;

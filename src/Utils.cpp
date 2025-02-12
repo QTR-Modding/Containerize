@@ -143,7 +143,7 @@ std::string GetEditorID(const FormID a_formid) {
     return "";
 }
 
-FormID GetFormEditorIDFromString(const std::string formEditorId)
+FormID GetFormEditorIDFromString(const std::string& formEditorId)
 {
     if (formEditorId.empty()) return 0;
     if (isValidHexWithLength7or8(formEditorId.c_str())) {
@@ -225,7 +225,6 @@ std::size_t FunctionsSkyrim::GetExtraDataListLength(const RE::ExtraDataList* dat
 
 
 bool xData::UpdateExtras(RE::TESObjectREFR* copy_from, RE::TESObjectREFR* copy_to) {
-    logger::trace("UpdateExtras");
     if (!copy_from || !copy_to) {
         logger::error("copy_from or copy_to is null");
         return false;
@@ -238,7 +237,6 @@ bool xData::UpdateExtras(RE::TESObjectREFR* copy_from, RE::TESObjectREFR* copy_t
 
 bool xData::UpdateExtras(RE::ExtraDataList* copy_from, RE::ExtraDataList* copy_to)
 {
-    logger::trace("UpdateExtras");
     if (!copy_from || !copy_to) return false;
     // Enchantment
     if (copy_from->HasType(RE::ExtraDataType::kEnchantment)) {
@@ -609,15 +607,9 @@ int Inventory::GetValueInContainer(RE::TESObjectREFR* container) {
     int total_value = 0;
     for (auto inventory = container->GetInventory(); auto& [fst, snd] : inventory) {
 		if (snd.first <= 0) continue;
-        auto gold_value = fst->GetGoldValue();
-        logger::trace("Gold value: {}", gold_value);
+        const auto gold_value = fst->GetGoldValue();
         total_value += gold_value * snd.first;
         int extra_costs = 0;
-        /*if (auto ench = it->second.second->GetEnchantment()) {
-            auto costoverride = ench->GetData()->costOverride;
-            logger::trace("Base enchantment cost: {}", costoverride);
-            extra_costs += costoverride;
-        }*/
         extra_costs += GetEntryCostOverride(snd.second.get());
         total_value += extra_costs;
     }
@@ -742,6 +734,17 @@ bool Inventory::IsEquipped(RE::TESBoundObject* item)
         return it->second.second->IsWorn();
     }
     return false;
+}
+
+void Inventory::ToggleEquip(RE::TESBoundObject* item)
+{
+	const auto player = RE::PlayerCharacter::GetSingleton();
+    if (Inventory::IsEquipped(item)) {
+		RE::ActorEquipManager::GetSingleton()->UnequipObject(player,item);
+	}
+	else {
+		RE::ActorEquipManager::GetSingleton()->EquipObject(player, item);
+	}
 }
 
 RE::TESObjectREFR* WorldObject::DropObjectIntoTheWorld(RE::TESBoundObject* obj, const Count count, const bool player_owned)
@@ -965,7 +968,7 @@ void xData::Copy::CopyOwnership(const RE::ExtraOwnership* from, RE::ExtraOwnersh
 	to->owner = from->owner;
 }
 
-void MsgBoxesNotifs::SkyrimMessageBox::Show(const std::string& bodyText, std::vector<std::string> buttonTextValues, std::function<void(unsigned int)> callback)
+void MsgBoxesNotifs::SkyrimMessageBox::Show(const std::string& bodyText, const std::vector<std::string>& buttonTextValues, std::function<void(unsigned int)> callback)
 {
     const auto* factoryManager = RE::MessageDataFactoryManager::GetSingleton();
     const auto* uiStringHolder = RE::InterfaceStrings::GetSingleton();
@@ -977,4 +980,42 @@ void MsgBoxesNotifs::SkyrimMessageBox::Show(const std::string& bodyText, std::ve
     messagebox->bodyText = bodyText;
     for (auto& text : buttonTextValues) messagebox->buttonText.push_back(text.c_str());
     messagebox->QueueMessage();
+}
+
+std::string_view Menu::CloseMenu()
+{
+	const auto uiManager = RE::UI::GetSingleton();
+    if (const auto inventoryMenu = uiManager->GetMenu<RE::InventoryMenu>()) {
+        RE::UIMessageQueue::GetSingleton()->AddMessage("InventoryMenu", RE::UI_MESSAGE_TYPE::kHide, nullptr);
+        RE::UIMessageQueue::GetSingleton()->AddMessage("TweenMenu", RE::UI_MESSAGE_TYPE::kHide, nullptr);
+		return RE::InventoryMenu::MENU_NAME;
+    }
+
+    if (const auto favoritesMenu = uiManager->GetMenu<RE::FavoritesMenu>()) {
+        RE::UIMessageQueue::GetSingleton()->AddMessage("FavoritesMenu", RE::UI_MESSAGE_TYPE::kHide, nullptr);
+		return RE::FavoritesMenu::MENU_NAME;
+    }
+
+    if (const auto containerMenu = uiManager->GetMenu<RE::ContainerMenu>()) {
+        RE::UIMessageQueue::GetSingleton()->AddMessage("ContainerMenu", RE::UI_MESSAGE_TYPE::kHide, nullptr);
+		return RE::ContainerMenu::MENU_NAME;
+    }
+    static std::string_view empty_menuname;
+	return empty_menuname;
+}
+
+bool Menu::IsOpen(const RE::BSFixedString& menu_name) {
+    if (const auto ui = RE::UI::GetSingleton()) {
+        return ui->IsMenuOpen(menu_name);
+    }
+    return false;
+}
+
+void Menu::OpenMenu(const std::string_view menuname) {
+	if (menuname.empty()) return;
+    if (IsOpen(menuname)) return;
+    const RE::BSFixedString menuName(menuname);
+    if (const auto queue = RE::UIMessageQueue::GetSingleton()) {
+        queue->AddMessage(menuName, RE::UI_MESSAGE_TYPE::kShow, nullptr);
+    }
 }

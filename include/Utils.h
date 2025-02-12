@@ -2,8 +2,6 @@
 #include <windows.h>
 #include "ClibUtil/editorID.hpp"
 #include "SimpleIni.h"
-#include <unordered_set>
-#include <ranges>
 
 
 bool GetDllVersion(const std::wstring& dllPath, DWORD& major, DWORD& minor, DWORD& build, DWORD& revision);
@@ -50,7 +48,44 @@ static T* GetFormByID(const RE::FormID id, const std::string& editor_id="") {
 };
 
 std::string GetEditorID(const FormID a_formid);
-FormID GetFormEditorIDFromString(const std::string formEditorId);
+FormID GetFormEditorIDFromString(const std::string& formEditorId);
+
+namespace Papyrus {
+
+    using VM = RE::BSScript::Internal::VirtualMachine;
+    using ObjectPtr = RE::BSTSmartPointer<RE::BSScript::Object>;
+
+    inline RE::VMHandle GetHandle(const RE::TESForm* a_form)
+    {
+	    const auto vm = VM::GetSingleton();
+	    const auto policy = vm->GetObjectHandlePolicy();
+	    return policy->GetHandleForObject(a_form->GetFormType(), a_form);
+    }
+
+    inline ObjectPtr GetObjectPtr(const RE::TESForm* a_form, const char* a_class, const bool a_create) {
+	    const auto vm = VM::GetSingleton();
+	    const auto handle = GetHandle(a_form);
+
+	    ObjectPtr object = nullptr;
+        if (const bool found = vm->FindBoundObject(handle, a_class, object); !found && a_create) {
+		    vm->CreateObject2(a_class, object);
+		    vm->BindObject(object, handle, false);
+	    }
+	    return object;
+    }
+
+    template <class... Args>
+	bool CallFunction(const std::string_view functionClass, const std::string_view function, Args... a_args)
+	{
+		const auto skyrimVM = RE::SkyrimVM::GetSingleton();
+        if (const auto vm = skyrimVM ? skyrimVM->impl : nullptr) {
+			RE::BSTSmartPointer<RE::BSScript::IStackCallbackFunctor> callback;
+			auto args = RE::MakeFunctionArguments(std::forward<Args>(a_args)...);
+			return vm->DispatchStaticCall(std::string(functionClass).c_str(), std::string(function).c_str(), args, callback);
+		}
+		return false;
+	}
+}
 
 namespace Functions {
 
@@ -147,7 +182,7 @@ namespace FunctionsSkyrim {
         static int GetValue(RE::TESAmmo* form) {
 			return form->value;
 		}
-        static void SetValue(RE::TESAmmo* form, int value) {
+        static void SetValue(RE::TESAmmo* form, const int value) {
 			form->value = value;
 		}
     };
@@ -158,21 +193,20 @@ namespace FunctionsSkyrim {
             return form->weight;
         }
 
-        static void SetWeight(RE::AlchemyItem* form, float weight) { 
+        static void SetWeight(RE::AlchemyItem* form, const float weight) { 
             form->weight = weight;
         }
 
         static int GetValue(RE::AlchemyItem* form) {
         	return form->GetGoldValue();
         }
-        static void SetValue(RE::AlchemyItem* form, int value) { 
+        static void SetValue(RE::AlchemyItem* form, const int value) { 
             logger::trace("CostOverride: {}", form->data.costOverride);
             form->data.costOverride = value;
         }
     };
 
 }
-
 
 namespace MsgBoxesNotifs {
 
@@ -190,7 +224,7 @@ namespace MsgBoxesNotifs {
         };
 
     public:
-        static void Show(const std::string& bodyText, std::vector<std::string> buttonTextValues,
+        static void Show(const std::string& bodyText, const std::vector<std::string>& buttonTextValues,
                          std::function<void(unsigned int)> callback);
     };
 
@@ -214,7 +248,7 @@ namespace MsgBoxesNotifs {
 
 		inline void FormTypeErr(RE::FormID id) {
 			RE::DebugMessageBox(
-				std::format("{}: The form type of the item with FormID ({:x}) is not supported. Please contact the mod author.",
+				std::format("{}: The form type of the item with FormID ({}) is not supported. Please contact the mod author.",
 					mod_name, id).c_str());
         };
 
@@ -230,7 +264,7 @@ namespace MsgBoxesNotifs {
 
         inline void ProblemWithContainer(int id) {
                 RE::DebugMessageBox(
-					std::format("{}: Problem with one of the items with the form id ({:x}). This is expected if you have changed the list of containers in the INI file between saves. Corresponding items will be returned to your inventory. You can suppress this message by changing the setting in your INI.",
+					std::format("{}: Problem with one of the items with the form id ({}). This is expected if you have changed the list of containers in the INI file between saves. Corresponding items will be returned to your inventory. You can suppress this message by changing the setting in your INI.",
                         								mod_name, id)
 						.c_str());
             };
@@ -266,7 +300,7 @@ namespace Inventory {
 
     void EquipItem(const RE::TESBoundObject* item, bool unequip = false);
 
-    inline void EquipItem(const FormID formid, bool unequip = false) {
+    inline void EquipItem(const FormID formid, const bool unequip = false) {
 	    EquipItem(GetFormByID<RE::TESBoundObject>(formid), unequip);
     }
 
@@ -276,8 +310,9 @@ namespace Inventory {
 	    return IsEquipped(GetFormByID<RE::TESBoundObject>(formid));
     }
 
-};
+    void ToggleEquip(RE::TESBoundObject* item);
 
+};
 
 namespace WorldObject {
 
@@ -288,7 +323,7 @@ namespace WorldObject {
     inline void StartDraggingObject(RE::TESObjectREFR* ref) {
         using func_t = void(*)(RE::TESObjectREFR*);
         static auto ObjectManipulationOverhaul = GetModuleHandle(L"ObjectManipulationOverhaul");
-        func_t func = reinterpret_cast<func_t>(GetProcAddress(ObjectManipulationOverhaul, "StartDraggingObject"));
+        const func_t func = reinterpret_cast<func_t>(GetProcAddress(ObjectManipulationOverhaul, "StartDraggingObject"));
         return func(ref);
     }
 };
@@ -420,4 +455,12 @@ namespace DynamicForm {
 
     void copyAppearence(RE::TESForm* source, RE::TESForm* target);
 
+};
+
+namespace Menu {
+    std::string_view CloseMenu();
+
+    bool IsOpen(const RE::BSFixedString& menu_name);
+
+    void OpenMenu(const std::string_view menuname);;
 };

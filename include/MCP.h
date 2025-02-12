@@ -13,6 +13,14 @@ struct ManagerSource {
 	std::map<FormID, std::pair<std::string,Count>> initial_items;
 };
 
+struct ManagerData {
+    FormID real_formid;
+	RefID chest_ref;
+    RefID location;
+	std::string name;
+	std::string location_name;
+};
+
 namespace UI {
 
     inline ImGuiTableFlags table_flags = ImGuiTableFlags_Resizable | ImGuiTableFlags_SizingFixedFit | ImGuiTableFlags_SizingStretchProp | ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg;
@@ -29,6 +37,7 @@ namespace UI {
     inline std::map<FormID,std::pair<std::string,int>> dynamic_forms;
     inline size_t n_sources;
 	inline std::vector<ManagerSource> sources;
+	inline std::vector<ManagerData> data;
 
     inline std::map<FormID,bool> collapse_states;
 	inline int dft_form_limit = DynamicFormTracker::GetSingleton()->form_limit;
@@ -40,5 +49,7 @@ namespace UI {
     void RefreshButton();
     void Refresh();
     void SaveToINI();
+
+    void RenderData();
 
 }

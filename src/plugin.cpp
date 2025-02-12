@@ -1,8 +1,8 @@
+#include "Hooks.h"
 #include "MCP.h"
 
 Manager* M = nullptr;
 OurEventSink* eventSink;
-bool eventsinks_added = false;
 
 void OnMessage(SKSE::MessagingInterface::Message* message) {
     if (message->type == SKSE::MessagingInterface::kDataLoaded) {
@@ -17,25 +17,19 @@ void OnMessage(SKSE::MessagingInterface::Message* message) {
 			logger::critical("Failed to load Manager.");
 			return;
 		}
+        Hooks::SetManager(M);
         eventSink = OurEventSink::GetSingleton(M);
         UI::Register(M);
         logger::info("MCP registered.");
+
+        auto* eventSourceHolder = RE::ScriptEventSourceHolder::GetSingleton();
+        eventSourceHolder->AddEventSink<RE::TESFurnitureEvent>(eventSink);
+        eventSourceHolder->AddEventSink<RE::TESFormDeleteEvent>(eventSink);
+		SKSE::GetCrosshairRefEventSource()->AddEventSink(eventSink);
+		logger::info("EventSinks added.");
     }
     if (message->type == SKSE::MessagingInterface::kPostLoadGame ||
         message->type == SKSE::MessagingInterface::kNewGame) {
-        if (eventsinks_added) return;
-        if (!M || !eventSink) return;
-        // EventSink
-        auto* eventSourceHolder = RE::ScriptEventSourceHolder::GetSingleton();
-        eventSourceHolder->AddEventSink<RE::TESEquipEvent>(eventSink);
-        eventSourceHolder->AddEventSink<RE::TESActivateEvent>(eventSink);
-        eventSourceHolder->AddEventSink<RE::TESContainerChangedEvent>(eventSink);
-        eventSourceHolder->AddEventSink<RE::TESFurnitureEvent>(eventSink);
-        eventSourceHolder->AddEventSink<RE::TESFormDeleteEvent>(eventSink);
-        RE::UI::GetSingleton()->AddEventSink<RE::MenuOpenCloseEvent>(eventSink);
-        RE::BSInputDeviceManager::GetSingleton()->AddEventSink(eventSink);
-        SKSE::GetCrosshairRefEventSource()->AddEventSink(eventSink);
-        eventsinks_added = true;
     }
 }
 
@@ -45,7 +39,6 @@ void OnMessage(SKSE::MessagingInterface::Message* message) {
 void SaveCallback(SKSE::SerializationInterface* serializationInterface) {
     DISABLE_IF_UNINSTALLED 
     logger::trace("Saving Data to skse co-save.");
-	eventSink->SetBlockSinks(true);
     M->SendData();
     if (!M->Save(serializationInterface, Settings::kDataKey, Settings::kSerializationVersion)) {
         logger::critical("Failed to save Data");
@@ -56,7 +49,6 @@ void SaveCallback(SKSE::SerializationInterface* serializationInterface) {
         logger::critical("Failed to save Data");
     }
     logger::trace("Data saved to skse co-save.");
-	eventSink->SetBlockSinks(false);
 }
 
 void LoadCallback(SKSE::SerializationInterface* serializationInterface) {
@@ -73,30 +65,40 @@ void LoadCallback(SKSE::SerializationInterface* serializationInterface) {
     std::uint32_t version;
     std::uint32_t length;
 
-    eventSink->SetBlockSinks(true);
-
     while (serializationInterface->GetNextRecordInfo(type, version, length)) {
         bool is_before_0_7 = false;
         
         auto temp = DecodeTypeCode(type);
 
-        if (version == Settings::kSerializationVersion-2) {
-            logger::warn("Loading data is from an older version < v0.7. Recieved ({}) - Expected ({}) for Data Key ({})",
+        if (version == Settings::kSerializationVersion-3) {
+            logger::warn("Loading data is from an older version < v0.7. Received ({}) - Expected ({}) for Data Key ({})",
 							 version, Settings::kSerializationVersion, temp);
-			is_before_0_7= true;
+
+            is_before_0_7 = true;
+            Settings::is_pre_0_7_1 = true;
+            Settings::is_pre_0_10_0 = true;
+
             std::string err_message =
                 "It seems you haven't followed the latest update instructions for the mod correctly. "
                 "Please refer to the mod page for the latest instructions. "
                 "In case of a failure you will see an error message box displayed after this one. If not, you are probably fine.";
             MsgBoxesNotifs::InGame::CustomMsg(err_message);
-            Settings::is_pre_0_7_1 = true;
-        } else if (version == Settings::kSerializationVersion - 1) {
-			logger::warn("Loading data is from an older version < v0.7.1. Recieved ({}) - Expected ({}) for Data Key ({})",
+        }
+        else if (version == Settings::kSerializationVersion - 2) {
+			logger::warn("Loading data is from an older version < v0.7.1. Received ({}) - Expected ({}) for Data Key ({})",
 							 version, Settings::kSerializationVersion, temp);
+
             Settings::is_pre_0_7_1 = true;
+            Settings::is_pre_0_10_0 = true;
+        }
+		else if (version == Settings::kSerializationVersion - 1) {
+			logger::warn("Loading data is from an older version < v0.10.0 Received ({}) - Expected ({}) for Data Key ({})",
+				version, Settings::kSerializationVersion, temp);
+
+			Settings::is_pre_0_10_0 = true;
         }
         else if (version != Settings::kSerializationVersion) {
-            logger::critical("Loaded data has incorrect version. Recieved ({}) - Expected ({}) for Data Key ({})",
+            logger::critical("Loaded data has incorrect version. Received ({}) - Expected ({}) for Data Key ({})",
                              version, Settings::kSerializationVersion, temp);
             continue;
         }
@@ -123,7 +125,6 @@ void LoadCallback(SKSE::SerializationInterface* serializationInterface) {
     SKSE::GetTaskInterface()->AddTask([]() { 
         M->ReceiveData(); 
         logger::info("Data loaded from skse co-save.");
-	    eventSink->SetBlockSinks(false);
         }
     );
 }
@@ -150,5 +151,6 @@ SKSEPluginLoad(const SKSE::LoadInterface *skse) {
     LoadOtherSettings();
     InitializeSerialization();
     SKSE::GetMessagingInterface()->RegisterListener(OnMessage);
+	Hooks::Install();
     return true;
 }

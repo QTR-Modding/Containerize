@@ -1,6 +1,7 @@
 #pragma once
 #include "CustomObjects.h"
 #include <yaml-cpp/yaml.h>
+#include <unordered_set>
 
 namespace Settings {
 
@@ -9,11 +10,13 @@ namespace Settings {
 
     //constexpr std::uint32_t kSerializationVersion = 729; // < 0.7
     //constexpr std::uint32_t kSerializationVersion = 730; // = 0.7.0
-    constexpr std::uint32_t kSerializationVersion = 731; // >= 0.7.1
+    //constexpr std::uint32_t kSerializationVersion = 731; // >= 0.7.1
+    constexpr std::uint32_t kSerializationVersion = 732; // >= 0.10.0
     constexpr std::uint32_t kDataKey = 'CTRZ';
     constexpr std::uint32_t kDFDataKey = 'DCTZ';
 
     inline bool is_pre_0_7_1 = false;
+    inline bool is_pre_0_10_0 = false;
 
     inline bool po3installed = false;
 

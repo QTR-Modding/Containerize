@@ -141,6 +141,8 @@ void __stdcall UI::RenderInspect()
 		ImGui::EndTable();
 	}
 
+	RenderData();
+
 }
 
 void __stdcall UI::RenderLog()
@@ -209,6 +211,7 @@ void UI::Refresh()
     }
 
 	collapse_states.clear();
+	data.clear();
 	const auto& sources_temp= M->GetSources();
 	n_sources = sources_temp.size();
 	for (const auto& source : sources_temp) {
@@ -225,6 +228,19 @@ void UI::Refresh()
 		}
 		sources.push_back(mcp_source);
 		collapse_states[source.formid] = false;
+
+		// data
+		for (const auto& [chest_ref, location] : source.data) {
+			ManagerData mcp_data;
+			mcp_data.real_formid = source.formid;
+			mcp_data.chest_ref = chest_ref;
+			mcp_data.location = location;
+			const auto real_item = RE::TESForm::LookupByID(source.formid);
+			mcp_data.name = real_item ? real_item->GetName() : "Unknown";
+			const auto loc = RE::TESForm::LookupByID(location);
+			mcp_data.location_name = loc ? loc->GetName() : "Unknown";
+			data.push_back(mcp_data);
+		}
     }
 
 
@@ -246,5 +262,38 @@ void UI::SaveToINI()
 
 	ini.SaveFile(path);
 
+}
+
+void UI::RenderData()
+{
+	ImGui::Text(std::format("Data ({})", data.size()).c_str());
+	if (data.empty()) {
+		ImGui::Text("No data found.");
+		return;
+	}
+	// data table: Real FormID, Chest RefID, Location RefID, Name, Location Name
+	// make sure to write these at the top of each column
+	if (ImGui::BeginTable("table_data", 5, table_flags)) {
+		ImGui::TableSetupColumn("Real FormID");
+		ImGui::TableSetupColumn("Chest RefID");
+		ImGui::TableSetupColumn("Location RefID");
+		ImGui::TableSetupColumn("Name");
+		ImGui::TableSetupColumn("Location Name");
+		ImGui::TableHeadersRow();
+		for (const auto& data_ : data) {
+			ImGui::TableNextRow();
+			ImGui::TableNextColumn();
+			ImGui::Text(std::format("{:x}", data_.real_formid).c_str());
+			ImGui::TableNextColumn();
+			ImGui::Text(std::format("{:x}", data_.chest_ref).c_str());
+			ImGui::TableNextColumn();
+			ImGui::Text(std::format("{:x}", data_.location).c_str());
+			ImGui::TableNextColumn();
+			ImGui::Text(data_.name.c_str());
+			ImGui::TableNextColumn();
+			ImGui::Text(data_.location_name.c_str());
+		}
+		ImGui::EndTable();
+	}
 }
 

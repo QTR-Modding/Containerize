@@ -3,7 +3,6 @@
 #include <algorithm>
 #include <shared_mutex>
 
-
 class Manager : public SaveLoadData {
     // private variables
     const std::vector<std::string> buttons = {"Open", "Take", "More...", "Close"};
@@ -16,7 +15,6 @@ class Manager : public SaveLoadData {
     // runtime specific
     std::map<RefID,FormFormID> ChestToFakeContainer; // chest refid -> {real container formid (outerKey), fake container formid (innerKey)}
     RE::TESObjectREFR* current_container = nullptr;
-    RE::TESObjectREFR* hidden_real_ref = nullptr;
 
     // unowned stuff
     const RefID unownedChestOGRefID = 0x000EA29A;
@@ -30,28 +28,85 @@ class Manager : public SaveLoadData {
     std::vector<FormID> external_favs; // runtime specific, FormIDs of fake containers if faved
     std::vector<RefID> handled_external_conts; // runtime specific to prevent unnecessary checks in HandleFakePlacement
     std::map<FormID,std::string> renames;  // runtime specific, custom names for fake containers
-    std::pair<FormID, RefID> real_to_sendback = {0,0};  // pff
+    std::pair<RE::TESBoundObject*, RefID> real_to_sendback = {nullptr,0};  // pff
+    std::pair<RE::TESBoundObject*, RefID> queued_real_to_sendback = {nullptr,0};  // pff
+    std::string closed_menu;
+	RE::TESObjectREFRPtr containermenu_owner = nullptr;
 
+    mutable std::shared_mutex source_mutex_;
+	mutable std::shared_mutex chest2fake_mutex_;
 
-    void SendBackReal(FormID real_formid, RE::TESObjectREFR* chest);
+    class RenameCallbackFunctor final : public RE::BSScript::IStackCallbackFunctor {
 
-    [[nodiscard]] RE::TESBoundObject* FakeToRealContainer(FormID fake);
+		void operator()(const RE::BSScript::Variable a_result) override {
+            OnRename();
+        }
 
-    [[nodiscard]] RefID GetRealContainerChest(RefID real_refid);
+        void OnRename() const {
+            logger::trace("Rename menu closed.");
+            const auto skyrimVM = RE::SkyrimVM::GetSingleton();
+            if (const auto vm = skyrimVM ? skyrimVM->impl : nullptr) {
+                const char* menuID = "UITextEntryMenu";
+                RE::BSTSmartPointer<RE::BSScript::IStackCallbackFunctor> callback(new ConversationCallbackFunctor(M));
+                const auto args = RE::MakeFunctionArguments(std::move(menuID));
+                if (!vm->DispatchStaticCall("UIExtensions", "GetMenuResultString", args, callback)) {
+			        M->MsgBoxCallback(3);
+                }
+            }
+            else {
+                M->MsgBoxCallback(3);
+            }
+        }
+
+        void SetObject(const RE::BSTSmartPointer<RE::BSScript::Object>&) override {}
+
+		Manager* M = nullptr;
+
+    public:
+		explicit RenameCallbackFunctor(Manager* mngr) : M(mngr) {}
+    };
+
+    // Thanks and credits to Bloc: https://discord.com/channels/874895328938172446/945560222670393406/1093262407989731338
+    class ConversationCallbackFunctor final : public RE::BSScript::IStackCallbackFunctor {
+
+        std::string rename;
+	    Manager* M;
+
+        void operator()(const RE::BSScript::Variable a_result) override {
+            if (a_result.IsNoneObject()) {
+                logger::trace("Result: None");
+            } else if (a_result.IsString()) {
+                rename = a_result.GetString();
+                logger::trace("Result rename: {}", rename);
+                if (!rename.empty()) {
+				    M->RenameContainer(rename);
+                    return;
+			    }
+            }
+            M->MsgBoxCallback(3);
+        }
+
+        void SetObject(const RE::BSTSmartPointer<RE::BSScript::Object>&) override {}
+
+    public:
+        explicit ConversationCallbackFunctor(Manager* mngr) : M(mngr) {}
+    };
+
+    void SendReal(RE::TESBoundObject* real_obj, RE::TESObjectREFR* chest);
 
     // Activates a container
-    void Activate(RE::TESObjectREFR* a_objref);
+    //void Activate(RE::TESObjectREFR* a_objref);
 
-    void ActivateChest(RE::TESObjectREFR* chest, const char* chest_name);
+    [[nodiscard]] bool ActivateChest(const RE::TESObjectREFR* chest, const char* chest_name) const;
 
     [[nodiscard]] int GetChestValue(RE::TESObjectREFR* a_chest);
 
-    // OK. from container out in the world to linked chest
-    [[nodiscard]] RE::TESObjectREFR* GetRealContainerChest(const RE::TESObjectREFR* real_container);
+    // from container out in the world to linked chest
+    [[nodiscard]] RE::TESObjectREFR* GetRealContainerChest(const RE::TESObjectREFR* real_container) const;
 
     [[nodiscard]] uint32_t GetNoChests() const;
 
-    [[nodiscard]] std::vector<RefID> ConnectedChests(RefID chestRef);
+    [[nodiscard]] std::vector<RefID> GetConnectedChests(RefID chestID);
 
     [[nodiscard]] bool IsUnownedChest(RefID refid) const;
 
@@ -61,26 +116,24 @@ class Manager : public SaveLoadData {
 
     [[nodiscard]] RE::TESObjectREFR* FindNotMatchedChest() const;
 
-    [[nodiscard]] RefID GetFakeContainerChest(FormID fake_id);
-
     std::vector<FormID> RemoveAllItemsFromChest(RE::TESObjectREFR* chest, RE::TESObjectREFR* move2ref = nullptr);
 
-    std::vector<FormID> DeRegisterChest(RefID chest_ref);
+    void DeRegisterChest(RefID chest_ref);
 
     // OK. from real container formid to linked source
-    [[nodiscard]] Source* GetContainerSource(FormID container_formid);
+    [[nodiscard]] Source* GetContainerSource(FormID real_id);
 
     // returns true only if the item is in the inventory with positive count. removes the item if it is in the inventory with 0 count
-    [[nodiscard]] bool HasItemPlusCleanUp(RE::TESBoundObject* item, RE::TESObjectREFR* item_owner);
+    [[nodiscard]] static bool HasItemPlusCleanUp(RE::TESBoundObject* item, RE::TESObjectREFR* item_owner);
 
     // removes only one unit of the item
-    RE::ObjectRefHandle RemoveItem(RE::TESObjectREFR* moveFrom, RE::TESObjectREFR* moveTo, FormID item_id,
+    static RE::ObjectRefHandle RemoveItem(RE::TESObjectREFR* moveFrom, RE::TESObjectREFR* moveTo, RE::TESBoundObject* a_item,
                                           RE::ITEM_REMOVE_REASON reason);
 
-    [[nodiscard]] bool PickUpItem(RE::TESObjectREFR* item, unsigned int max_try = 3);
+    [[nodiscard]] static bool PickUpItem(RE::TESObjectREFR* item, unsigned int max_try = 3);
 
     // Removes the object from the world and adds it to an inventory
-    [[nodiscard]] bool MoveObject(RE::TESObjectREFR* ref, RE::TESObjectREFR* move2container, bool owned = true);
+    [[nodiscard]] static bool MoveObject(RE::TESObjectREFR* ref, RE::TESObjectREFR* move2container, bool owned = true);
 
     template <typename T>
     void UpdateFakeWV(T* fake_form, RE::TESObjectREFR* chest_linked, float weight_ratio);
@@ -88,15 +141,14 @@ class Manager : public SaveLoadData {
     // Updates weight and value of fake container and uses Copy and applies renaming
     void UpdateFakeWV(RE::TESBoundObject* fake_form, RE::TESObjectREFR* chest_linked, float weight_ratio);
 
-    [[nodiscard]] bool UpdateExtrasInInventory(RE::TESObjectREFR* from_inv, FormID from_item_formid,
-                                               RE::TESObjectREFR* to_inv, FormID to_item_formid);
+
+    [[nodiscard]] static bool UpdateExtrasInInventory(RE::TESObjectREFR* from_inv, FormID from_item_formid,
+                                                      RE::TESObjectREFR* to_inv, FormID to_item_formid);
 
     void HandleFormDelete_(RefID chest_refid);
 
 
-    std::shared_mutex sharedMutex_;
     std::vector<Source> sources;
-
 
     void RaiseMngrErr(const std::string& err_msg_ = "Error");
 
@@ -104,25 +156,18 @@ class Manager : public SaveLoadData {
 
     void Init();
 
-
     template <typename T>
     FormID CreateFakeContainer(T* realcontainer, RefID connected_chest, RE::ExtraDataList*);
 
     // Creates new form for fake container // pre 0.7.1: and adds it to unownedChestOG
     FormID CreateFakeContainer(RE::TESBoundObject* container, RefID connected_chest, RE::ExtraDataList* el);
 
-    
-
-
-    // external refid is in one of the source data. unownedchests are allowed
-    [[nodiscard]] bool ExternalContainerIsRegistered(RefID external_container_id);
-
     // for the cases when real container is in its chest and fake container is in some other inventory (player,unownedchest,external_container)
     // DOES NOT UPDATE THE SOURCE DATA and CHESTTOFAKECONTAINER !!!
     void qTRICK_(SourceDataKey chest_ref, SourceDataVal cont_ref,bool fake_nonexistent = false);
 
     // places fakes according to loaded data to player or unowned chests
-    void Something2(const RefID chest_ref, std::vector<RefID>& ha);
+    void FakePlacementCeption(const RefID chest_ref, std::vector<RefID>& ha);
 
     void FakePlacement(RefID saved_ref, RefID chest_ref, RE::TESObjectREFR* external_cont = nullptr);
 
@@ -143,8 +188,21 @@ class Manager : public SaveLoadData {
         else item->fullName = new_name;
     }
 
-
 public:
+
+    [[nodiscard]] RefID GetRealContainerChestID(RefID real_refid) const;
+    [[nodiscard]] RefID GetFakeContainerChestID(FormID fake_id);
+    RE::TESBoundObject* GetFakeBound(RefID chest_id) const;
+    FormID GetFakeID(RefID chest_id) const;
+    FormID GetRealID(RefID chest_id) const;
+    void OnPickup(RE::TESObjectREFR* picked_up_by, RE::TESObjectREFR * a_object);
+	void HandleDrop(RE::TESObjectREFR* fake_object);
+    void DeRegister(FormID fake_id);
+    void UpdateData(RefID chestID, RefID loc_id);
+    void OnLongPressEquip(const RE::TESBoundObject* a_selected_item);
+	void UpdateFakeWV(RE::TESBoundObject* fake_form);
+    Count CanBeAdded(const RE::TESBoundObject* a_item, Count a_count, const RE::TESBoundObject* fake_container);
+    [[nodiscard]] RE::TESBoundObject* FakeToRealContainer(FormID fake);
 
     explicit Manager(const std::vector<Source>& data) : sources(data) { Init(); }
 
@@ -156,12 +214,9 @@ public:
     const char* GetType() override { return "Manager"; }
 
 	std::atomic<bool> isUninstalled = false;
-	std::atomic<bool> listen_menu_close = false;
-    std::atomic<bool> listen_activate = true;
-    std::atomic<bool> listen_container_change = true;
 
 
-    void OnActivateContainer(RE::TESObjectREFR* a_container, bool equip=false);;
+    void OnActivateContainer(RE::TESObjectREFR* a_container);
 
     // places fake objects in external containers after load game
     void HandleFakePlacement(RE::TESObjectREFR* external_cont);
@@ -176,51 +231,21 @@ public:
 
     void RenameContainer(const std::string& new_name);
 
-    // reverts inside the same inventory
-    static void RevertEquip(FormID fakeid);
-
-    // reverts by sending it back to the initial inventory
-    void RevertEquip(FormID fakeid, RefID external_container_id);
-
-    void HandleContainerMenuExit();
-
-    void ActivateContainer(FormID fakeid, bool hide_real = false);
-
-    void UnHideReal(FormID fakeid);
+    void OnContainerMenuExit();
+    void OnContainerMenuEnter();
 
     [[nodiscard]] bool IsARegistry(RefID registry) const;
 
-    // if the src with this formid has some data, then we say it has registry
-    [[nodiscard]] bool RealContainerHasRegistry(FormID realcontainer_formid) const;
-
-    // hopefully this works.
-    void DropTake(FormID realcontainer_formid, RefID refid);
-
-    // external container can be found in the values of src.data
-    [[nodiscard]] bool ExternalContainerIsRegistered(FormID fake_container_formid,
-                                                     RefID external_container_id);
-
-    void UnLinkExternalContainer(FormID fake_container_formid, RefID externalcontainer);
-
-    [[nodiscard]] bool SwapDroppedFakeContainer(RE::TESObjectREFR* ref_fake);
-
     void HandleCraftingExit();
 
-    void HandleConsume(FormID fake_formid);
+    void OnConsume(FormID fake_formid, RE::TESObjectREFR* consumed_by);
 
-    void HandleSell(FormID fake_container, RefID sell_refid);
+    void HandleSell(FormID fake_container, RE::TESObjectREFR* sell_ref);
 
     void HandleFormDelete(RefID refid);
 
-    [[nodiscard]] static bool IsCONT(RefID refid);
-
     // checks if the refid is in the ChestToFakeContainer, i.e. if it is an unownedchest
     [[nodiscard]] bool IsChest(const RefID chest_refid) const { return ChestToFakeContainer.contains(chest_refid); }
-
-    // Register an external container (technically could be another unownedchest of another of our containers) to the source data so that chestrefid of currentcontainer -> external container
-    void LinkExternalContainer(FormID fakecontainer, RefID externalcontainer_refid);
-
-    void InspectItemTransfer(RefID chest_refid, FormID item_id);
 
     void Reset();
 
@@ -236,31 +261,25 @@ public:
 
 };
 
-
-
 template <typename T>
-void Manager::UpdateFakeWV(T* fake_form, RE::TESObjectREFR* chest_linked, float weight_ratio) {
-    logger::trace("UpdateFakeWV");
-        
+void Manager::UpdateFakeWV(T* fake_form, RE::TESObjectREFR* chest_linked, const float weight_ratio) {
+
     // assumes base container is already in the chest
     if (!chest_linked || !fake_form) return RaiseMngrErr("Failed to get chest.");
     const auto fake_formid = fake_form->GetFormID();
     auto real_container = FakeToRealContainer(fake_formid);
-    logger::trace("Copying from real container to fake container. Real container: {}, Fake container: {}",
-                  real_container->GetFormID(), fake_formid);
     fake_form->Copy(real_container->As<T>());
-    logger::trace("Copied from real container to fake container");
-    logger::trace("if it was renamed, rename it back");
     if (!renames.empty() && renames.count(fake_formid)) fake_form->fullName = renames[fake_form->GetFormID()];
 
     if (weight_ratio > 0.f) FunctionsSkyrim::FormTraits<T>::SetWeight(fake_form, weight_ratio*chest_linked->GetWeightInContainer() + (1-weight_ratio)*real_container->GetWeight());
 
     auto chest_inventory = chest_linked->GetInventory();
-#ifndef NDEBUG
-    for (auto& [key, value] : chest_inventory) {
-        logger::trace("Item: {}, Count: {}", key->GetName(), value.first);
-    }
-#endif
+
+//#ifndef NDEBUG
+//    for (auto& [key, value] : chest_inventory) {
+//        logger::trace("Item: {}, Count: {}", key->GetName(), value.first);
+//    }
+//#endif
 
     // get the ench costoverride of fake in player inventory
 
@@ -268,18 +287,13 @@ void Manager::UpdateFakeWV(T* fake_form, RE::TESObjectREFR* chest_linked, float 
     const int target_value = Inventory::GetValueInContainer(chest_linked);
 
     if (other_settings[Settings::otherstuffKeys[3]]) {
-        logger::trace("VALUE BEFORE {}", x_0);
         auto temp_entry = chest_inventory.find(real_container);
         const auto extracost = Inventory::EntryHasXData(temp_entry->second.second.get()) ? xData::GetXDataCostOverride(temp_entry->second.second->extraLists->front()) : 0;
-        logger::trace("extracost {}", extracost);
         x_0 = target_value - extracost;
-        logger::trace("VALUE AFTER {}", x_0);
     }
     x_0 = std::max(x_0, 0);
 
-    logger::trace("Setting weight and value for fake form");
     FunctionsSkyrim::FormTraits<T>::SetValue(fake_form, x_0);
-    logger::trace("ACTUAL VALUE {}", FunctionsSkyrim::FormTraits<T>::GetValue(fake_form));
         
     if (!Inventory::HasItem(fake_form, player_ref) || x_0 == 0) return;
 
@@ -287,10 +301,7 @@ void Manager::UpdateFakeWV(T* fake_form, RE::TESObjectREFR* chest_linked, float 
     if (!fake_bound) return RaiseMngrErr("Fake bound is null");
     const int f_0 = Inventory::GetItemValue(fake_bound, player_ref->GetInventory());
     int f_search = f_0;
-    logger::trace("Value in inventory: {}, Target value: {}", f_0, target_value);
-    //if (f_0 <= target_value) return;
 
-    logger::trace("Player has the fake form, try to correct the value");
     // do binary search to find the correct value up to a tolerance
     constexpr float tolerance = 0.01f; // 1%
     const float tolerance_val = std::max(2.0f, std::floor(tolerance * target_value) + 1);  // at least 2
@@ -300,9 +311,6 @@ void Manager::UpdateFakeWV(T* fake_form, RE::TESObjectREFR* chest_linked, float 
     int lower_bound = 0;
     int upper_bound = x_0;
     int x_search = (lower_bound + upper_bound) / 2;
-
-    logger::trace("Value in inventory: {}", f_search);
-    logger::trace("x_0: {}", x_0);
 
     while (std::abs(f_search - target_value) > tolerance_val && curr_iter > 0) {
         FunctionsSkyrim::FormTraits<T>::SetValue(fake_form, x_search);
@@ -320,8 +328,6 @@ void Manager::UpdateFakeWV(T* fake_form, RE::TESObjectREFR* chest_linked, float 
         curr_iter--;
     }
 
-    logger::trace("iter: {}", max_iter - curr_iter);
-
     if (curr_iter == 0) {
         logger::warn("Max iterations reached.");
         if (std::abs(f_search - target_value) > std::abs(f_0 - target_value)){
@@ -333,8 +339,6 @@ void Manager::UpdateFakeWV(T* fake_form, RE::TESObjectREFR* chest_linked, float 
 
 template <typename T>
 FormID Manager::CreateFakeContainer(T* realcontainer, const RefID connected_chest, RE::ExtraDataList*) {
-    logger::trace("CreateFakeContainer");
-    //new_form = realcontainer->CreateDuplicateForm(true, (void*)new_form)->As<T>();
     const auto real_container_formid = realcontainer->GetFormID();
     const auto real_container_editorid = clib_util::editorID::get_editorID(realcontainer);
     if (real_container_editorid.empty()) {
@@ -351,7 +355,5 @@ FormID Manager::CreateFakeContainer(T* realcontainer, const RefID connected_ches
     new_form->fullName = realcontainer->GetFullName();
     logger::info("Created form with type: {}, Base ID: {:x}, Name: {}",
                  RE::FormTypeToString(new_form->GetFormType()), new_form_id, new_form->GetName());
-    //unownedChestOG->AddObjectToContainer(new_form, extralist, 1, nullptr); // pre 0.7.1
-
     return new_form_id;
 }
