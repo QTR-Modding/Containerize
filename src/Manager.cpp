@@ -48,7 +48,7 @@ FormID Manager::GetFakeID(const RefID chest_id) const
 	return 0;
 }
 
-FormID Manager::GetRealID(RefID chest_id) const
+FormID Manager::GetRealID(const RefID chest_id) const
 {
 	std::shared_lock lock(chest2fake_mutex_);
 	if (ChestToFakeContainer.contains(chest_id)) {
@@ -633,7 +633,6 @@ void Manager::Init() {
     else {
         uiextensions_is_present = true;
     }
-        
 
     logger::info("Manager initialized.");
 }
@@ -1566,6 +1565,9 @@ void Manager::ReceiveData() {
         RefID chestRef = realcontForm_chestRef.innerKey;
         FormIDX fakecontForm = fakecontForm_contRef.outerKey;
         RefID contRef = fakecontForm_contRef.innerKey;
+        if (Settings::is_pre_0_10_0 && contRef == chestRef) {
+			contRef = 0x14;
+        }
 
         for (auto& src : sources) {
             if (realcontForm != src.formid) continue;
@@ -1582,14 +1584,8 @@ void Manager::ReceiveData() {
             }
             if (!fakecontForm.name.empty()) renames[fakecontForm.id] = fakecontForm.name;
 
-            if (Settings::is_pre_0_10_0) {
-                if (contRef == chestRef) chest_equipped_fav[chestRef] = {fakecontForm.equipped, fakecontForm.favorited};
-                else if (fakecontForm.favorited) external_favs.push_back(fakecontForm.id);    
-            }
-            else {
-                if (contRef == 0x14) chest_equipped_fav[chestRef] = {fakecontForm.equipped, fakecontForm.favorited};
-                else if (fakecontForm.favorited) external_favs.push_back(fakecontForm.id);
-            }
+            if (contRef == 0x14) chest_equipped_fav[chestRef] = {fakecontForm.equipped, fakecontForm.favorited};
+            else if (fakecontForm.favorited) external_favs.push_back(fakecontForm.id);
 
             no_match = false;
             break;
