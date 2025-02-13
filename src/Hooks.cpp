@@ -201,7 +201,7 @@ RE::ObjectRefHandle * Hooks::MoveItemHooks<RefType>::RemoveItem(RefType * a_this
 
 	if (!a_move_to_ref) {
         if (const auto a_formid = a_item->GetFormID(); M->IsFakeContainer(a_formid)) {
-			logger::trace("Item removed from {} to nowhere for reason {}", a_this->GetName(), static_cast<int>(a_reason));
+			logger::info("Item removed from {} to nowhere for reason {}", a_this->GetName(), static_cast<int>(a_reason));
 			M->OnConsume(a_formid, a_this);
 	    }
 	}

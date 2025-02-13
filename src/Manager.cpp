@@ -104,13 +104,6 @@ void Manager::HandleDrop(RE::TESObjectREFR* fake_object)
     }
 }
 
-void Manager::DeRegister(const FormID fake_id)
-{
-	if (const auto chest_refid = GetFakeContainerChestID(fake_id)) {
-		DeRegisterChest(chest_refid);
-	}
-}
-
 void Manager::UpdateData(const RefID chestID, const RefID loc_id)
 {
 	std::shared_lock lock(chest2fake_mutex_);

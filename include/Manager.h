@@ -167,7 +167,7 @@ class Manager : public SaveLoadData {
     void qTRICK_(SourceDataKey chest_ref, SourceDataVal cont_ref,bool fake_nonexistent = false);
 
     // places fakes according to loaded data to player or unowned chests
-    void FakePlacementCeption(const RefID chest_ref, std::vector<RefID>& ha);
+    void FakePlacementCeption(RefID chest_ref, std::vector<RefID>& ha);
 
     void FakePlacement(RefID saved_ref, RefID chest_ref, RE::TESObjectREFR* external_cont = nullptr);
 
@@ -177,7 +177,7 @@ class Manager : public SaveLoadData {
 
     void MsgBoxCallback(int result);
 
-    void MsgBoxCallbackMore(const int result);
+    void MsgBoxCallbackMore(int result);
 
     void PromptInterface();
 
@@ -197,7 +197,6 @@ public:
     FormID GetRealID(RefID chest_id) const;
     void OnPickup(RE::TESObjectREFR* picked_up_by, RE::TESObjectREFR * a_object);
 	void HandleDrop(RE::TESObjectREFR* fake_object);
-    void DeRegister(FormID fake_id);
     void UpdateData(RefID chestID, RefID loc_id);
     void OnLongPressEquip(const RE::TESBoundObject* a_selected_item);
 	void UpdateFakeWV(RE::TESBoundObject* fake_form);
