@@ -448,6 +448,7 @@ bool Manager::HasItemPlusCleanUp(RE::TESBoundObject* item, RE::TESObjectREFR* it
     const auto inventory = item_owner->GetInventory();
     if (const auto entry = inventory.find(item); entry == inventory.end()) return false;
     else if (entry->second.first > 0) return true;
+	logger::warn("Item count is 0. Removing item.");
     RemoveItem(item_owner, nullptr, item, RE::ITEM_REMOVE_REASON::kRemove);
     return false;
 }
@@ -462,8 +463,8 @@ void Manager::Uninstall() {
     logger::info("No of chests in cell: {}", GetNoChests());
 
     // first lets get rid of the fake items from everywhere
-	std::shared_lock lock(chest2fake_mutex_);
-    for (const auto& [chest_refid, real_fake_formid] : ChestToFakeContainer) {
+    for (std::shared_lock lock(chest2fake_mutex_);
+        const auto& [chest_refid, real_fake_formid] : ChestToFakeContainer) {
         const auto chest = RE::TESForm::LookupByID<RE::TESObjectREFR>(chest_refid);
         if (!chest) {
             uninstall_successful = false;
@@ -477,18 +478,13 @@ void Manager::Uninstall() {
             logger::error("Fake bound not found");
             break;
         }
-        int max_try = 10;
-        while (HasItemPlusCleanUp(fake_bound, chest) && max_try>0) {
+        if (HasItemPlusCleanUp(fake_bound, chest)) {
             RemoveItem(chest, nullptr, fake_bound, RE::ITEM_REMOVE_REASON::kRemove);
-            max_try--;
         }
-        max_try = 10;
-        while (HasItemPlusCleanUp(fake_bound, player_ref) && max_try>0) {
+        if (HasItemPlusCleanUp(fake_bound, player_ref)) {
             RemoveItem(player_ref, nullptr, fake_bound, RE::ITEM_REMOVE_REASON::kRemove);
-            max_try--;
         }
     }
-	lock.unlock();
 
     // Delete all unowned chests and try to return all items to the player's inventory while doing that
     for (auto& unownedRuntimeData = unownedCell->GetRuntimeData(); const auto& ref : unownedRuntimeData.references) {
@@ -503,8 +499,8 @@ void Manager::Uninstall() {
     }
 
     // seems like i need to do it for the player again???????
-	lock.lock();
-    for (const auto& [chest_refid, real_fake_formid] : ChestToFakeContainer) {
+    for (std::shared_lock lock(chest2fake_mutex_);
+        const auto& [chest_refid, real_fake_formid] : ChestToFakeContainer) {
         if (const auto chest = RE::TESForm::LookupByID<RE::TESObjectREFR>(chest_refid); !chest) {
             uninstall_successful = false;
             logger::error("Chest not found");
@@ -519,9 +515,6 @@ void Manager::Uninstall() {
         }
         RemoveItem(player_ref, nullptr, fake_bound, RE::ITEM_REMOVE_REASON::kRemove);
     }
-
-	lock.unlock();
-
 
     Reset();
 
@@ -1499,6 +1492,10 @@ void Manager::HandleFormDelete_(const RefID chest_refid) {
 
 void Manager::Reset() {
     logger::info("Resetting manager...");
+
+	std::unique_lock lock(source_mutex_);
+	std::unique_lock lock2(chest2fake_mutex_);
+
     for (auto& src : sources) {
         src.data.clear();
     }
