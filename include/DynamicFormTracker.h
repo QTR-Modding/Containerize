@@ -58,22 +58,13 @@ class DynamicFormTracker : public DFSaveLoadData {
 	}
 
     [[nodiscard]] bool IsTracked(const FormID dynamic_formid) {
-        for (const auto& [base_pair, dyn_formset] : forms) {
+        for (const auto& dyn_formset : forms | std::views::values) {
 			if (dyn_formset.contains(dynamic_formid)) {
 				return true;
 			}
 		}
 		return false;
     }
-
-    [[maybe_unused]] RE::TESForm* GetOGFormOfDynamic(const FormID dynamic_formid) {
-		for (const auto& [base_pair, dyn_formset] : forms) {
-			if (dyn_formset.contains(dynamic_formid)) {
-				return GetFormByID(base_pair.first, base_pair.second);
-			}
-		}
-		return nullptr;
-	}
 
     static void ReviveDynamicForm(RE::TESForm* fake, RE::TESForm* base, const FormID setFormID) {
         using namespace DynamicForm;
@@ -395,6 +386,15 @@ public:
 
     const char* GetType() override { return "DynamicFormTracker"; }
 
+    RE::TESForm* GetOGFormOfDynamic(const FormID dynamic_formid) {
+		for (const auto& [base_pair, dyn_formset] : forms) {
+			if (dyn_formset.contains(dynamic_formid)) {
+				return GetFormByID(base_pair.first, base_pair.second);
+			}
+		}
+		return nullptr;
+	}
+
     bool IsActive(const FormID a_formid) const {
         return active_forms.contains(a_formid);
 	}
@@ -435,7 +435,7 @@ public:
 
     std::vector<std::pair<FormID, std::string>> GetSourceForms(){
         std::set<std::pair<FormID, std::string>> source_forms;
-		for (const auto& [base, formset] : forms) {
+		for (const auto& base : forms | std::views::keys) {
 			source_forms.insert(base);
 		}
         for (const auto& [base_formid, dynamicFormid, elapsed, custom_id] : act_effs) {

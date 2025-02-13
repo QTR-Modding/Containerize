@@ -84,15 +84,24 @@ void Manager::OnPickup(RE::TESObjectREFR* picked_up_by, RE::TESObjectREFR* a_obj
 
 void Manager::HandleDrop(RE::TESObjectREFR* fake_object)
 {
+	bool found = false;
 	std::shared_lock lock(chest2fake_mutex_);
 	for (const auto& [chest_refid, real_fake_id] : ChestToFakeContainer) {
 		if (real_fake_id.innerKey == fake_object->GetBaseObject()->GetFormID()) {
 			const auto real_bound = RE::TESForm::LookupByID<RE::TESBoundObject>(real_fake_id.outerKey);
 			WorldObject::SwapObjects(fake_object, real_bound, false);
             UpdateData(chest_refid,fake_object->GetFormID());
+			found = true;
             break;
 		}
 	}
+
+    if (!found) {
+		logger::warn("Fake object not found in ChestToFakeContainer.");
+		if (const auto baseform = DynamicFormTracker::GetSingleton()->GetOGFormOfDynamic(fake_object->GetBaseObject()->GetFormID())) {
+	        WorldObject::SwapObjects(fake_object, skyrim_cast<RE::TESBoundObject*>(baseform), false);    
+		}
+    }
 }
 
 void Manager::DeRegister(const FormID fake_id)
@@ -181,7 +190,6 @@ void Manager::HandleCraftingExit() {
 }
 
 void Manager::OnConsume(const FormID fake_formid, RE::TESObjectREFR* consumed_by) {
-    logger::trace("OnConsume");
     // check if player has the fake item
     // sometimes player does not have the fake item but it can still be there with count = 0.
     if (const auto fake_obj = RE::TESForm::LookupByID<RE::TESBoundObject>(fake_formid)) {
@@ -444,7 +452,6 @@ Source* Manager::GetContainerSource(const FormID real_id) {
 }
 
 bool Manager::HasItemPlusCleanUp(RE::TESBoundObject* item, RE::TESObjectREFR* item_owner) {
-    logger::trace("HasItemPlusCleanUp");
     const auto inventory = item_owner->GetInventory();
     if (const auto entry = inventory.find(item); entry == inventory.end()) return false;
     else if (entry->second.first > 0) return true;
