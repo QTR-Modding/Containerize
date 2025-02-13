@@ -273,7 +273,7 @@ void Manager::UpdateFakeWV(T* fake_form, RE::TESObjectREFR* chest_linked, const 
 
     if (weight_ratio > 0.f) FunctionsSkyrim::FormTraits<T>::SetWeight(fake_form, weight_ratio*chest_linked->GetWeightInContainer() + (1-weight_ratio)*real_container->GetWeight());
 
-    auto chest_inventory = chest_linked->GetInventory();
+    const auto chest_inventory = chest_linked->GetInventory();
 
 //#ifndef NDEBUG
 //    for (auto& [key, value] : chest_inventory) {
@@ -287,9 +287,10 @@ void Manager::UpdateFakeWV(T* fake_form, RE::TESObjectREFR* chest_linked, const 
     const int target_value = Inventory::GetValueInContainer(chest_linked);
 
     if (other_settings[Settings::otherstuffKeys[3]]) {
-        auto temp_entry = chest_inventory.find(real_container);
-        const auto extracost = Inventory::EntryHasXData(temp_entry->second.second.get()) ? xData::GetXDataCostOverride(temp_entry->second.second->extraLists->front()) : 0;
-        x_0 = target_value - extracost;
+		if (auto temp_entry = chest_inventory.find(real_container); temp_entry != chest_inventory.end()) {
+			const auto extracost = Inventory::EntryHasXDataList(temp_entry->second.second.get()) ? xData::GetXDataCostOverride(temp_entry->second.second->extraLists->front()) : 0;
+			x_0 = target_value - extracost;
+		}
     }
     x_0 = std::max(x_0, 0);
 

@@ -274,7 +274,7 @@ namespace MsgBoxesNotifs {
 };
 
 namespace Inventory {
-    bool EntryHasXData(const RE::InventoryEntryData* entry);
+    bool EntryHasXDataList(const RE::InventoryEntryData* entry);
 
     inline bool HasItemEntry(RE::TESBoundObject* item, const RE::TESObjectREFR::InventoryItemMap& inventory,
                              bool nonzero_entry_check = false);
@@ -426,7 +426,7 @@ namespace xData {
 
     [[nodiscard]] bool UpdateExtras(RE::TESObjectREFR* copy_from, RE::TESObjectREFR* copy_to);
 
-    int32_t GetXDataCostOverride(RE::ExtraDataList* xList);
+    int32_t GetXDataCostOverride(const RE::ExtraDataList* xList);
 
     void AddTextDisplayData(RE::ExtraDataList* extraDataList, const std::string& displayName);
 

@@ -524,21 +524,19 @@ bool xData::UpdateExtras(RE::ExtraDataList* copy_from, RE::ExtraDataList* copy_t
     return true;
 }
 
-int32_t xData::GetXDataCostOverride(RE::ExtraDataList* xList) {
+int32_t xData::GetXDataCostOverride(const RE::ExtraDataList* xList) {
     if (!xList) return 0;
     int32_t extra_costs = 0;
-    if (xList && FunctionsSkyrim::GetExtraDataListLength(xList)) {
-        if (const auto xench = xList->GetByType<RE::ExtraEnchantment>()) {
-            const auto ench = xench->enchantment;
-            auto temp_costoverride = ench->data.costOverride;
-            if (temp_costoverride < 0) temp_costoverride = static_cast<int32_t>(ench->CalculateTotalGoldValue());
-            if (temp_costoverride < 0)
-                temp_costoverride =
-                    static_cast<int32_t>(ench->CalculateTotalGoldValue(RE::PlayerCharacter::GetSingleton()));
-            if (temp_costoverride > 0) {
-                logger::trace("CostOverride: {}", temp_costoverride);
-                extra_costs += temp_costoverride;
-            }
+    if (const auto xench = xList->GetByType<RE::ExtraEnchantment>()) {
+        const auto ench = xench->enchantment;
+        auto temp_costoverride = ench->data.costOverride;
+        if (temp_costoverride < 0) temp_costoverride = static_cast<int32_t>(ench->CalculateTotalGoldValue());
+        if (temp_costoverride < 0)
+            temp_costoverride =
+                static_cast<int32_t>(ench->CalculateTotalGoldValue(RE::PlayerCharacter::GetSingleton()));
+        if (temp_costoverride > 0) {
+            logger::trace("CostOverride: {}", temp_costoverride);
+            extra_costs += temp_costoverride;
         }
     }
     return extra_costs;
@@ -556,7 +554,7 @@ void xData::AddTextDisplayData(RE::ExtraDataList* extraDataList, const std::stri
     extraDataList->Add(textDisplayData);
 }
 
-bool Inventory::EntryHasXData(const RE::InventoryEntryData* entry) {
+bool Inventory::EntryHasXDataList(const RE::InventoryEntryData* entry) {
     if (entry && entry->extraLists && !entry->extraLists->empty()) return true;
     return false;
 }
@@ -591,7 +589,7 @@ bool Inventory::IsQuestItem(const FormID formid, RE::TESObjectREFR* inv_owner)
 }
 
 int32_t Inventory::GetEntryCostOverride(const RE::InventoryEntryData* entry) {
-    if (!EntryHasXData(entry)) return 0;
+    if (!EntryHasXDataList(entry)) return 0;
     int32_t extra_costs = 0;
     for (const auto& xList : *entry->extraLists) {
         extra_costs += xData::GetXDataCostOverride(xList);

@@ -125,7 +125,6 @@ RE::TESBoundObject* Hooks::GetSelectedItemInMenu()
 
 void Hooks::add_item_functor(RE::TESObjectREFR* a_this, RE::TESObjectREFR* a_object, int32_t a_count, bool a4, bool a5)
 {
-	logger::info("add_item_functor event.");
 	if (!a_this || !a_object || a_count>1) {
 		return add_item_functor_(a_this, a_object, a_count, a4, a5);
 	}
