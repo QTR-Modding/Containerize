@@ -260,10 +260,7 @@ class DynamicFormTracker : public DFSaveLoadData {
 	}
 
     bool _delete(const std::pair<FormID, std::string>& base, const FormID dynamic_formid) {
-        if (protected_forms.contains(dynamic_formid)) {
-			logger::warn("Form with ID {:x} is protected.", dynamic_formid);
-			return false;
-		}
+
         if (!forms.contains(base)) return false;
 
         const auto base_form = RE::TESForm::LookupByID(base.first);
@@ -431,7 +428,24 @@ public:
                 else index++;
 			}
 		}
+		CleanseFormsets();
 	}
+
+    void DeleteAll() {
+		std::lock_guard<std::mutex> lock(mutex);
+        logger::trace("Deleting all.");
+        for (auto& [base, formset] : forms) {
+		    size_t index = 0;
+            while (index < formset.size()) {
+                auto it = formset.begin();
+                std::advance(it, index);
+                if (!_delete(base, *it)) {
+                    index++;
+				}
+			}
+		}
+		CleanseFormsets();
+    }
 
     std::vector<std::pair<FormID, std::string>> GetSourceForms(){
         std::set<std::pair<FormID, std::string>> source_forms;
@@ -754,7 +768,7 @@ public:
             logger::error("Failed to get player as magic caster.");
             return;
         }
-        for (const auto& [item_formid, elapsed] : new_act_effs) {
+        for (const auto& item_formid : new_act_effs | std::views::keys) {
             auto* item = RE::TESForm::LookupByID<RE::MagicItem>(item_formid);
             if (!item) {
                 logger::error("Failed to get item by formid.");

@@ -254,7 +254,7 @@ namespace MsgBoxesNotifs {
 
 		inline void UninstallSuccessful() {
 			RE::DebugMessageBox(
-				std::format("{}: Uninstall successful. You can now safely remove the mod.", mod_name).c_str());
+				std::format("{}: Uninstall successful. You can now remove the mod. Please save and quit the game.", mod_name).c_str());
         }
 
         inline void UninstallFailed() {

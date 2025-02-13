@@ -374,7 +374,7 @@ std::vector<FormID> Manager::RemoveAllItemsFromChest(RE::TESObjectREFR* chest, R
         move2ref = nullptr;
     }
 
-    auto removeReason = move2ref ? RE::ITEM_REMOVE_REASON::kStoreInContainer : RE::ITEM_REMOVE_REASON::kRemove;
+    const auto removeReason = move2ref ? RE::ITEM_REMOVE_REASON::kStoreInContainer : RE::ITEM_REMOVE_REASON::kRemove;
     //if (move2ref && move2ref->IsPlayerRef()) removeReason = RE::ITEM_REMOVE_REASON::kRemove;
 
     for (const auto inventory = chest->GetInventory(); const auto& item : inventory) {
@@ -462,64 +462,56 @@ void Manager::Uninstall() {
     logger::info("Uninstalling...");
     logger::info("No of chests in cell: {}", GetNoChests());
 
+    std::vector<std::pair<RefID,FormID>> all_chests_fakes;
     // first lets get rid of the fake items from everywhere
     for (std::shared_lock lock(chest2fake_mutex_);
-        const auto& [chest_refid, real_fake_formid] : ChestToFakeContainer) {
-        const auto chest = RE::TESForm::LookupByID<RE::TESObjectREFR>(chest_refid);
-        if (!chest) {
-            uninstall_successful = false;
-            logger::error("Chest not found");
-            break;
-        }
-        const auto fake_formid = real_fake_formid.innerKey;
-        const auto fake_bound = RE::TESForm::LookupByID<RE::TESBoundObject>(fake_formid);
-        if (!fake_bound) {
-            uninstall_successful = false;
-            logger::error("Fake bound not found");
-            break;
-        }
-        if (HasItemPlusCleanUp(fake_bound, chest)) {
-            RemoveItem(chest, nullptr, fake_bound, RE::ITEM_REMOVE_REASON::kRemove);
-        }
-        if (HasItemPlusCleanUp(fake_bound, player_ref)) {
-            RemoveItem(player_ref, nullptr, fake_bound, RE::ITEM_REMOVE_REASON::kRemove);
-        }
+		const auto& [chest_refid, real_fake_formid] : ChestToFakeContainer) {
+		all_chests_fakes.emplace_back(chest_refid,real_fake_formid.innerKey);
     }
-
-    // Delete all unowned chests and try to return all items to the player's inventory while doing that
-    for (auto& unownedRuntimeData = unownedCell->GetRuntimeData(); const auto& ref : unownedRuntimeData.references) {
-        if (!ref) continue;
-        if (ref->GetFormID() == unownedChestOGRefID) continue;
-        if (ref->GetBaseObject()->GetFormID() != unownedChestFormID) continue;
-        if (ref->IsDisabled() && ref->IsDeleted()) continue;
-        logger::info("Removing items from chest with refid {}", ref->GetFormID());
-        RemoveAllItemsFromChest(ref.get(), player_ref);
-        ref->Disable();
-        ref->SetDelete(true);
-    }
-
-    // seems like i need to do it for the player again???????
-    for (std::shared_lock lock(chest2fake_mutex_);
-        const auto& [chest_refid, real_fake_formid] : ChestToFakeContainer) {
-        if (const auto chest = RE::TESForm::LookupByID<RE::TESObjectREFR>(chest_refid); !chest) {
-            uninstall_successful = false;
-            logger::error("Chest not found");
-            break;
-        }
-        const auto fake_formid = real_fake_formid.innerKey;
-        auto fake_bound = RE::TESForm::LookupByID<RE::TESBoundObject>(fake_formid);
-        if (!fake_bound) {
-            uninstall_successful = false;
-            logger::error("Fake bound not found");
-            break;
-        }
-        RemoveItem(player_ref, nullptr, fake_bound, RE::ITEM_REMOVE_REASON::kRemove);
-    }
+	logger::info("Removing fake items from player's inventory");
 
     Reset();
 
-    logger::info("uninstall_successful: {}", uninstall_successful);
+	for (const auto& chest_refid : all_chests_fakes | std::views::keys) {
+		if (const auto chest = RE::TESForm::LookupByID<RE::TESObjectREFR>(chest_refid); !chest) {
+			uninstall_successful = false;
+			logger::error("Chest not found");
+			break;
+		}
+        else {
+            RemoveAllItemsFromChest(chest, player_ref);
+        }
+	}
+    for (const auto& fake_id : all_chests_fakes | std::views::values) {
+		if (const auto fake = RE::TESForm::LookupByID<RE::TESBoundObject>(fake_id); !fake) {
+			uninstall_successful = false;
+			logger::error("Chest not found");
+			break;
+		}
+        else {
+			player_ref->RemoveItem(fake, 1, RE::ITEM_REMOVE_REASON::kRemove,nullptr,nullptr);
+        }
+	}
 
+
+    // Delete all unowned chests and try to return all items to the player's inventory while doing that
+	logger::info("Removing all unowned chests");
+	{
+	    RE::BSSpinLockGuard locker(unownedCell->GetRuntimeData().spinLock);
+        for (auto& unownedRuntimeData = unownedCell->GetRuntimeData(); const auto& ref : unownedRuntimeData.references) {
+            if (!ref) continue;
+            if (ref->GetFormID() == unownedChestOGRefID) continue;
+            if (ref->GetBaseObject()->GetFormID() != unownedChestFormID) continue;
+            if (ref->IsDisabled() && ref->IsDeleted()) continue;
+            logger::info("Removing items from chest with refid {}", ref->GetFormID());
+            RemoveAllItemsFromChest(ref.get(), player_ref);
+            ref->Disable();
+            ref->SetDelete(true);
+        }
+	}
+
+
+    logger::info("uninstall_successful: {}", uninstall_successful);
     logger::info("No of chests in cell: {}", GetNoChests());
 
     if (GetNoChests() != 1) uninstall_successful = false;
@@ -527,15 +519,14 @@ void Manager::Uninstall() {
     logger::info("uninstall_successful: {}", uninstall_successful);
 
     if (uninstall_successful) {
-        // sources.clear();
-        /*current_container = nullptr;
-            unownedChestOG = nullptr;*/
         logger::info("Uninstall successful.");
         MsgBoxesNotifs::InGame::UninstallSuccessful();
     } else {
         logger::critical("Uninstall failed.");
         MsgBoxesNotifs::InGame::UninstallFailed();
     }
+
+	DynamicFormTracker::GetSingleton()->DeleteAll();
 
     // set uninstalled flag to true
     isUninstalled.store(true);
@@ -1198,6 +1189,7 @@ void Manager::MsgBoxCallbackMore(const int result) {
         return;
     }
 
+    MsgBoxCallback(3);
     Uninstall();
 
 }
@@ -1232,11 +1224,11 @@ RE::ObjectRefHandle Manager::RemoveItem(RE::TESObjectREFR* moveFrom, RE::TESObje
 
     auto ref_handle = RE::ObjectRefHandle();
 
-    if (!moveFrom && !moveTo) {
-        logger::critical("moveFrom and moveTo are both null!");
+    if (!moveFrom) {
+        logger::critical("moveFrom is null!");
         return ref_handle;
     }
-    if (moveFrom && moveTo && moveFrom->GetFormID() == moveTo->GetFormID()) {
+    if (moveTo && moveFrom->GetFormID() == moveTo->GetFormID()) {
         logger::info("moveFrom and moveTo are the same!");
         return ref_handle;
     }
@@ -1493,8 +1485,8 @@ void Manager::HandleFormDelete_(const RefID chest_refid) {
 void Manager::Reset() {
     logger::info("Resetting manager...");
 
-	std::unique_lock lock(source_mutex_);
-	std::unique_lock lock2(chest2fake_mutex_);
+	/*std::unique_lock lock(source_mutex_);
+	std::unique_lock lock2(chest2fake_mutex_);*/
 
     for (auto& src : sources) {
         src.data.clear();
