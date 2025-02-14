@@ -186,10 +186,25 @@ void Manager::OnConsume(const FormID fake_formid, RE::TESObjectREFR* consumed_by
     // check if player has the fake item
     // sometimes player does not have the fake item but it can still be there with count = 0.
     if (const auto fake_obj = RE::TESForm::LookupByID<RE::TESBoundObject>(fake_formid)) {
+
+        {
+		    // check if its location is actually in "consumed_by" inventory
+			const auto chest_id = GetFakeContainerChestID(fake_formid);
+            const auto real_id = GetRealID(chest_id);
+			std::shared_lock lock(source_mutex_);
+			if (const auto src = GetContainerSource(real_id)) {
+				if (src->data.at(chest_id) != consumed_by->GetFormID()) {
+                    if (!doppelgangers.contains(consumed_by->GetBaseObject()->GetFormID())) {
+						logger::error("Fake object is not supposed to be found in consumed_by {:x} {:x}.",consumed_by->GetFormID(),consumed_by->GetBaseObject()->GetFormID());
+					}
+                    return;
+				}
+			}
+        }
+
         // the cleanup might actually not be necessary since DeRegisterChest will remove it from consumed_by
         const auto inv = consumed_by->GetInventory();
-		const auto item_count = inv.contains(fake_obj) ? inv.at(fake_obj).first : 0;
-        if (item_count>0) {
+        if (const auto item_count = inv.contains(fake_obj) ? inv.at(fake_obj).first : 0; item_count>0) {
             if (const auto real_obj = FakeToRealContainer(fake_formid)) {
                 const auto chest_refid = GetFakeContainerChestID(fake_formid);
                 const auto chest_ref = RE::TESForm::LookupByID<RE::TESObjectREFR>(chest_refid);
@@ -617,6 +632,14 @@ void Manager::Init() {
     else {
         uiextensions_is_present = true;
     }
+
+    // doppelganger ccbgssse018-shadowrend.esl
+
+    for (const auto local_id : doppelgangers_local) {
+		if (const auto a_form = data_handler->LookupForm(local_id, "ccbgssse018-shadowrend.esl")) {
+			doppelgangers.insert(a_form->GetFormID());
+		}
+	}
 
     logger::info("Manager initialized.");
 }

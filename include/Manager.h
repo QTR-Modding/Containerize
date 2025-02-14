@@ -33,6 +33,8 @@ class Manager : public SaveLoadData {
     std::string closed_menu;
 	RE::TESObjectREFRPtr containermenu_owner = nullptr;
 
+    std::set<FormID> doppelgangers_local = {0x832,0x833,0x834,0x835,0x836,0x837,0x838,0x839,0x83a,0x83b};
+
     mutable std::shared_mutex source_mutex_;
 	mutable std::shared_mutex chest2fake_mutex_;
 
@@ -212,6 +214,7 @@ public:
 
     const char* GetType() override { return "Manager"; }
 
+    std::set<FormID> doppelgangers;
 	std::atomic<bool> isUninstalled = false;
 
 

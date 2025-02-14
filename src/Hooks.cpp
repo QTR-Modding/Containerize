@@ -130,6 +130,9 @@ void Hooks::add_item_functor(RE::TESObjectREFR* a_this, RE::TESObjectREFR* a_obj
 		return add_item_functor_(a_this, a_object, a_count, a4, a5);
 	}
 
+	/*logger::info("Object {} {:x} added to {} {:x}. Count {}", a_object->GetName(), a_object->GetFormID(),
+		a_this->GetName(), a_this->GetFormID(),a_count);*/
+
 	if (!a_this || !a_object || a_count>1) {
 		return add_item_functor_(a_this, a_object, a_count, a4, a5);
 	}
@@ -164,8 +167,15 @@ void Hooks::MoveItemHooks<RefType>::addObjectToContainer(RefType* a_this, RE::TE
 		return add_object_to_container_(a_this, a_object, a_extraList, a_count, a_fromRefr);
 	}
 
-    /*logger::trace("Object {} {:x} added to {} {:x} from {} {:x}", a_object->GetName(), a_object->GetFormID(),
-		a_this->GetName(), a_this->GetFormID(), a_fromRefr->GetName(), a_fromRefr->GetFormID());*/
+	//if (a_fromRefr) {
+ //       logger::info("Object {} {:x} added to {} {:x} from {} {:x}. Count {}", a_object->GetName(), a_object->GetFormID(),
+	//	    a_this->GetName(), a_this->GetFormID(), a_fromRefr->GetName(), a_fromRefr->GetFormID(),a_count);
+	//}
+	//else {
+	//	logger::info("Object {} {:x} added to {} {:x}. Count {}", a_object->GetName(), a_object->GetFormID(),
+	//		a_this->GetName(), a_this->GetFormID(), a_count);
+	//}
+
 
 	const auto original_count = a_count;
 	if (const auto chest_id = a_this->GetFormID(); M->IsChest(chest_id)) {
@@ -190,7 +200,7 @@ void Hooks::MoveItemHooks<RefType>::addObjectToContainer(RefType* a_this, RE::TE
 }
 
 template<typename RefType>
-RE::ObjectRefHandle * Hooks::MoveItemHooks<RefType>::RemoveItem(RefType * a_this, RE::ObjectRefHandle & a_hidden_return_argument, RE::TESBoundObject * a_item, std::int32_t a_count, RE::ITEM_REMOVE_REASON a_reason, RE::ExtraDataList * a_extra_list, RE::TESObjectREFR * a_move_to_ref, const RE::NiPoint3 * a_drop_loc, const RE::NiPoint3 * a_rotate)
+RE::ObjectRefHandle* Hooks::MoveItemHooks<RefType>::RemoveItem(RefType * a_this, RE::ObjectRefHandle & a_hidden_return_argument, RE::TESBoundObject * a_item, std::int32_t a_count, RE::ITEM_REMOVE_REASON a_reason, RE::ExtraDataList * a_extra_list, RE::TESObjectREFR * a_move_to_ref, const RE::NiPoint3 * a_drop_loc, const RE::NiPoint3 * a_rotate)
 {
 	if (!M || M->isUninstalled) {
 		return remove_item_(a_this, a_hidden_return_argument, a_item, a_count, a_reason, a_extra_list, a_move_to_ref, a_drop_loc, a_rotate);
@@ -218,7 +228,9 @@ RE::ObjectRefHandle * Hooks::MoveItemHooks<RefType>::RemoveItem(RefType * a_this
 
 	if (!a_move_to_ref) {
         if (const auto a_formid = a_item->GetFormID(); M->IsFakeContainer(a_formid)) {
-			logger::info("Item removed from {} to nowhere for reason {}", a_this->GetName(), static_cast<int>(a_reason));
+			if (!M->doppelgangers.contains(a_this->GetBaseObject()->GetFormID())) {
+			    logger::info("Item removed from {} {:x} to nowhere for reason {}. Count {}", a_this->GetName(), a_this->GetFormID(),static_cast<int>(a_reason),a_count);
+			}
 			M->OnConsume(a_formid, a_this);
 	    }
 	}
