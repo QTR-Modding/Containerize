@@ -36,15 +36,17 @@ bool Hooks::HandleEquip(RE::InputEvent* event)
 			user_event == user_events->accept ||
 			user_event == user_events->leftEquip ||
 			user_event == user_events->rightEquip
-			) {
-			if (button_event->IsDown()) {
-				equip_was_pressed.store(true);
-			}
-			if (!equip_was_pressed.load()) {
-				return false;
-			}
+			) 
+		{
 			if (const auto selected_item = GetSelectedItemInMenu(); 
-				selected_item && M->IsFakeContainer(selected_item->GetFormID())) {
+				selected_item && M->IsFakeContainer(selected_item->GetFormID())) 
+			{
+			    if (button_event->IsDown()) {
+				    equip_was_pressed.store(true);
+			    }
+			    if (!equip_was_pressed.load()) {
+				    return false;
+			    }
 				if (button_event->HeldDuration()>0.25f) {
 					M->OnLongPressEquip(selected_item);
 				}
@@ -53,9 +55,9 @@ bool Hooks::HandleEquip(RE::InputEvent* event)
 					if (ui->IsMenuOpen(RE::ContainerMenu::MENU_NAME)) {
 						RE::TESObjectREFRPtr refr_container;
 						if (LookupReferenceByHandle(RE::ContainerMenu::GetTargetRefHandle(), refr_container)) {
-						    const auto container_menu = ui->GetMenu<RE::ContainerMenu>();
-						    const auto item_list = container_menu->GetRuntimeData().itemList;
-							for (const auto a_item : item_list->items) {
+                            for (const auto container_menu = ui->GetMenu<RE::ContainerMenu>();
+								const auto a_item : container_menu->GetRuntimeData().itemList->items) {
+
 								if (a_item->data.objDesc->GetObject()->GetFormID() == selected_item->GetFormID()) {
                                     if (RE::TESObjectREFRPtr refr_owner; LookupReferenceByHandle(a_item->data.owner,refr_owner)) {
 									    if (refr_owner->IsPlayerRef()) {
@@ -86,6 +88,7 @@ bool Hooks::HandleEquip(RE::InputEvent* event)
 				}
 			    return true;
 			}
+			equip_was_pressed.store(false);
 		}
 	}
     return false;
