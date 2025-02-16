@@ -176,25 +176,17 @@ FormID GetFormEditorIDFromString(const std::string& formEditorId)
 
 std::string GetGameLanguage()
 {
-    if (auto* settingCollection = RE::INISettingCollection::GetSingleton()) {
-		if (const RE::Setting* languageSetting = settingCollection->GetSetting("sLanguage:General")) {
-            if (std::string lang = languageSetting->GetType() == RE::Setting::Type::kString ? languageSetting->GetString() : "";
-                !lang.empty()) {
-                std::ranges::transform(lang, lang.begin(), ::toupper);
-                if (const auto it = Translations::languageMap.find(lang); it != Translations::languageMap.end()) {
-                    return it->first;
-                }
-				logger::warn("Detected language is not supported: {}", lang);
-            }
-            else {
-				logger::error("Failed to get sLanguage setting.");
-            }
-		}
+	if (const RE::Setting* languageSetting = RE::GetINISetting("sLanguage:General")) {
+        std::string lang = languageSetting->GetString();
+        std::ranges::transform(lang, lang.begin(), ::toupper);
+        if (const auto it = Translations::languageMap.find(lang); it != Translations::languageMap.end()) {
+            return it->first;
+        }
+		logger::warn("Detected language is not supported: {}", lang);
+	}
+	else {
 		logger::error("Failed to get sLanguage setting.");
-    }
-    else {
-		logger::error("Failed to get GameSettingCollection singleton.");
-    }
+	}
 	return "ENGLISH";
 }
 

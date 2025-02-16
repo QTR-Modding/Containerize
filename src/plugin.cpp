@@ -21,8 +21,8 @@ void OnMessage(SKSE::MessagingInterface::Message* message) {
 		}
         Hooks::SetManager(M);
         eventSink = OurEventSink::GetSingleton(M);
+	    LoadTranslations();
         UI::Register(M);
-        logger::info("MCP registered.");
 
         auto* eventSourceHolder = RE::ScriptEventSourceHolder::GetSingleton();
         eventSourceHolder->AddEventSink<RE::TESFurnitureEvent>(eventSink);
@@ -143,7 +143,6 @@ void InitializeSerialization() {
 SKSEPluginLoad(const SKSE::LoadInterface *skse) {
     SpeedProfiler prof("PluginLoad");
     SetupLog();
-	LoadTranslations();
     SKSE::Init(skse);
     if (!IsPo3Installed()) {
 		logger::critical("Latest version of Po3's Tweaks is not installed.");

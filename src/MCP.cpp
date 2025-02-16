@@ -178,6 +178,7 @@ void UI::Register(Manager* manager)
     SKSEMenuFramework::AddSectionItem(Strings::log, RenderLog);
     M = manager;
     n_sources = M->GetSources().size();
+    logger::info("MCP registered.");
 }
 
 void UI::RefreshButton()

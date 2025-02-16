@@ -5,13 +5,11 @@
 
 std::string Translations::GetValidLanguage()
 {
-    if (std::string detectedLang = GetGameLanguage();
-		!detectedLang.empty()) {
-		if (const auto it = languageMap.find(detectedLang); it != languageMap.end()) {
-			return it->first;
-		}
-		logger::warn("Detected language is not supported: {}", detectedLang);
-    }
+	std::string detectedLang = GetGameLanguage();
+	if (const auto it = languageMap.find(detectedLang); it != languageMap.end()) {
+		return it->first;
+	}
+	logger::warn("Detected language is not supported: {}", detectedLang);
 
     return "ENGLISH"; 
 }
