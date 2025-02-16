@@ -870,10 +870,10 @@ void Manager::qTRICK_(const SourceDataKey chest_ref, const SourceDataVal cont_re
             else DFT->EditCustomID(fakeid, chest_ref);*/
         const auto fakeid = CreateFakeContainer(real_bound, chest_ref, nullptr);
         // load game den dolayi
-        logger::trace("ChestToFakeContainer (chest refid: {}) before: {}", chest_ref,
+        logger::trace("ChestToFakeContainer (chest refid: {:x}) before: {:x}", chest_ref,
                       ChestToFakeContainer[chest_ref].innerKey);
         ChestToFakeContainer[chest_ref].innerKey = fakeid;
-        logger::trace("ChestToFakeContainer (chest refid: {}) after: {}", chest_ref,
+        logger::trace("ChestToFakeContainer (chest refid: {:x}) after: {:x}", chest_ref,
                       ChestToFakeContainer[chest_ref].innerKey);
 
         // if old_fakeid is in external_favs, we need to update it with new fakeid
@@ -1029,10 +1029,10 @@ bool Manager::HandleRegistration(RE::TESObjectREFR* a_container) {
             const auto ChestObjRef = FindNotMatchedChest(); // Not registered. lets find a chest to register it to
             const auto ChestRefID = ChestObjRef->GetFormID();
 
-            logger::info("Matched chest with refid: {} with container with refid: {}", ChestRefID, container_refid);
+            logger::info("Matched chest with refid: {:x} with container with refid: {:x}", ChestRefID, container_refid);
             lock.unlock();
             if (std::unique_lock lock2(source_mutex_); !src->data.insert({ChestRefID, container_refid}).second) {
-			    logger::error("Failed to insert chest refid {} and container refid {} into source data.", ChestRefID,
+			    logger::error("Failed to insert chest refid {:x} and container refid {:x} into source data.", ChestRefID,
 				    container_refid);
 			    return false;
             }

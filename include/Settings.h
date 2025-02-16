@@ -83,6 +83,7 @@ void LoadOtherSettings();
 Source parseSource_(const YAML::Node& config);
 std::vector<Source> LoadYAMLSources();
 std::vector<Source> LoadINISources();
+void LoadTranslations();
 
 inline std::unordered_map<std::string,bool> other_settings;
 

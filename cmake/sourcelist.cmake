@@ -8,4 +8,6 @@ set(sources ${sources}
 	src/MCP.cpp
 	src/Serialization.cpp
 	src/CustomObjects.cpp
+	src/Translations.cpp
+	src/FormReader.cpp
 )

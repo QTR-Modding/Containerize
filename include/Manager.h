@@ -5,8 +5,7 @@
 
 class Manager : public SaveLoadData {
     // private variables
-    const std::vector<std::string> buttons = {"Open", "Take", "More...", "Close"};
-    const std::vector<std::string> buttons_more = {"Rename", "Uninstall", "Back", "Close"};
+
     bool uiextensions_is_present = false;
     RE::TESObjectREFR* player_ref = RE::PlayerCharacter::GetSingleton()->As<RE::TESObjectREFR>();
     //RE::EffectSetting* empty_mgeff = nullptr;

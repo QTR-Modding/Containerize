@@ -40,7 +40,7 @@ namespace UI {
 	inline std::vector<ManagerData> data;
 
     inline std::map<FormID,bool> collapse_states;
-	inline int dft_form_limit = DynamicFormTracker::GetSingleton()->form_limit;
+	inline unsigned int dft_form_limit = DynamicFormTracker::GetSingleton()->form_limit;
 
     inline std::string log_path = GetLogPath().string();
     inline std::vector<std::string> logLines;
@@ -51,5 +51,57 @@ namespace UI {
     void SaveToINI();
 
     void RenderData();
+
+    namespace Strings {
+        inline std::string mod_not_working = "Mod is not working! Check log for more info.";
+        inline std::string status = "Status";
+        inline std::string settings = "Settings";
+        inline std::string sources_label = "Sources";
+        inline std::string inspect = "Inspect";
+        inline std::string log = "Log";
+        inline std::string uninstall_label = "Uninstall";
+        inline std::string yaml_error = "Problems in YAML files. Check log for more info.";
+        inline std::string ini_error = "Problems in INI file. Check log for more info.";
+        inline std::string duplicate_error = "Duplicate sources from INI and YAML files found. Check log for more info.";
+        inline std::string po3_tweaks = "po3's Tweaks";
+        inline std::string installed = "Installed";
+        inline std::string not_installed = "Not Installed";
+        inline std::string use_or_take = "Use or Take";
+        inline std::string object_manipulation = "Object Manipulation Overhaul";
+        inline std::string collapse_all = "Collapse All";
+        inline std::string expand_all = "Expand All";
+        inline std::string cloud_storage = "Cloud Storage";
+        inline std::string capacity = "Capacity";
+        inline std::string initial_items = "Initial Items";
+        inline std::string no_sources_found = "No sources found.";
+        inline std::string dynamic_forms = "Dynamic Forms";
+        inline std::string no_dynamic_forms = "No dynamic form found.";
+        inline std::string active = "Active";
+        inline std::string protected_status = "Protected";
+        inline std::string inactive = "Inactive";
+        inline std::string log_generate = "Generate Log";
+        inline std::string log_trace = "Trace";
+        inline std::string log_info = "Info";
+        inline std::string log_warning = "Warning";
+        inline std::string log_error = "Error";
+
+        inline std::string enabled = "Enabled";
+        inline std::string disabled = "Disabled";
+        inline std::string refresh = "Refresh";
+        inline std::string last_generated = "Last Generated: ";
+        inline std::string no_data_found = "No data found."; 
+        inline std::string unknown = "Unknown";
+        inline std::string data = "Data";
+        inline std::string in_game_hours = "in-game hours";
+        
+        // **Table Headers**
+        inline std::string real_form_id = "Real FormID";
+        inline std::string chest_ref_id = "Chest RefID";
+        inline std::string location_ref_id = "Location RefID";
+        inline std::string name = "Name";
+        inline std::string location_name = "Location Name";
+
+    };
+
 
 }

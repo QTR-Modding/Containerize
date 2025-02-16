@@ -1,5 +1,7 @@
 #include "Settings.h"
 
+#include "Translations.h"
+
 std::vector<Source> LoadSources()
 {
     std::vector<Source> sources;
@@ -248,4 +250,17 @@ std::vector<Source> LoadINISources()
     ini.SaveFile(path);
 
     return sources;
+}
+
+void LoadTranslations()
+{
+	logger::info("Loading translations");
+	const auto lang = Translations::GetValidLanguage();
+	logger::info("Game language: {}", lang);
+    if (Translations::LoadTranslations(lang)) {
+		logger::info("Translations loaded.");
+	}
+	else {
+		logger::warn("Failed to load translations.");
+    }
 }
