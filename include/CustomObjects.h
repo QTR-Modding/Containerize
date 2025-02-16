@@ -43,7 +43,7 @@ struct Source {
 
     using SourceData = std::map<RefID, RefID>;  // Chest-Container Reference ID Pairs
 
-    float weight_ratio;
+	float weight_ratio; // 1 - cloud storage, i.e. how much of the weight actually counts in percentage
     std::map<FormID,Count> initial_items;
     float capacity;
     std::uint32_t formid;
