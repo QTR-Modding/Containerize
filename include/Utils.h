@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 #include <windows.h>
 #include "ClibUtil/editorID.hpp"
 #include "SimpleIni.h"
@@ -18,17 +18,23 @@ const auto po3_use_or_take = IsPo3_UoTInstalled();
 const auto obj_manipu_installed = IsObjManipuInstalled();
 
 
-const auto no_src_msgbox = std::format(
+inline std::string no_src_msgbox = std::format(
     "{}: You currently do not have any container set up. Check your ini file or see the mod page for instructions.",
     mod_name);
 
-const auto po3_err_msgbox = std::format(
+inline std::string po3_err_msgbox = std::format(
     "{}: You must have the latest version of powerofthree's Tweaks "
     "installed. See mod page for further instructions.",
     mod_name);
-const auto general_err_msgbox = std::format("{}: Something went wrong. Please contact the mod author.", mod_name);
-const auto init_err_msgbox = std::format("{}: The mod failed to initialize and will be terminated.", mod_name);
 
+inline std::string general_err_msgbox = "Something went wrong. Please contact the mod author.";
+inline std::string init_err_msgbox = "The mod failed to initialize and will be terminated.";
+inline std::string form_type_err_msgbox = "The form type of the item with FormID ({:x}) is not supported. Please contact the mod author.";
+inline std::string uninstall_msgbox = "Uninstall successful. You can now remove the mod. Please save and quit the game.";
+inline std::string uninstall_err_msgbox = "Uninstall failed. Please contact the mod author.";
+inline std::string problem_with_container_msgbox = "Problem with one of the items with the form id ({:x}). This is expected if you have changed the list of containers in the INI file between saves. Corresponding items will be returned to your inventory. You can suppress this message by changing the setting in your INI.";
+inline std::vector<std::string> buttons = {"Open", "Take", "More...", "Close"};
+inline std::vector<std::string> buttons_more = {"Rename", "Uninstall", "Back", "Close"};
 
 void SetupLog();
 std::filesystem::path GetLogPath();
@@ -49,6 +55,7 @@ static T* GetFormByID(const RE::FormID id, const std::string& editor_id="") {
 
 std::string GetEditorID(const FormID a_formid);
 FormID GetFormEditorIDFromString(const std::string& formEditorId);
+std::string GetGameLanguage();
 
 namespace Papyrus {
 
@@ -138,9 +145,6 @@ namespace String {
 }
 
 namespace FunctionsSkyrim {
-
-    inline std::size_t GetExtraDataListLength(const RE::ExtraDataList* dataList);
-
 
     template <typename T>
     struct FormTraits {
@@ -243,31 +247,38 @@ namespace MsgBoxesNotifs {
 
     namespace InGame{
         inline void CustomMsg(const std::string& msg) { RE::DebugMessageBox((mod_name + ": " + msg).c_str()); };
-        inline void GeneralErr() { RE::DebugMessageBox(general_err_msgbox.c_str()); };
-        inline void InitErr() { RE::DebugMessageBox(init_err_msgbox.c_str()); };
+		inline void GeneralErr() {
+            const std::string message = std::format("{}: {}", mod_name, general_err_msgbox);
+            RE::DebugMessageBox(message.c_str());
+        }
+
+		inline void InitErr() {
+			const std::string message = std::format("{}: {}", mod_name, init_err_msgbox);
+			RE::DebugMessageBox(message.c_str());
+		}
 
 		inline void FormTypeErr(RE::FormID id) {
-			RE::DebugMessageBox(
-				std::format("{}: The form type of the item with FormID ({}) is not supported. Please contact the mod author.",
-					mod_name, id).c_str());
-        };
+            std::string message = std::format("{}: {}", mod_name, form_type_err_msgbox);
+            message = fmt::vformat(message, fmt::make_format_args(id));
+            RE::DebugMessageBox(message.c_str());
+        }
 
-		inline void UninstallSuccessful() {
-			RE::DebugMessageBox(
-				std::format("{}: Uninstall successful. You can now remove the mod. Please save and quit the game.", mod_name).c_str());
+        inline void UninstallSuccessful() {
+            const std::string message = fmt::vformat("{}: {}", fmt::make_format_args(mod_name, uninstall_msgbox));
+            RE::DebugMessageBox(message.c_str());
         }
 
         inline void UninstallFailed() {
-			RE::DebugMessageBox(
-				std::format("{}: Uninstall failed. Please contact the mod author.", mod_name).c_str());
+            const std::string message = fmt::vformat("{}: {}", fmt::make_format_args(mod_name, uninstall_err_msgbox));
+            RE::DebugMessageBox(message.c_str());
         }
 
         inline void ProblemWithContainer(int id) {
-                RE::DebugMessageBox(
-					std::format("{}: Problem with one of the items with the form id ({}). This is expected if you have changed the list of containers in the INI file between saves. Corresponding items will be returned to your inventory. You can suppress this message by changing the setting in your INI.",
-                        								mod_name, id)
-						.c_str());
-            };
+            std::string message = fmt::vformat("{}: {}", fmt::make_format_args(mod_name, problem_with_container_msgbox));
+            message = fmt::vformat(message, fmt::make_format_args(id));
+            RE::DebugMessageBox(message.c_str());
+        }
+
 
     };
     

@@ -9,4 +9,6 @@ set(headers ${headers}
 	include/Serialization.h
 	include/DynamicFormTracker.h
 	include/CustomObjects.h
+	include/Translations.h
+	include/FormReader.h
 )

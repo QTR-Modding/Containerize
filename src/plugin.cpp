@@ -1,5 +1,6 @@
 #include "Hooks.h"
 #include "MCP.h"
+#include "Translations.h"
 
 Manager* M = nullptr;
 OurEventSink* eventSink;
@@ -140,6 +141,7 @@ void InitializeSerialization() {
 
 SKSEPluginLoad(const SKSE::LoadInterface *skse) {
     SetupLog();
+	LoadTranslations();
     SKSE::Init(skse);
     if (!IsPo3Installed()) {
 		logger::critical("Latest version of Po3's Tweaks is not installed.");

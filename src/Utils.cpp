@@ -1,5 +1,7 @@
 #include <Utils.h>
 #include <numbers>
+#include "Translations.h"
+#include "FormReader.h"
 
 
 bool GetDllVersion(const std::wstring& dllPath, DWORD& major, DWORD& minor, DWORD& build, DWORD& revision)
@@ -46,7 +48,6 @@ std::wstring s2ws(const std::string& str)
 bool IsPo3Installed()
 {
     if (!std::filesystem::exists(po3path)) {
-		logger::error("Po3's Tweaks is not installed.");
         return false;
     }
 	// check version of the dll. its major version should be larger equal to 1 and minor version should be larger equal to 12.
@@ -145,24 +146,56 @@ std::string GetEditorID(const FormID a_formid) {
 
 FormID GetFormEditorIDFromString(const std::string& formEditorId)
 {
-    if (formEditorId.empty()) return 0;
+    static std::string delimiter = "~";
+	const auto plugin_and_localid = FormReader::split(formEditorId, delimiter);
+	if (plugin_and_localid.size() == 2) {
+		const auto& plugin_name = plugin_and_localid[1];
+		const auto local_id = FormReader::GetFormIDFromString(plugin_and_localid[0]);
+		const auto formid = FormReader::GetForm(plugin_name.c_str(), local_id);
+		if (const auto form = RE::TESForm::LookupByID(formid)) return form->GetFormID();
+	}
+
     if (isValidHexWithLength7or8(formEditorId.c_str())) {
         int form_id_;
         std::stringstream ss;
         ss << std::hex << formEditorId;
         ss >> form_id_;
-        if (const auto temp_form = GetFormByID(form_id_)) return temp_form->GetFormID();
-        logger::warn("Formid is null for (valid hex) form-/editorid {}", formEditorId);
-        //return 0;
+        if (const auto temp_form = GetFormByID(form_id_, "")) return temp_form->GetFormID();
+        logger::warn("Formid is null for editorid {}", formEditorId);
+        return 0;
     }
-    //if (!IsPo3Installed()) {
-    //    logger::error("Po3 is not installed.");
-    //    MsgBoxesNotifs::Windows::Po3ErrMsg();
-    //    return 0;
-    //}
+    if (formEditorId.empty()) return 0;
+    if (!IsPo3Installed()) {
+        logger::error("Po3 is not installed.");
+        MsgBoxesNotifs::Windows::Po3ErrMsg();
+        return 0;
+    }
     if (const auto temp_form = GetFormByID(0, formEditorId)) return temp_form->GetFormID();
-    //logger::info("Formid is null for editorid {}", formEditorId);
     return 0;
+}
+
+std::string GetGameLanguage()
+{
+    if (auto* settingCollection = RE::INISettingCollection::GetSingleton()) {
+		if (const RE::Setting* languageSetting = settingCollection->GetSetting("sLanguage:General")) {
+            if (std::string lang = languageSetting->GetType() == RE::Setting::Type::kString ? languageSetting->GetString() : "";
+                !lang.empty()) {
+                std::ranges::transform(lang, lang.begin(), ::toupper);
+                if (const auto it = Translations::languageMap.find(lang); it != Translations::languageMap.end()) {
+                    return it->first;
+                }
+				logger::warn("Detected language is not supported: {}", lang);
+            }
+            else {
+				logger::error("Failed to get sLanguage setting.");
+            }
+		}
+		logger::error("Failed to get sLanguage setting.");
+    }
+    else {
+		logger::error("Failed to get GameSettingCollection singleton.");
+    }
+	return "ENGLISH";
 }
 
 std::string String::trim(const std::string& str) { 
@@ -213,16 +246,6 @@ bool String::includesWord(const std::string& input, const std::vector<std::strin
     }
     return false;  // None of the strings in 'strings' were found in the input string
 }
-
-std::size_t FunctionsSkyrim::GetExtraDataListLength(const RE::ExtraDataList* dataList) {
-    std::size_t length = 0;
-    for (auto it = dataList->begin(); it != dataList->end(); ++it) {
-        // Increment the length for each element in the list
-        ++length;
-    }
-    return length;
-}
-
 
 bool xData::UpdateExtras(RE::TESObjectREFR* copy_from, RE::TESObjectREFR* copy_to) {
     if (!copy_from || !copy_to) {
@@ -801,33 +824,6 @@ void WorldObject::SwapObjects(RE::TESObjectREFR* a_from, RE::TESBoundObject* a_t
 		a_from->Disable();
 		a_from->Enable(false);
 	});
-    /*a_from->Disable();
-    a_from->Enable(false);*/
-
-    /*float afX = 100;
-    float afY = 100;
-    float afZ = 100;
-    float afMagnitude = 100;*/
-    /*auto args = RE::MakeFunctionArguments(std::move(afX), std::move(afY), std::move(afZ),
-    std::move(afMagnitude)); vm->DispatchMethodCall(object, "ApplyHavokImpulse", args, callback);*/
-    // Looked up here (wSkeever): https:  // www.nexusmods.com/skyrimspecialedition/mods/73607
-    /*SKSE::GetTaskInterface()->AddTask([a_from]() {
-        ApplyHavokImpulse(a_from, 0.f, 0.f, 10.f, 5000.f);
-    });*/
-    //SKSE::GetTaskInterface()->AddTask([a_from]() {
-    //    // auto player_ch = RE::PlayerCharacter::GetSingleton();
-    //    // player_ch->StartGrabObject();
-    //    auto vm = RE::BSScript::Internal::VirtualMachine::GetSingleton();
-    //    auto policy = vm->GetObjectHandlePolicy();
-    //    auto handle = policy->GetHandleForObject(a_from->GetFormType(), a_from);
-    //    RE::BSTSmartPointer<RE::BSScript::Object> object;
-    //    vm->CreateObject2("ObjectReference", object);
-    //    if (!object) logger::warn("Object is null");
-    //    vm->BindObject(object, handle, false);
-    //    auto args = RE::MakeFunctionArguments(std::move(0.f), std::move(0.f), std::move(1.f), std::move(5.f));
-    //    RE::BSTSmartPointer<RE::BSScript::IStackCallbackFunctor> callback;
-    //    if (vm->DispatchMethodCall(object, "ApplyHavokImpulse", args, callback)) logger::trace("FUSRODAH");
-    //});
 }
 
 void Math::LinAlg::R3::rotateX(RE::NiPoint3& v, const float angle)
