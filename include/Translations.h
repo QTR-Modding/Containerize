@@ -31,7 +31,8 @@ namespace Translations {
             {"More", &buttons[2]},
             {"Rename", &buttons_more[0]},
             {"Uninstall", &buttons_more[1]},
-            {"Back", &buttons_more[2]}
+            {"Back", &buttons_more[2]},
+            {"More_Close", &buttons_more[3]}
         }
         },
 

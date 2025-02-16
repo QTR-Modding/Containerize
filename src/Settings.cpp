@@ -257,7 +257,7 @@ void LoadTranslations()
 	logger::info("Loading translations");
 	const auto lang = Translations::GetValidLanguage();
 	logger::info("Game language: {}", lang);
-    if (Translations::LoadTranslations("TURKISH")) {
+    if (Translations::LoadTranslations(lang)) {
 		logger::info("Translations loaded.");
 	}
 	else {
