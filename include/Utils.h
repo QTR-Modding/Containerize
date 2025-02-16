@@ -475,3 +475,20 @@ namespace Menu {
 
     void OpenMenu(const std::string_view menuname);;
 };
+
+
+class SpeedProfiler {
+	std::chrono::time_point<std::chrono::steady_clock> start_time;
+	std::chrono::time_point<std::chrono::steady_clock> end_time;
+	std::string name;
+public:
+    explicit SpeedProfiler(const std::string& name) {
+		start_time = std::chrono::steady_clock::now();
+		this->name = name;
+	}
+	~SpeedProfiler() {
+		end_time = std::chrono::steady_clock::now();
+		std::chrono::duration<double> elapsed_seconds = end_time - start_time;
+		logger::info("{}: Elapsed time: {}", name, elapsed_seconds.count());
+	}
+};

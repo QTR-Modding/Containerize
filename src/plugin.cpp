@@ -7,6 +7,7 @@ OurEventSink* eventSink;
 
 void OnMessage(SKSE::MessagingInterface::Message* message) {
     if (message->type == SKSE::MessagingInterface::kDataLoaded) {
+        SpeedProfiler prof("Loading Sources");
         // Start
         const auto sources = LoadSources();
         if (sources.empty()) {
@@ -140,6 +141,7 @@ void InitializeSerialization() {
 }
 
 SKSEPluginLoad(const SKSE::LoadInterface *skse) {
+    SpeedProfiler prof("PluginLoad");
     SetupLog();
 	LoadTranslations();
     SKSE::Init(skse);
