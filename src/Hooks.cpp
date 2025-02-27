@@ -166,7 +166,7 @@ void Hooks::MoveItemHooks<RefType>::addObjectToContainer(RefType* a_this, RE::TE
 		return add_object_to_container_(a_this, a_object, a_extraList, a_count, a_fromRefr);
 	}
 
-	if (!a_this || !a_object) {
+	if (!a_this || !a_object || a_count<=0) {
 		return add_object_to_container_(a_this, a_object, a_extraList, a_count, a_fromRefr);
 	}
 
@@ -181,17 +181,18 @@ void Hooks::MoveItemHooks<RefType>::addObjectToContainer(RefType* a_this, RE::TE
 
 
 	const auto original_count = a_count;
+	RE::TESBoundObject* fake_bound = nullptr;
 	if (const auto chest_id = a_this->GetFormID(); M->IsChest(chest_id)) {
-		const auto fake_bound = M->GetFakeBound(chest_id);
+		fake_bound = M->GetFakeBound(chest_id);
 		if (const RE::TESBoundObject* real_bound = M->FakeToRealContainer(fake_bound->GetFormID()); real_bound->GetFormID() != a_object->GetFormID()) {
-		    a_count = M->CanBeAdded(a_object, a_count, fake_bound);
+		    a_count = std::max(0,M->CanBeAdded(a_object, a_count, fake_bound));
 		}
 	}
-	if (a_count <= 0) {
-		if (a_fromRefr) {
-		    a_fromRefr->AddObjectToContainer(a_object,a_extraList,original_count,a_this);
-		}
-        return;
+	if (a_fromRefr && a_count < original_count) {
+		a_fromRefr->AddObjectToContainer(a_object, a_extraList, original_count - a_count, a_this);
+	    if (a_count == 0) {
+            return;
+	    }
 	}
 
 	if (const auto chest_id = M->GetFakeContainerChestID(a_object->GetFormID())) {
@@ -199,7 +200,8 @@ void Hooks::MoveItemHooks<RefType>::addObjectToContainer(RefType* a_this, RE::TE
 	}
 
 
-    return add_object_to_container_(a_this, a_object, a_extraList, a_count, a_fromRefr);
+    add_object_to_container_(a_this, a_object, a_extraList, a_count, a_fromRefr);
+	if (fake_bound) M->UpdateFakeWV(fake_bound);
 }
 
 template<typename RefType>
