@@ -1229,7 +1229,7 @@ void Manager::PromptInterface() {
 
     // Round the float to 2 decimal places
     std::ostringstream stream1;
-    stream1 << std::fixed << std::setprecision(2) << chest->GetWeightInContainer();
+    stream1 << std::fixed << std::setprecision(2) << chest->GetWeightInContainer()*src->weight_ratio;
     std::ostringstream stream2;
     stream2 << std::fixed << std::setprecision(2) << src->capacity;
 
@@ -1388,16 +1388,11 @@ Count Manager::CanBeAdded(const RE::TESBoundObject* a_item, const Count a_count,
 		if (const auto src = GetContainerSource(ChestToFakeContainer.at(chestID).outerKey)) {
 			if (src->weight_ratio < 0.001f) return a_count;
             const auto remaining_capacity = src->capacity - chestRef->GetWeightInContainer() * src->weight_ratio;
-			logger::trace("Remaining capacity: {}", remaining_capacity);
-			logger::trace("Item weight: {}", a_item->GetWeight());
-			logger::trace("Weight ratio: {}", src->weight_ratio);
 			const auto item_weight = a_item->GetWeight() * src->weight_ratio;
 			const auto can_be_added = static_cast<Count>(remaining_capacity / (item_weight+EPSILON));
 			return std::max(0,std::min(can_be_added, a_count));
 		}
-		else {
-			logger::error("Source not found.");
-		}
+		logger::error("Source not found.");
 	}
 	else {
 		logger::error("Chest ref not found.");
