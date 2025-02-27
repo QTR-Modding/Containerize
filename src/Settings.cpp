@@ -77,7 +77,9 @@ Source parseSource_(const YAML::Node& config)
         try {cloud_storage = std::clamp(config["cloud_storage"].as<float>(), 0.f, 1.f);}
 		catch (const std::exception&) {
             try {cloud_storage = config["cloud_storage"].as<bool>() ? 1.f : 0.f;}
-			catch (const std::exception&){}
+			catch (const std::exception&) {
+				logger::warn("Cloud storage value is invalid. Using default value.");
+			}
 		}
     }
 

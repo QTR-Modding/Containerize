@@ -16,26 +16,25 @@ bool FormFormID::operator<(const FormFormID& other) const {
     return outerKey < other.outerKey || (outerKey == other.outerKey && innerKey < other.innerKey);
 }
 
-Source::Source(const std::uint32_t id, const std::string id_str, const float capacity, const float cs): capacity(capacity), formid(id), editorid(id_str) {
-    logger::trace("Creating source with formid: {}, editorid: {}, capacity: {}, cloud storage: {}", formid, editorid, capacity, cs);
+Source::Source(const std::uint32_t id, const std::string id_str, const float capacity, const float cs): capacity(capacity), formid(id), editorid(id_str), weight_ratio(1 - cs) {
+    logger::trace("Creating source with formid: {:x}, editorid: {}, capacity: {}, cloud storage: {}", formid, editorid, capacity, cs);
     if (!formid) {
         logger::trace("Formid is not found. Attempting to find formid for editorid {}.", editorid);
         if (const auto form = RE::TESForm::LookupByEditorID(editorid)) formid = form->GetFormID();
         else logger::info("Could not find formid for editorid {}", editorid);
     }
 	else if (editorid.empty()) {
-		logger::trace("Editorid is not found. Attempting to find editorid for formid {}.", formid);
+		logger::trace("Editorid is not found. Attempting to find editorid for formid {:x}.", formid);
 		if (const auto form = GetFormByID(formid)) editorid = clib_util::editorID::get_editorID(form);
 		else logger::info("Could not find form for formid {:x}", formid);
 		if (editorid.empty()) logger::info("Could not find editorid for formid {:x}. Make sure you have the latest version of po3's tweaks.", formid);
         
 	}
-    if (cs > 0.f) weight_ratio = std::clamp(1.f - cs, 0.f, 1.f);
-	else weight_ratio = 1.f;
+    weight_ratio = std::clamp(1.f - cs, 0.f, 1.f);
 }
 
 inline std::string_view Source::GetName() const {
-    logger::trace("Getting name for formid: {}", formid);
+    logger::trace("Getting name for formid: {:x}", formid);
     if (const auto* form = GetFormByID(formid, editorid)) return form->GetName();
     return "";
 }
