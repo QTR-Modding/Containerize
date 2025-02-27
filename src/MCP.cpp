@@ -94,7 +94,7 @@ void __stdcall UI::RenderSources()
         if (!collapse_states[source.formid]) ImGui::SetNextItemOpen(false);
         else ImGui::SetNextItemOpen(true);
         if (ImGui::CollapsingHeader(std::format("{:08X} - {}", source.formid, source.editorid).c_str())) {
-            ImGui::Text(std::format("{}: %.2f%%", Strings::cloud_storage, source.cloud_storage_ratio * 100).c_str());
+            ImGui::Text("%s: %.2f%%", Strings::cloud_storage.c_str(), source.cloud_storage_ratio * 100);
             ImGui::Text(std::format("{}: %.2f", Strings::capacity, source.capacity).c_str());
             ImGui::Text(Strings::initial_items.c_str());
             if (ImGui::BeginTable("table_initial_items", 2, table_flags)) {
