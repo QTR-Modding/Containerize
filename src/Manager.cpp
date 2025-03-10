@@ -704,7 +704,7 @@ bool Manager::IsRealContainer(const FormID formid) const {
 	return std::ranges::any_of(sources, [formid](const Source& src) { return src.formid == formid; });
 }
 
-void Manager::OnActivateContainer(RE::TESObjectREFR* a_container) {
+void Manager::OnActivateContainer(RE::TESObjectREFR* a_container, const bool prompt) {
 
     if (!HandleRegistration(a_container)) return;
         
@@ -718,7 +718,8 @@ void Manager::OnActivateContainer(RE::TESObjectREFR* a_container) {
     }
     else if (const auto real_bound = RE::TESForm::LookupByID<RE::TESBoundObject>(ChestToFakeContainer.at(chest->GetFormID()).outerKey)) {
         RemoveItem(chest, unownedChestOG, real_bound, RE::ITEM_REMOVE_REASON::kStoreInContainer);
-        return PromptInterface();
+		if (prompt) PromptInterface();
+        return;
     }
 	return RaiseMngrErr("OnActivateContainer: Real bound not found");
 }
@@ -1141,9 +1142,6 @@ void Manager::MsgBoxCallback(const int result) {
     }
 
     // Opening container
-
-    // Listen for menu close
-    //listen_menuclose = true;
 
     // Activate the unowned chest
     if (const auto chest = GetRealContainerChest(current_container)) {

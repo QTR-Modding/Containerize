@@ -1,5 +1,7 @@
 #include "Events.h"
 
+#include "API.h"
+
 void OurEventSink::Reset() {
 	furniture = nullptr;
 	furniture_entered.store(false);
@@ -8,14 +10,32 @@ void OurEventSink::Reset() {
 
 RE::BSEventNotifyControl OurEventSink::ProcessEvent(const SKSE::CrosshairRefEvent* a_event, RE::BSTEventSource<SKSE::CrosshairRefEvent>*)
 {
-	if (!a_event->crosshairRef) return RE::BSEventNotifyControl::kContinue;
+    if (!a_event->crosshairRef) {
+		logger::warn("Crosshair ref is null.");
+        StreamlinedAPI::RemovePrompt(MyPromptSink::GetSingleton());
+        return RE::BSEventNotifyControl::kContinue;
+    }
     if (const auto ref = a_event->crosshairRef.get()) {
 		M->HandleFakePlacement(ref);
     }
-	if (const auto baseform = DynamicFormTracker::GetSingleton()->GetOGFormOfDynamic(a_event->crosshairRef.get()->GetBaseObject()->GetFormID())) {
+	if (const auto baseform = DynamicFormTracker::GetSingleton()->GetOGFormOfDynamic(a_event->crosshairRef->GetBaseObject()->GetFormID())) {
         logger::warn("Fake object not found in ChestToFakeContainer.");
 	    WorldObject::SwapObjects(a_event->crosshairRef.get(), skyrim_cast<RE::TESBoundObject*>(baseform), false);    
 	}
+
+    if (M->IsRealContainer(a_event->crosshairRef.get())) {
+        if (StreamlinedAPI::SendPrompt(MyPromptSink::GetSingleton(), true)) {
+			logger::info("Prompt sent.");
+		}
+		else {
+			logger::error("Prompt failed.");
+		}
+    }
+    else {
+		logger::warn("Crosshair ref is not a container.");
+        StreamlinedAPI::RemovePrompt(MyPromptSink::GetSingleton());
+    }
+
 	return RE::BSEventNotifyControl::kContinue;
 }
 
