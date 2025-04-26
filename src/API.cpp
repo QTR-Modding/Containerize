@@ -8,8 +8,7 @@ void MyPromptSink::ProcessEvent(const SkyPromptAPI::PromptEvent event)
 	}
 
 	if (const auto crosshairref = RE::CrosshairPickData::GetSingleton()->target) {
-        if (const std::string prompt_text = event.prompt.text; prompt_text == "Open") {
-		    logger::info("Prompt event: Open");
+        if (const auto prompt_text = event.prompt.text; prompt_text == "Open") {
 		    M->OnActivateContainer(crosshairref.get().get(),false);
 		    M->OpenContainer();
 			if (!SkyPromptAPI::SendPrompt(this,true)) {

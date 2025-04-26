@@ -16,6 +16,9 @@ namespace SkyPromptAPI {
     using _##localName = returnType (*) signature;             \
     [[nodiscard]] inline returnType localName signature {      \
         static auto dllHandle = GetModuleHandle(L"SkyPrompt"); \
+        if (!dllHandle) {                                   \
+            return defaultValue;                               \
+        }                                                      \
         static auto func =                                     \
             reinterpret_cast<_##localName>(GetProcAddress(dllHandle, hostName)); \
         if (func) {                                            \
@@ -25,9 +28,8 @@ namespace SkyPromptAPI {
     }
 
 	struct Prompt {
-		using ButtonKey = std::map<RE::INPUT_DEVICE, uint32_t>;
-		std::string text;
-		std::optional<ButtonKey> button_key;
+		std::string_view text;
+        std::span<std::pair<RE::INPUT_DEVICE, uint32_t>> button_key;
 	};
 
     struct PromptEvent {
@@ -38,7 +40,7 @@ namespace SkyPromptAPI {
     class PromptSink {
     public:
 		virtual void ProcessEvent(PromptEvent event) = 0;
-		virtual std::vector<Prompt>& GetPrompts() = 0;
+		virtual std::span<const Prompt> GetPrompts() = 0;
     protected:
         virtual ~PromptSink() = default;
     };
@@ -80,11 +82,11 @@ class MyPromptSink final : public SkyPromptAPI::PromptSink,
 {
 	Manager* M = nullptr;
 
-	std::vector<SkyPromptAPI::Prompt> prompts = {
-		{.text= "Open", .button_key= std::nullopt},
-			{.text= "Take", .button_key= std::nullopt},
-		{.text= "Rename", .button_key= std::nullopt}
-	};
+    std::array<SkyPromptAPI::Prompt, 3> prompts = {{
+       {.text = "Open", .button_key = std::span<std::pair<RE::INPUT_DEVICE, uint32_t>>()},
+       {.text = "Take", .button_key = std::span<std::pair<RE::INPUT_DEVICE, uint32_t>>()},
+       {.text = "Rename", .button_key = std::span<std::pair<RE::INPUT_DEVICE, uint32_t>>()}
+    }};
 public:
 
 	void SetManager(Manager* mngr) {
@@ -94,7 +96,7 @@ public:
     void ProcessEvent(SkyPromptAPI::PromptEvent event) override;
 
 
-	std::vector<SkyPromptAPI::Prompt>& GetPrompts() override {
+	std::span<const SkyPromptAPI::Prompt> GetPrompts() override {
 		return prompts;
 	}
 };
