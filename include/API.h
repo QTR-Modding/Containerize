@@ -1,11 +1,9 @@
 #pragma once
 #include <ClibUtil/singleton.hpp>
 #include <windows.h>
-
 #include "Manager.h"
 
-
-namespace StreamlinedAPI {
+namespace SkyPromptAPI {
 
     #define DECLARE_API_FUNC_EX(                               \
         localName,   /* The name you call in your code */      \
@@ -17,7 +15,7 @@ namespace StreamlinedAPI {
     )                                                          \
     using _##localName = returnType (*) signature;             \
     [[nodiscard]] inline returnType localName signature {      \
-        static auto dllHandle = GetModuleHandle(L"StreamlinedInteractions"); \
+        static auto dllHandle = GetModuleHandle(L"SkyPrompt"); \
         static auto func =                                     \
             reinterpret_cast<_##localName>(GetProcAddress(dllHandle, hostName)); \
         if (func) {                                            \
@@ -77,14 +75,14 @@ namespace StreamlinedAPI {
 };
 
 
-class MyPromptSink final : public StreamlinedAPI::PromptSink,
+class MyPromptSink final : public SkyPromptAPI::PromptSink,
                            public clib_util::singleton::ISingleton<MyPromptSink>
 {
 	Manager* M = nullptr;
 
-	std::vector<StreamlinedAPI::Prompt> prompts = {
-		{"Open", std::nullopt},
-			{"Take", std::nullopt},
+	std::vector<SkyPromptAPI::Prompt> prompts = {
+		{.text= "Open", .button_key= std::nullopt},
+			{.text= "Take", .button_key= std::nullopt},
 		{.text= "Rename", .button_key= std::nullopt}
 	};
 public:
@@ -93,10 +91,10 @@ public:
 		M = mngr;
 	}
 
-    void ProcessEvent(StreamlinedAPI::PromptEvent event) override;
+    void ProcessEvent(SkyPromptAPI::PromptEvent event) override;
 
 
-	std::vector<StreamlinedAPI::Prompt>& GetPrompts() override {
+	std::vector<SkyPromptAPI::Prompt>& GetPrompts() override {
 		return prompts;
 	}
 };

@@ -1,7 +1,7 @@
 #include "API.h"
 #include "Manager.h"
 
-void MyPromptSink::ProcessEvent(const StreamlinedAPI::PromptEvent event)
+void MyPromptSink::ProcessEvent(const SkyPromptAPI::PromptEvent event)
 {
 	if (event.type) {
 		return;
@@ -12,7 +12,7 @@ void MyPromptSink::ProcessEvent(const StreamlinedAPI::PromptEvent event)
 		    logger::info("Prompt event: Open");
 		    M->OnActivateContainer(crosshairref.get().get(),false);
 		    M->OpenContainer();
-			if (!StreamlinedAPI::SendPrompt(this,true)) {
+			if (!SkyPromptAPI::SendPrompt(this,true)) {
 				logger::warn("Prompt event: Failed to send prompt.");
 			}
 	    }
@@ -20,13 +20,13 @@ void MyPromptSink::ProcessEvent(const StreamlinedAPI::PromptEvent event)
 		    logger::info("Prompt event: Take");
 		    M->OnActivateContainer(crosshairref.get().get(),false);
 		    M->TakeContainer();
-			StreamlinedAPI::RemovePrompt(this);
+			SkyPromptAPI::RemovePrompt(this);
 	    }
 	    else if (prompt_text == "Rename") {
 		    logger::info("Prompt event: Rename");
 		    M->OnActivateContainer(crosshairref.get().get(),false);
 		    M->OpenRenameContainer();
-			if (!StreamlinedAPI::SendPrompt(this,true)) {
+			if (!SkyPromptAPI::SendPrompt(this,true)) {
 				logger::warn("Prompt event: Failed to send prompt.");
 			}
 	    }

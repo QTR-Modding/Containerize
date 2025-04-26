@@ -12,7 +12,7 @@ RE::BSEventNotifyControl OurEventSink::ProcessEvent(const SKSE::CrosshairRefEven
 {
     if (!a_event->crosshairRef) {
 		logger::warn("Crosshair ref is null.");
-        StreamlinedAPI::RemovePrompt(MyPromptSink::GetSingleton());
+        SkyPromptAPI::RemovePrompt(MyPromptSink::GetSingleton());
         return RE::BSEventNotifyControl::kContinue;
     }
     if (const auto ref = a_event->crosshairRef.get()) {
@@ -23,8 +23,8 @@ RE::BSEventNotifyControl OurEventSink::ProcessEvent(const SKSE::CrosshairRefEven
 	    WorldObject::SwapObjects(a_event->crosshairRef.get(), skyrim_cast<RE::TESBoundObject*>(baseform), false);    
 	}
 
-    if (M->IsRealContainer(a_event->crosshairRef.get())) {
-        if (StreamlinedAPI::SendPrompt(MyPromptSink::GetSingleton(), true)) {
+    if (M->IsRealContainer(a_event->crosshairRef.get()) && M->IsARegistry(a_event->crosshairRef->GetFormID())) {
+        if (SkyPromptAPI::SendPrompt(MyPromptSink::GetSingleton(), true)) {
 			logger::info("Prompt sent.");
 		}
 		else {
@@ -33,7 +33,7 @@ RE::BSEventNotifyControl OurEventSink::ProcessEvent(const SKSE::CrosshairRefEven
     }
     else {
 		logger::warn("Crosshair ref is not a container.");
-        StreamlinedAPI::RemovePrompt(MyPromptSink::GetSingleton());
+        SkyPromptAPI::RemovePrompt(MyPromptSink::GetSingleton());
     }
 
 	return RE::BSEventNotifyControl::kContinue;
