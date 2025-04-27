@@ -32,12 +32,13 @@ void OnMessage(SKSE::MessagingInterface::Message* message) {
 		logger::info("EventSinks added.");
 
 		MyPromptSink::GetSingleton()->SetManager(M);
+        g_clientID = SkyPromptAPI::RequestClientID();
+	    logger::info("SkyPrompt Client ID: {}", g_clientID);
     }
     if (message->type == SKSE::MessagingInterface::kPostLoadGame ||
         message->type == SKSE::MessagingInterface::kNewGame) {
     }
 }
-
 
 
 #define DISABLE_IF_UNINSTALLED if (!M || M->isUninstalled) return;

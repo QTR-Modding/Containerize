@@ -3,6 +3,8 @@
 #include <windows.h>
 #include "Manager.h"
 
+#pragma once
+
 namespace SkyPromptAPI {
 
     #define DECLARE_API_FUNC_EX(                               \
@@ -27,9 +29,15 @@ namespace SkyPromptAPI {
         return defaultValue;                                   \
     }
 
+	using ClientID = uint8_t;
+	using EventID = uint16_t;
+	using ActionID = uint16_t;
+
 	struct Prompt {
 		std::string_view text;
         std::span<std::pair<RE::INPUT_DEVICE, uint32_t>> button_key;
+        EventID a_eventID;
+		ActionID a_actionID;
 	};
 
     struct PromptEvent {
@@ -45,6 +53,7 @@ namespace SkyPromptAPI {
         virtual ~PromptSink() = default;
     };
 
+
     // 1) The macro name:       SendPrompt
     // 2) The return type:      bool
     // 3) The default value:    false
@@ -56,8 +65,8 @@ namespace SkyPromptAPI {
         "ProcessSendPrompt",                     /* hostName */
         bool,                                       /* returnType */
         false,                                      /* defaultValue */
-        (PromptSink* a_sink, bool a_force), /* signature */
-        (a_sink, a_force)         /* callArgs */
+        (PromptSink* a_sink, bool a_force, uint16_t a_clientID), /* signature */
+        (a_sink, a_force, a_clientID)         /* callArgs */
     );
 
     // 1) The macro name:       RemovePrompt
@@ -71,8 +80,17 @@ namespace SkyPromptAPI {
         "ProcessRemovePrompt",                     /* hostName */
         void,                                       /* returnType */
         ,                                      /* defaultValue */
-        (PromptSink* a_sink), /* signature */
-        (a_sink)         /* callArgs */
+        (PromptSink* a_sink, ClientID a_clientID), /* signature */
+        (a_sink, a_clientID)         /* callArgs */
+    );
+
+    DECLARE_API_FUNC_EX(
+        RequestClientID,                          /* localName */
+        "ProcessRequestClientID",                     /* hostName */
+        ClientID,                                       /* returnType */
+        0,                                      /* defaultValue */
+        (), /* signature */
+        ()         /* callArgs */
     );
 };
 
@@ -83,10 +101,11 @@ class MyPromptSink final : public SkyPromptAPI::PromptSink,
 	Manager* M = nullptr;
 
     std::array<SkyPromptAPI::Prompt, 3> prompts = {{
-       {.text = "Open", .button_key = std::span<std::pair<RE::INPUT_DEVICE, uint32_t>>()},
-       {.text = "Take", .button_key = std::span<std::pair<RE::INPUT_DEVICE, uint32_t>>()},
-       {.text = "Rename", .button_key = std::span<std::pair<RE::INPUT_DEVICE, uint32_t>>()}
+       {.text = "Open", .button_key = std::span<std::pair<RE::INPUT_DEVICE, uint32_t>>(),.a_eventID=0, .a_actionID=0},
+        {.text = "Take", .button_key = std::span<std::pair<RE::INPUT_DEVICE, uint32_t>>(),.a_eventID=1, .a_actionID=0},
+        {.text = "Rename", .button_key = std::span<std::pair<RE::INPUT_DEVICE, uint32_t>>(),.a_eventID=2, .a_actionID=0}
     }};
+
 public:
 
 	void SetManager(Manager* mngr) {
@@ -100,3 +119,5 @@ public:
 		return prompts;
 	}
 };
+
+inline SkyPromptAPI::ClientID g_clientID = 0;

@@ -11,7 +11,7 @@ void MyPromptSink::ProcessEvent(const SkyPromptAPI::PromptEvent event)
         if (const auto prompt_text = event.prompt.text; prompt_text == "Open") {
 		    M->OnActivateContainer(crosshairref.get().get(),false);
 		    M->OpenContainer();
-			if (!SkyPromptAPI::SendPrompt(this,true)) {
+			if (!SkyPromptAPI::SendPrompt(this,true,g_clientID)) {
 				logger::warn("Prompt event: Failed to send prompt.");
 			}
 	    }
@@ -19,13 +19,13 @@ void MyPromptSink::ProcessEvent(const SkyPromptAPI::PromptEvent event)
 		    logger::info("Prompt event: Take");
 		    M->OnActivateContainer(crosshairref.get().get(),false);
 		    M->TakeContainer();
-			SkyPromptAPI::RemovePrompt(this);
+			SkyPromptAPI::RemovePrompt(this,g_clientID);
 	    }
 	    else if (prompt_text == "Rename") {
 		    logger::info("Prompt event: Rename");
 		    M->OnActivateContainer(crosshairref.get().get(),false);
 		    M->OpenRenameContainer();
-			if (!SkyPromptAPI::SendPrompt(this,true)) {
+			if (!SkyPromptAPI::SendPrompt(this,true,g_clientID)) {
 				logger::warn("Prompt event: Failed to send prompt.");
 			}
 	    }
