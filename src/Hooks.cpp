@@ -96,15 +96,23 @@ bool Hooks::HandleEquip(RE::InputEvent* event)
 
 RE::TESBoundObject* Hooks::GetSelectedItemInMenu()
 {
-	if (const auto ui = RE::UI::GetSingleton()) {
+    if (const auto ui = RE::UI::GetSingleton()) {
 	    if (const auto menu_c = ui->GetMenu<RE::ContainerMenu>()) {
-		    if (const auto item = menu_c->GetRuntimeData().itemList->GetSelectedItem()) {
-				return item->data.objDesc->GetObject();
+		    if (const auto a_itemList = menu_c->GetRuntimeData().itemList) {
+		        if (const auto item = a_itemList->GetSelectedItem()) {
+				    if (const auto a_data = item->data.objDesc) {
+				        return a_data->GetObject();
+				    }
+		        }
 		    }
 	    }
 	    else if (const auto menu_i = ui->GetMenu<RE::InventoryMenu>()) {
-		    if (const auto item = menu_i->GetRuntimeData().itemList->GetSelectedItem()) {
-				return item->data.objDesc->GetObject();
+		    if (const auto a_itemList = menu_i->GetRuntimeData().itemList) {
+		        if (const auto item = a_itemList->GetSelectedItem()) {
+				    if (const auto a_data = item->data.objDesc) {
+				        return a_data->GetObject();
+				    }
+		        }
 		    }
 	    }
 	    else if (const auto menu_f = ui->GetMenu<RE::FavoritesMenu>()) {
@@ -113,17 +121,17 @@ RE::TESBoundObject* Hooks::GetSelectedItemInMenu()
 		    if (runtime_data.root.GetMember("selectedIndex", &selectedIndex) && selectedIndex.IsNumber()) {
                 const std::int32_t selected_index = static_cast<std::int32_t>(selectedIndex.GetNumber());
 			    const auto& items = runtime_data.favorites;
-				if (selected_index >= 0 && selected_index < items.size()) {
+			    if (selected_index >= 0 && static_cast<uint32_t>(selected_index) < items.size()) {
 			        if (const auto item = items[selected_index].item) {
 				        if (const auto bound = skyrim_cast<RE::TESBoundObject*>(item)) {
 						    return bound;
 				        }
 			        }
-				}
+			    }
 		    }
 	    }
-	}
-	return nullptr;
+    }
+    return nullptr;
 }
 
 
