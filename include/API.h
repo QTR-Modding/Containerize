@@ -3,8 +3,6 @@
 #include <windows.h>
 #include "Manager.h"
 
-#pragma once
-
 namespace SkyPromptAPI {
 
     #define DECLARE_API_FUNC_EX(                               \
@@ -29,20 +27,44 @@ namespace SkyPromptAPI {
         return defaultValue;                                   \
     }
 
-	using ClientID = uint8_t;
+	using ClientID = uint16_t;
 	using EventID = uint16_t;
 	using ActionID = uint16_t;
+	using ButtonID = uint32_t; // RE::BSWin32KeyboardDevice::Key, RE::BSWin32MouseDevice::Key, RE::BSWin32GamepadDevice::Key, RE::BSPCOrbisGamepadDevice::Key
+
+    constexpr ButtonID kMouseMove = 283;
+    constexpr ButtonID kThumbstickMove = 284;
+
+    enum PromptType {
+        kSinglePress,
+        kHold,
+        kHoldAndKeep,
+    };
 
 	struct Prompt {
 		std::string_view text;
-        std::span<std::pair<RE::INPUT_DEVICE, uint32_t>> button_key;
-        EventID a_eventID;
-		ActionID a_actionID;
+        std::span<std::pair<RE::INPUT_DEVICE, ButtonID>> button_key;
+        EventID eventID;
+		ActionID actionID;
+		PromptType type;
+		RE::FormID refid;
+	};
+
+	enum PromptEventType {
+		kAccepted,
+		kDeclined,
+        kRemovedByMod,
+		kTimingOut,
+		kTimeout,
+		kDown,
+        kUp,
+		kMove
 	};
 
     struct PromptEvent {
 		Prompt prompt;
-		int type; // 0 = accepted, 1 = declined, 2 = timeout
+		PromptEventType type;
+        std::pair<float,float> delta;
 	};
 
     class PromptSink {
@@ -53,27 +75,23 @@ namespace SkyPromptAPI {
         virtual ~PromptSink() = default;
     };
 
-
-    // 1) The macro name:       SendPrompt
-    // 2) The return type:      bool
-    // 3) The default value:    false
-    // 4) The parameter list:   (PromptSink* a_sink, bool a_force)
-    // 5) The call arguments:   (a_sink, a_force)
+    DECLARE_API_FUNC_EX(
+        RequestClientID,                          /* localName */
+        "ProcessRequestClientID",                     /* hostName */
+        ClientID,                                       /* returnType */
+        0,                                      /* defaultValue */
+        (), /* signature */
+        ()         /* callArgs */
+    );
 
     DECLARE_API_FUNC_EX(
         SendPrompt,                          /* localName */
         "ProcessSendPrompt",                     /* hostName */
         bool,                                       /* returnType */
         false,                                      /* defaultValue */
-        (PromptSink* a_sink, bool a_force, uint16_t a_clientID), /* signature */
-        (a_sink, a_force, a_clientID)         /* callArgs */
+        (PromptSink* a_sink, ClientID a_clientID), /* signature */
+        (a_sink, a_clientID)         /* callArgs */
     );
-
-    // 1) The macro name:       RemovePrompt
-    // 2) The return type:      void
-    // 3) The default value:    
-    // 4) The parameter list:   (PromptSink* a_sink)
-    // 5) The call arguments:   (a_sink)
 
     DECLARE_API_FUNC_EX(
         RemovePrompt,                          /* localName */
@@ -84,15 +102,8 @@ namespace SkyPromptAPI {
         (a_sink, a_clientID)         /* callArgs */
     );
 
-    DECLARE_API_FUNC_EX(
-        RequestClientID,                          /* localName */
-        "ProcessRequestClientID",                     /* hostName */
-        ClientID,                                       /* returnType */
-        0,                                      /* defaultValue */
-        (), /* signature */
-        ()         /* callArgs */
-    );
 };
+
 
 
 class MyPromptSink final : public SkyPromptAPI::PromptSink,
@@ -100,24 +111,33 @@ class MyPromptSink final : public SkyPromptAPI::PromptSink,
 {
 	Manager* M = nullptr;
 
-    std::array<SkyPromptAPI::Prompt, 3> prompts = {{
-       {.text = "Open", .button_key = std::span<std::pair<RE::INPUT_DEVICE, uint32_t>>(),.a_eventID=0, .a_actionID=0},
-        {.text = "Take", .button_key = std::span<std::pair<RE::INPUT_DEVICE, uint32_t>>(),.a_eventID=1, .a_actionID=0},
-        {.text = "Rename", .button_key = std::span<std::pair<RE::INPUT_DEVICE, uint32_t>>(),.a_eventID=2, .a_actionID=0}
+	std::array<std::pair<RE::INPUT_DEVICE, uint32_t>, 2> keys1 = { {
+		{RE::INPUT_DEVICE::kKeyboard, RE::BSKeyboardDevice::Keys::kC},
+		{RE::INPUT_DEVICE::kGamepad, REX::W32::XINPUT_GAMEPAD_BACK},
+	} };
+	std::array<std::pair<RE::INPUT_DEVICE, uint32_t>, 2> keys2 = { {
+		{RE::INPUT_DEVICE::kKeyboard, RE::BSKeyboardDevice::Keys::kT},
+		{RE::INPUT_DEVICE::kGamepad, REX::W32::XINPUT_GAMEPAD_DPAD_DOWN},
+		} };
+	std::array<std::pair<RE::INPUT_DEVICE, uint32_t>, 2> keys3 = { {
+		{RE::INPUT_DEVICE::kMouse, SkyPromptAPI::kMouseMove},
+		{RE::INPUT_DEVICE::kGamepad, SkyPromptAPI::kThumbstickMove},
+		} };
+
+
+    std::array<SkyPromptAPI::Prompt, 4> prompts = {{
+        {.text = "Open", .button_key = keys1,.eventID=0, .actionID=0, .type= SkyPromptAPI::PromptType::kSinglePress, .refid=0},
+        {.text = "Take", .button_key = {},.eventID=1, .actionID=0, .type= SkyPromptAPI::PromptType::kSinglePress, .refid=0},
+        {.text = "Rename", .button_key = {},.eventID=2, .actionID=0, .type= SkyPromptAPI::PromptType::kHold, .refid=0},
+        {.text = "asd", .button_key = {},.eventID=2, .actionID=1, .type= SkyPromptAPI::PromptType::kHoldAndKeep, .refid=0},
     }};
 
 public:
-
-	void SetManager(Manager* mngr) {
-		M = mngr;
-	}
-
+	void SetManager(Manager* mngr) { M = mngr; }
     void ProcessEvent(SkyPromptAPI::PromptEvent event) override;
-
-
-	std::span<const SkyPromptAPI::Prompt> GetPrompts() override {
-		return prompts;
-	}
+	std::span<const SkyPromptAPI::Prompt> GetPrompts() override { return prompts; }
+	void SetRef(const RefID a_refid);
+    void UnSetRef();
 };
 
 inline SkyPromptAPI::ClientID g_clientID = 0;

@@ -1,5 +1,4 @@
 #include "Events.h"
-
 #include "API.h"
 
 void OurEventSink::Reset() {
@@ -11,7 +10,6 @@ void OurEventSink::Reset() {
 RE::BSEventNotifyControl OurEventSink::ProcessEvent(const SKSE::CrosshairRefEvent* a_event, RE::BSTEventSource<SKSE::CrosshairRefEvent>*)
 {
     if (!a_event->crosshairRef) {
-		logger::warn("Crosshair ref is null.");
         SkyPromptAPI::RemovePrompt(MyPromptSink::GetSingleton(),g_clientID);
         return RE::BSEventNotifyControl::kContinue;
     }
@@ -24,15 +22,14 @@ RE::BSEventNotifyControl OurEventSink::ProcessEvent(const SKSE::CrosshairRefEven
 	}
 
     if (M->IsRealContainer(a_event->crosshairRef.get()) && M->IsARegistry(a_event->crosshairRef->GetFormID())) {
-        if (SkyPromptAPI::SendPrompt(MyPromptSink::GetSingleton(), true,g_clientID)) {
-			logger::info("Prompt sent.");
-		}
-		else {
+		const auto prompt_sink = MyPromptSink::GetSingleton();
+		prompt_sink->SetRef(a_event->crosshairRef->GetFormID());
+        if (!SkyPromptAPI::SendPrompt(prompt_sink, g_clientID)) {
 			logger::error("Prompt failed.");
 		}
+        prompt_sink->UnSetRef();
     }
     else {
-		logger::warn("Crosshair ref is not a container.");
         SkyPromptAPI::RemovePrompt(MyPromptSink::GetSingleton(),g_clientID);
     }
 
@@ -49,8 +46,6 @@ RE::BSEventNotifyControl OurEventSink::ProcessEvent(const RE::TESFurnitureEvent*
     if (!furniture_entered && event->type == RE::TESFurnitureEvent::FurnitureEventType::kExit)
         return RE::BSEventNotifyControl::kContinue;
     if (event->targetFurniture->GetBaseObject()->formType.underlying() != 40) return RE::BSEventNotifyControl::kContinue;
-
-    logger::trace("Furniture event");
 
     const auto bench = event->targetFurniture->GetBaseObject()->As<RE::TESFurniture>();
     if (!bench) return RE::BSEventNotifyControl::kContinue;
