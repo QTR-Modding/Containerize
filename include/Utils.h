@@ -273,7 +273,7 @@ namespace MsgBoxesNotifs {
             RE::DebugMessageBox(message.c_str());
         }
 
-        inline void ProblemWithContainer(int id) {
+        inline void ProblemWithContainer(RE::FormID id) {
             std::string message = fmt::vformat("{}: {}", fmt::make_format_args(mod_name, problem_with_container_msgbox));
             message = fmt::vformat(message, fmt::make_format_args(id));
             RE::DebugMessageBox(message.c_str());

@@ -140,17 +140,16 @@ void Manager::OnLongPressEquip(const RE::TESBoundObject* a_selected_item)
 	}
 }
 
-bool Manager::ActivateChest(const RE::TESObjectREFR* chest, const char* chest_name) const {
+bool Manager::ActivateChest(RE::TESObjectREFR* chest, const char* chest_name) const {
 
     unownedChest->fullName = chest_name;
-    chest->OpenContainer(0);
-	return true;
-    /*const auto a_obj = chest->GetBaseObject()->As<RE::TESObjectCONT>();
-    if (!a_obj) {
-        RaiseMngrErr("Object is not a container");
-		return false;
+    /*chest->OpenContainer(0);
+	return true;*/
+    if (const auto a_obj = chest->GetBaseObject()->As<RE::TESObjectCONT>()) {
+        return a_obj->Activate(chest, player_ref, 0, a_obj, 1);
     }
-    return a_obj->Activate(chest, player_ref, 0, a_obj, 1);*/
+    logger::error("ActivateChest: Chest is not a container.");
+    return false;
 }
 
 void Manager::HandleCraftingExit() {
@@ -1076,7 +1075,7 @@ bool Manager::HandleRegistration(RE::TESObjectREFR* a_container) {
         // if it is registered, we expect its fake counterpart to exist. Make sure via DFT:
         else {
             const auto chest_refid = GetRealContainerChestID(container_refid);
-            const auto real_cont_id = GetRealID(chest_refid);;
+            const auto real_cont_id = GetRealID(chest_refid);
             const auto real_cont_editorid = GetEditorID(real_cont_id);
             if (real_cont_editorid.empty()) {
                 RaiseMngrErr("Failed to get editorid of real container.");

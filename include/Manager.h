@@ -3,7 +3,11 @@
 #include <algorithm>
 #include <shared_mutex>
 
-class Manager : public SaveLoadData {
+class Manager final : public SaveLoadData {
+protected:
+    ~Manager() = default;
+
+private:
     // private variables
 
     bool uiextensions_is_present = false;
@@ -39,7 +43,7 @@ class Manager : public SaveLoadData {
 
     class RenameCallbackFunctor final : public RE::BSScript::IStackCallbackFunctor {
 
-		void operator()(const RE::BSScript::Variable a_result) override {
+		void operator()([[maybe_unused]] const RE::BSScript::Variable a_result) override {
             OnRename();
         }
 
@@ -98,7 +102,7 @@ class Manager : public SaveLoadData {
     // Activates a container
     //void Activate(RE::TESObjectREFR* a_objref);
 
-    [[nodiscard]] bool ActivateChest(const RE::TESObjectREFR* chest, const char* chest_name) const;
+    [[nodiscard]] bool ActivateChest(RE::TESObjectREFR* chest, const char* chest_name) const;
 
     [[nodiscard]] int GetChestValue(RE::TESObjectREFR* a_chest);
 
@@ -306,7 +310,7 @@ void Manager::UpdateFakeWV(T* fake_form, RE::TESObjectREFR* chest_linked, const 
 
     // do binary search to find the correct value up to a tolerance
     constexpr float tolerance = 0.01f; // 1%
-    const float tolerance_val = std::max(2.0f, std::floor(tolerance * target_value) + 1);  // at least 2
+    const float tolerance_val = std::max(2.0f, std::floor(tolerance * static_cast<float>(target_value)) + 1);  // at least 2
     constexpr int max_iter = 1000;
     int curr_iter = max_iter;
 
@@ -314,7 +318,7 @@ void Manager::UpdateFakeWV(T* fake_form, RE::TESObjectREFR* chest_linked, const 
     int upper_bound = x_0;
     int x_search = (lower_bound + upper_bound) / 2;
 
-    while (std::abs(f_search - target_value) > tolerance_val && curr_iter > 0) {
+    while (static_cast<float>(std::abs(f_search - target_value)) > tolerance_val && curr_iter > 0) {
         FunctionsSkyrim::FormTraits<T>::SetValue(fake_form, x_search);
 		f_search = Inventory::GetItemValue(fake_bound, player_ref->GetInventory());
 

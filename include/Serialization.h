@@ -61,6 +61,7 @@ public:
     }
 
 protected:
+    ~BaseData() = default;
     std::map<T,U> m_Data;
 
     using Lock = std::recursive_mutex;
@@ -70,6 +71,9 @@ protected:
 
 
 class SaveLoadData : public BaseData<SaveDataLHS,SaveDataRHS> {
+protected:
+    ~SaveLoadData() = default;
+
 public:
 
     [[nodiscard]] bool Save(SKSE::SerializationInterface* serializationInterface) override {
@@ -173,6 +177,9 @@ public:
 
 
 class DFSaveLoadData : public BaseData<DFSaveDataLHS, DFSaveDataRHS> {
+protected:
+    ~DFSaveLoadData() = default;
+
 public:
 
     [[nodiscard]] bool Save(SKSE::SerializationInterface* serializationInterface) override {
