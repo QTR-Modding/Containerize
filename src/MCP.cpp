@@ -16,11 +16,16 @@ void __stdcall UI::RenderStatus()
     constexpr auto color_operational = ImVec4(0, 1, 0, 1);
     constexpr auto color_not_operational = ImVec4(1, 0, 0, 1);
 
+    if (!M) {
+        ImGui::TextColored(color_not_operational, Strings::mod_not_working.c_str());
+        return;
+    }
+
     ImGui::Text((Strings::status + ": ").c_str());
     ImGui::SameLine();
     ImGui::TextColored(color_operational, std::format("{} ({})", Strings::sources_label, n_sources).c_str());
     ImGui::SameLine();
-    if (ImGui::Button(Strings::uninstall_label.c_str())) Manager::GetSingleton()->Uninstall();
+    if (ImGui::Button(Strings::uninstall_label.c_str())) M->Uninstall();
 
     if (Settings::problems_in_YAML_sources) {
         ImGui::TextColored(color_not_operational, Strings::yaml_error.c_str());
@@ -160,7 +165,7 @@ void __stdcall UI::RenderLog()
     }
 }
 
-void UI::Register()
+void UI::Register(Manager* manager)
 {
     if (!SKSEMenuFramework::IsInstalled()) {
         return;
@@ -171,7 +176,8 @@ void UI::Register()
     SKSEMenuFramework::AddSectionItem(Strings::sources_label, RenderSources);
     SKSEMenuFramework::AddSectionItem(Strings::inspect, RenderInspect);
     SKSEMenuFramework::AddSectionItem(Strings::log, RenderLog);
-    n_sources = Manager::GetSingleton()->GetSources().size();
+    M = manager;
+    n_sources = M->GetSources().size();
     logger::info("MCP registered.");
 }
 
@@ -202,7 +208,7 @@ void UI::Refresh()
 
 	collapse_states.clear();
 	data.clear();
-	const auto& sources_temp= Manager::GetSingleton()->GetSources();
+	const auto& sources_temp= M->GetSources();
 	n_sources = sources_temp.size();
 	for (const auto& source : sources_temp) {
 		ManagerSource mcp_source;

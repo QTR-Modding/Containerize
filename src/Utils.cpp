@@ -1,7 +1,7 @@
 #include <Utils.h>
 #include <numbers>
 #include "Translations.h"
-#include "CLibUtilsQTR/FormReader.hpp"
+#include "FormReader.h"
 
 
 bool GetDllVersion(const std::wstring& dllPath, DWORD& major, DWORD& minor, DWORD& build, DWORD& revision)

@@ -1,7 +1,5 @@
 #include "Hooks.h"
 
-#include "Manager.h"
-
 void Hooks::Install()
 {
 	MoveItemHooks<RE::PlayerCharacter>::install();
@@ -41,7 +39,7 @@ bool Hooks::HandleEquip(RE::InputEvent* event)
 			) 
 		{
 			if (const auto selected_item = GetSelectedItemInMenu(); 
-				selected_item && Manager::GetSingleton()->IsFakeContainer(selected_item->GetFormID())) 
+				selected_item && M->IsFakeContainer(selected_item->GetFormID())) 
 			{
 			    if (button_event->IsDown()) {
 				    equip_was_pressed.store(true);
@@ -50,7 +48,7 @@ bool Hooks::HandleEquip(RE::InputEvent* event)
 				    return false;
 			    }
 				if (button_event->HeldDuration()>0.25f) {
-					Manager::GetSingleton()->OnLongPressEquip(selected_item);
+					M->OnLongPressEquip(selected_item);
 				}
 				else if (button_event->IsUp()) {
 					const auto player = RE::PlayerCharacter::GetSingleton();
@@ -98,23 +96,15 @@ bool Hooks::HandleEquip(RE::InputEvent* event)
 
 RE::TESBoundObject* Hooks::GetSelectedItemInMenu()
 {
-    if (const auto ui = RE::UI::GetSingleton()) {
+	if (const auto ui = RE::UI::GetSingleton()) {
 	    if (const auto menu_c = ui->GetMenu<RE::ContainerMenu>()) {
-		    if (const auto a_itemList = menu_c->GetRuntimeData().itemList) {
-		        if (const auto item = a_itemList->GetSelectedItem()) {
-				    if (const auto a_data = item->data.objDesc) {
-				        return a_data->GetObject();
-				    }
-		        }
+		    if (const auto item = menu_c->GetRuntimeData().itemList->GetSelectedItem()) {
+				return item->data.objDesc->GetObject();
 		    }
 	    }
 	    else if (const auto menu_i = ui->GetMenu<RE::InventoryMenu>()) {
-		    if (const auto a_itemList = menu_i->GetRuntimeData().itemList) {
-		        if (const auto item = a_itemList->GetSelectedItem()) {
-				    if (const auto a_data = item->data.objDesc) {
-				        return a_data->GetObject();
-				    }
-		        }
+		    if (const auto item = menu_i->GetRuntimeData().itemList->GetSelectedItem()) {
+				return item->data.objDesc->GetObject();
 		    }
 	    }
 	    else if (const auto menu_f = ui->GetMenu<RE::FavoritesMenu>()) {
@@ -123,23 +113,23 @@ RE::TESBoundObject* Hooks::GetSelectedItemInMenu()
 		    if (runtime_data.root.GetMember("selectedIndex", &selectedIndex) && selectedIndex.IsNumber()) {
                 const std::int32_t selected_index = static_cast<std::int32_t>(selectedIndex.GetNumber());
 			    const auto& items = runtime_data.favorites;
-			    if (selected_index >= 0 && static_cast<uint32_t>(selected_index) < items.size()) {
+				if (selected_index >= 0 && selected_index < items.size()) {
 			        if (const auto item = items[selected_index].item) {
 				        if (const auto bound = skyrim_cast<RE::TESBoundObject*>(item)) {
 						    return bound;
 				        }
 			        }
-			    }
+				}
 		    }
 	    }
-    }
-    return nullptr;
+	}
+	return nullptr;
 }
 
 
 void Hooks::add_item_functor(RE::TESObjectREFR* a_this, RE::TESObjectREFR* a_object, int32_t a_count, bool a4, bool a5)
 {
-	if (Manager::GetSingleton()->isUninstalled) {
+	if (!M || M->isUninstalled) {
 		return add_item_functor_(a_this, a_object, a_count, a4, a5);
 	}
 
@@ -149,21 +139,21 @@ void Hooks::add_item_functor(RE::TESObjectREFR* a_this, RE::TESObjectREFR* a_obj
 	if (!a_this || !a_object || a_count>1) {
 		return add_item_functor_(a_this, a_object, a_count, a4, a5);
 	}
-    Manager::GetSingleton()->OnPickup(a_this, a_object);
+	M->OnPickup(a_this, a_object);
 	return add_item_functor_(a_this, a_object, a_count, a4, a5);
 }
 
 template<typename RefType>
 void Hooks::MoveItemHooks<RefType>::pickUpObject(RefType * a_this, RE::TESObjectREFR * a_object, int32_t a_count, bool a_arg3, bool a_play_sound)
 {
-	if (Manager::GetSingleton()->isUninstalled) {
+	if (!M || M->isUninstalled) {
 		return pick_up_object_(a_this, a_object, a_count, a_arg3, a_play_sound);
 	}
 
 	if (!a_this || !a_object || a_count>1) {
 		return pick_up_object_(a_this, a_object, a_count, a_arg3, a_play_sound);
 	}
-	Manager::GetSingleton()->OnPickup(a_this, a_object);
+	M->OnPickup(a_this, a_object);
 
 	pick_up_object_(a_this, a_object, a_count, a_arg3, a_play_sound);
 }
@@ -171,7 +161,7 @@ void Hooks::MoveItemHooks<RefType>::pickUpObject(RefType * a_this, RE::TESObject
 template<typename RefType>
 void Hooks::MoveItemHooks<RefType>::addObjectToContainer(RefType* a_this, RE::TESBoundObject* a_object, RE::ExtraDataList* a_extraList, std::int32_t a_count, RE::TESObjectREFR* a_fromRefr)
 {
-	if (Manager::GetSingleton()->isUninstalled)
+	if (!M || M->isUninstalled)
 	{
 		return add_object_to_container_(a_this, a_object, a_extraList, a_count, a_fromRefr);
 	}
@@ -192,7 +182,6 @@ void Hooks::MoveItemHooks<RefType>::addObjectToContainer(RefType* a_this, RE::TE
 
 	const auto original_count = a_count;
 	RE::TESBoundObject* fake_bound = nullptr;
-	auto M = Manager::GetSingleton();
 	if (const auto chest_id = a_this->GetFormID(); M->IsChest(chest_id)) {
 		fake_bound = M->GetFakeBound(chest_id);
 		if (const RE::TESBoundObject* real_bound = M->FakeToRealContainer(fake_bound->GetFormID()); real_bound->GetFormID() != a_object->GetFormID()) {
@@ -218,8 +207,7 @@ void Hooks::MoveItemHooks<RefType>::addObjectToContainer(RefType* a_this, RE::TE
 template<typename RefType>
 RE::ObjectRefHandle* Hooks::MoveItemHooks<RefType>::RemoveItem(RefType * a_this, RE::ObjectRefHandle & a_hidden_return_argument, RE::TESBoundObject * a_item, std::int32_t a_count, RE::ITEM_REMOVE_REASON a_reason, RE::ExtraDataList * a_extra_list, RE::TESObjectREFR * a_move_to_ref, const RE::NiPoint3 * a_drop_loc, const RE::NiPoint3 * a_rotate)
 {
-	auto M = Manager::GetSingleton();
-	if (M->isUninstalled) {
+	if (!M || M->isUninstalled) {
 		return remove_item_(a_this, a_hidden_return_argument, a_item, a_count, a_reason, a_extra_list, a_move_to_ref, a_drop_loc, a_rotate);
 	}
 
@@ -257,7 +245,7 @@ RE::ObjectRefHandle* Hooks::MoveItemHooks<RefType>::RemoveItem(RefType * a_this,
 
 void Hooks::InputHook::thunk(RE::BSTEventSource<RE::InputEvent*>* a_dispatcher, RE::InputEvent* const* a_event)
 {
-	if (Manager::GetSingleton()->isUninstalled) {
+	if (!M || M->isUninstalled) {
 		return func(a_dispatcher, a_event);
 	}
 
@@ -314,7 +302,7 @@ bool Hooks::InputHook::ProcessInput(RE::InputEvent* event)
         if (button_event->userEvent == RE::UserEvents::GetSingleton()->activate) {
             const auto crosshair_pick_data = RE::CrosshairPickData::GetSingleton();
 			if (const auto crosshair_target = crosshair_pick_data->target) {
-                if (Manager::GetSingleton()->IsRealContainer(crosshair_target.get()->GetBaseObject()->GetFormID())) {
+                if (M->IsRealContainer(crosshair_target.get()->GetBaseObject()->GetFormID())) {
 		            if (button_event->IsDown()) {
 			            block = true;
 						down_pressed.store(true);
@@ -324,7 +312,7 @@ bool Hooks::InputHook::ProcessInput(RE::InputEvent* event)
 						if (down_pressed.exchange(false)) {
                             if (const auto grabbed_ref = RE::PlayerCharacter::GetSingleton()->GetGrabbedRef(); 
                                 !grabbed_ref || crosshair_target.get()->GetFormID() != grabbed_ref->GetFormID()) {
-                                Manager::GetSingleton()->OnActivateContainer(crosshair_target.get().get());
+                                M->OnActivateContainer(crosshair_target.get().get());
                             }
 						}
                     }
@@ -349,8 +337,7 @@ bool Hooks::InputHook::IsOtherButtonHeld(RE::InputEvent* const* a_event) {
 template<typename MenuType>
 RE::UI_MESSAGE_RESULTS Hooks::MenuHook<MenuType>::ProcessMessage_Hook(RE::UIMessage& a_message)
 {
-	const auto manager = Manager::GetSingleton();
-	if (manager->isUninstalled) {
+	if (!M || M->isUninstalled) {
 		return _ProcessMessage(this, a_message);
 	}
 
@@ -361,9 +348,9 @@ RE::UI_MESSAGE_RESULTS Hooks::MenuHook<MenuType>::ProcessMessage_Hook(RE::UIMess
 	if (const std::string_view menuname = MenuType::MENU_NAME; a_message.menu==menuname) {
 	    if (menuname == RE::ContainerMenu::MENU_NAME) {
             if (RE::TESObjectREFRPtr refr; LookupReferenceByHandle(RE::ContainerMenu::GetTargetRefHandle(), refr)) {
-				if (manager->IsChest(refr->GetFormID())) {
-			        if (msg_type == 3) manager->OnContainerMenuExit();
-			        else if (msg_type == 1) manager->OnContainerMenuEnter();
+				if (M->IsChest(refr->GetFormID())) {
+			        if (msg_type == 3) M->OnContainerMenuExit();
+			        else if (msg_type == 1) M->OnContainerMenuEnter();
 				}
 			}
         }
