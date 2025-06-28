@@ -1,16 +1,16 @@
 #include "Events.h"
 
-void OurEventSink::Reset() {
+void EventSink::Reset() {
 	furniture = nullptr;
 	furniture_entered.store(false);
 	block_droptake.store(false);
 }
 
-RE::BSEventNotifyControl OurEventSink::ProcessEvent(const SKSE::CrosshairRefEvent* a_event, RE::BSTEventSource<SKSE::CrosshairRefEvent>*)
+RE::BSEventNotifyControl EventSink::ProcessEvent(const SKSE::CrosshairRefEvent* a_event, RE::BSTEventSource<SKSE::CrosshairRefEvent>*)
 {
 	if (!a_event->crosshairRef) return RE::BSEventNotifyControl::kContinue;
     if (const auto ref = a_event->crosshairRef.get()) {
-		M->HandleFakePlacement(ref);
+		Manager::GetSingleton()->HandleFakePlacement(ref);
     }
 	if (const auto baseform = DynamicFormTracker::GetSingleton()->GetOGFormOfDynamic(a_event->crosshairRef.get()->GetBaseObject()->GetFormID())) {
         logger::warn("Fake object not found in ChestToFakeContainer.");
@@ -19,7 +19,7 @@ RE::BSEventNotifyControl OurEventSink::ProcessEvent(const SKSE::CrosshairRefEven
 	return RE::BSEventNotifyControl::kContinue;
 }
 
-RE::BSEventNotifyControl OurEventSink::ProcessEvent(const RE::TESFurnitureEvent* event,
+RE::BSEventNotifyControl EventSink::ProcessEvent(const RE::TESFurnitureEvent* event,
     RE::BSTEventSource<RE::TESFurnitureEvent>*) {
         
     if (!event) return RE::BSEventNotifyControl::kContinue;
@@ -44,7 +44,7 @@ RE::BSEventNotifyControl OurEventSink::ProcessEvent(const RE::TESFurnitureEvent*
     else if (event->type == RE::TESFurnitureEvent::FurnitureEventType::kExit) {
         logger::trace("Furniture event: Exit {}", event->targetFurniture->GetName());
         if (event->targetFurniture == furniture) {
-            M->HandleCraftingExit();
+            Manager::GetSingleton()->HandleCraftingExit();
             furniture_entered = false;
             furniture = nullptr;
         }
@@ -57,10 +57,10 @@ RE::BSEventNotifyControl OurEventSink::ProcessEvent(const RE::TESFurnitureEvent*
     return RE::BSEventNotifyControl::kContinue;
 }
 
-RE::BSEventNotifyControl OurEventSink::ProcessEvent(const RE::TESFormDeleteEvent* a_event,
+RE::BSEventNotifyControl EventSink::ProcessEvent(const RE::TESFormDeleteEvent* a_event,
     RE::BSTEventSource<RE::TESFormDeleteEvent>*) {
     if (!a_event) return RE::BSEventNotifyControl::kContinue;
     if (!a_event->formID) return RE::BSEventNotifyControl::kContinue;
-    M->HandleFormDelete(a_event->formID);
+    Manager::GetSingleton()->HandleFormDelete(a_event->formID);
     return RE::BSEventNotifyControl::kContinue;
 }

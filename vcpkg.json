@@ -11,7 +11,9 @@
     "xbyak",
     "rapidcsv",
     "clib-util",
-    "skse-mcp"
+    "clib-utils-qtr",
+    "skse-mcp",
+    "skyprompt-api"
   ],
   "overrides": [
     {

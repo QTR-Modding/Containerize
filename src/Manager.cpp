@@ -1,6 +1,8 @@
 #include "Manager.h"
 #include <ranges>
 
+#include "Papyrus.h"
+
 void Manager::SendReal(RE::TESBoundObject* real_obj, RE::TESObjectREFR* chest) {
     const auto unownedChestOG = RE::TESForm::LookupByID<RE::TESObjectREFR>(unownedChestOGRefID);
     if (!unownedChestOG) return RaiseMngrErr("MsgBoxCallback unownedChestOG is null");
@@ -563,6 +565,8 @@ void Manager::Init() {
 
     bool init_failed = false;
 
+    sources = LoadSources();
+
     if (sources.empty()) {
         logger::error("No sources found.");
         InitFailed();
@@ -597,8 +601,9 @@ void Manager::Init() {
         }
     }
 
-    logger::info("No of chests in cell: {}", GetNoChests());
     const auto unownedChestOG = RE::TESForm::LookupByID<RE::TESObjectREFR>(0x000EA29A);
+    unownedChest = RE::TESForm::LookupByID<RE::TESObjectCONT>(unownedChestFormID);
+    unownedCell = RE::TESForm::LookupByID<RE::TESObjectCELL>(0x000EA28B);
     if (!unownedChestOG || unownedChestOG->GetBaseObject()->GetFormID() != unownedChest->GetFormID() ||
         !unownedCell ||
         !unownedChest ||
@@ -1182,7 +1187,7 @@ void Manager::MsgBoxCallbackMore(const int result) {
                 RE::TESForm* emptyForm2 = nullptr;
                 const auto args = RE::MakeFunctionArguments(std::move(menuID), std::move(emptyForm),
                                                             std::move(emptyForm2));
-                RE::BSTSmartPointer<RE::BSScript::IStackCallbackFunctor> callback(new RenameCallbackFunctor(this));
+                RE::BSTSmartPointer<RE::BSScript::IStackCallbackFunctor> callback(new RenameCallbackFunctor());
 			    if (!vm->DispatchStaticCall("UIExtensions", "OpenMenu", args, callback)) {
 					logger::error("Failed to call UIExtensions OpenMenu.");
 					MsgBoxCallback(3);

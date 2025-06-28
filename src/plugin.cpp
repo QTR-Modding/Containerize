@@ -2,27 +2,15 @@
 #include "MCP.h"
 #include "Translations.h"
 
-Manager* M = nullptr;
-OurEventSink* eventSink;
-
 void OnMessage(SKSE::MessagingInterface::Message* message) {
     if (message->type == SKSE::MessagingInterface::kDataLoaded) {
         SpeedProfiler prof("Loading Sources");
         // Start
-        const auto sources = LoadSources();
-        if (sources.empty()) {
-            logger::critical("Failed to load sources.");
-            return;
-        }
-        M = Manager::GetSingleton(sources);
-		if (!M) {
-			logger::critical("Failed to load Manager.");
-			return;
-		}
-        Hooks::SetManager(M);
-        eventSink = OurEventSink::GetSingleton(M);
+
+        Manager::GetSingleton()->Init();
+        auto eventSink = EventSink::GetSingleton();
 	    LoadTranslations();
-        UI::Register(M);
+        UI::Register();
 
         auto* eventSourceHolder = RE::ScriptEventSourceHolder::GetSingleton();
         eventSourceHolder->AddEventSink<RE::TESFurnitureEvent>(eventSink);
@@ -37,10 +25,11 @@ void OnMessage(SKSE::MessagingInterface::Message* message) {
 
 
 
-#define DISABLE_IF_UNINSTALLED if (!M || M->isUninstalled) return;
+#define DISABLE_IF_UNINSTALLED if (Manager::GetSingleton()->isUninstalled) return;
 void SaveCallback(SKSE::SerializationInterface* serializationInterface) {
     DISABLE_IF_UNINSTALLED 
     logger::trace("Saving Data to skse co-save.");
+	auto M = Manager::GetSingleton();
     M->SendData();
     if (!M->Save(serializationInterface, Settings::kDataKey, Settings::kSerializationVersion)) {
         logger::critical("Failed to save Data");
@@ -58,8 +47,8 @@ void LoadCallback(SKSE::SerializationInterface* serializationInterface) {
     
     logger::info("Loading Data from skse co-save.");
     
-    eventSink->Reset();
-    M->Reset();
+    EventSink::GetSingleton()->Reset();
+    Manager::GetSingleton()->Reset();
     auto* DFT = DynamicFormTracker::GetSingleton();
     DFT->Reset();
 
@@ -107,7 +96,7 @@ void LoadCallback(SKSE::SerializationInterface* serializationInterface) {
         switch (type) {
             case Settings::kDataKey: {
                 logger::trace("Loading Record: {} - Version: {} - Length: {}", temp, version, length);
-                if (!M->Load(serializationInterface, is_before_0_7)) {
+                if (!Manager::GetSingleton()->Load(serializationInterface, is_before_0_7)) {
                     logger::critical("Failed to Load Data");
                     return MsgBoxesNotifs::InGame::CustomMsg("Failed to Load Data.");
                 }
@@ -125,7 +114,7 @@ void LoadCallback(SKSE::SerializationInterface* serializationInterface) {
     logger::info("Receiving Data.");
     DFT->ReceiveData();
     SKSE::GetTaskInterface()->AddTask([]() { 
-        M->ReceiveData(); 
+        Manager::GetSingleton()->ReceiveData(); 
         logger::info("Data loaded from skse co-save.");
         }
     );

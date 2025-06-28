@@ -1,13 +1,11 @@
 #pragma once
 #include "DynamicFormTracker.h"
-#include <algorithm>
+#include "ClibUtil/singleton.hpp"
 #include <shared_mutex>
 
-class Manager final : public SaveLoadData {
-protected:
-    ~Manager() = default;
-
-private:
+class Manager final : public SaveLoadData,
+public clib_util::singleton::ISingleton<Manager>
+{
     // private variables
 
     bool uiextensions_is_present = false;
@@ -22,8 +20,8 @@ private:
     // unowned stuff
     const RefID unownedChestOGRefID = 0x000EA29A;
     const RefID unownedChestFormID = 0x000EA299;
-    RE::TESObjectCELL* unownedCell = RE::TESForm::LookupByID<RE::TESObjectCELL>(0x000EA28B);
-    RE::TESObjectCONT* unownedChest = RE::TESForm::LookupByID<RE::TESObjectCONT>(unownedChestFormID);
+    RE::TESObjectCELL* unownedCell = nullptr;
+    RE::TESObjectCONT* unownedChest = nullptr;
     //RE::TESObjectCELL* unownedCell = RE::TESForm::LookupByID<RE::TESObjectCELL>(0x000FE47B);  // cwquartermastercontainers
     //RE::TESObjectCONT* unownedChest = RE::TESForm::LookupByID<RE::TESObjectCONT>(0x000A0DB5); // playerhousechestnew
     const RE::NiPoint3 unownedChestPos = {1986.f, 1780.f, 6784.f};
@@ -40,62 +38,6 @@ private:
 
     mutable std::shared_mutex source_mutex_;
 	mutable std::shared_mutex chest2fake_mutex_;
-
-    class RenameCallbackFunctor final : public RE::BSScript::IStackCallbackFunctor {
-
-		void operator()([[maybe_unused]] const RE::BSScript::Variable a_result) override {
-            OnRename();
-        }
-
-        void OnRename() const {
-            logger::trace("Rename menu closed.");
-            const auto skyrimVM = RE::SkyrimVM::GetSingleton();
-            if (const auto vm = skyrimVM ? skyrimVM->impl : nullptr) {
-                const char* menuID = "UITextEntryMenu";
-                RE::BSTSmartPointer<RE::BSScript::IStackCallbackFunctor> callback(new ConversationCallbackFunctor(M));
-                const auto args = RE::MakeFunctionArguments(std::move(menuID));
-                if (!vm->DispatchStaticCall("UIExtensions", "GetMenuResultString", args, callback)) {
-			        M->MsgBoxCallback(3);
-                }
-            }
-            else {
-                M->MsgBoxCallback(3);
-            }
-        }
-
-        void SetObject(const RE::BSTSmartPointer<RE::BSScript::Object>&) override {}
-
-		Manager* M = nullptr;
-
-    public:
-		explicit RenameCallbackFunctor(Manager* mngr) : M(mngr) {}
-    };
-
-    // Thanks and credits to Bloc: https://discord.com/channels/874895328938172446/945560222670393406/1093262407989731338
-    class ConversationCallbackFunctor final : public RE::BSScript::IStackCallbackFunctor {
-
-        std::string rename;
-	    Manager* M;
-
-        void operator()(const RE::BSScript::Variable a_result) override {
-            if (a_result.IsNoneObject()) {
-                logger::trace("Result: None");
-            } else if (a_result.IsString()) {
-                rename = a_result.GetString();
-                logger::trace("Result rename: {}", rename);
-                if (!rename.empty()) {
-				    M->RenameContainer(rename);
-                    return;
-			    }
-            }
-            M->MsgBoxCallback(3);
-        }
-
-        void SetObject(const RE::BSTSmartPointer<RE::BSScript::Object>&) override {}
-
-    public:
-        explicit ConversationCallbackFunctor(Manager* mngr) : M(mngr) {}
-    };
 
     void SendReal(RE::TESBoundObject* real_obj, RE::TESObjectREFR* chest);
 
@@ -159,8 +101,6 @@ private:
 
     void InitFailed();
 
-    void Init();
-
     template <typename T>
     FormID CreateFakeContainer(T* realcontainer, RefID connected_chest, RE::ExtraDataList*);
 
@@ -180,8 +120,6 @@ private:
 
     bool HandleRegistration(RE::TESObjectREFR* a_container);
 
-    void MsgBoxCallback(int result);
-
     void MsgBoxCallbackMore(int result);
 
     void PromptInterface();
@@ -195,6 +133,14 @@ private:
 
 public:
 
+    std::set<FormID> doppelgangers;
+	std::atomic<bool> isUninstalled = false;
+
+    const char* GetType() override { return "Manager"; }
+    void Init();
+
+    void MsgBoxCallback(int result);
+
     [[nodiscard]] RefID GetRealContainerChestID(RefID real_refid) const;
     [[nodiscard]] RefID GetFakeContainerChestID(FormID fake_id);
     RE::TESBoundObject* GetFakeBound(RefID chest_id) const;
@@ -207,18 +153,6 @@ public:
 	void UpdateFakeWV(RE::TESBoundObject* fake_form);
     Count CanBeAdded(const RE::TESBoundObject* a_item, Count a_count, const RE::TESBoundObject* fake_container);
     [[nodiscard]] RE::TESBoundObject* FakeToRealContainer(FormID fake);
-
-    explicit Manager(const std::vector<Source>& data) : sources(data) { Init(); }
-
-    static Manager* GetSingleton(const std::vector<Source>& data) {
-        static Manager singleton(data);
-        return &singleton;
-    }
-
-    const char* GetType() override { return "Manager"; }
-
-    std::set<FormID> doppelgangers;
-	std::atomic<bool> isUninstalled = false;
 
 
     void OnActivateContainer(RE::TESObjectREFR* a_container);
@@ -263,7 +197,6 @@ public:
 	const std::vector<Source>& GetSources() const { return sources; }
 
     void Uninstall();
-
 };
 
 template <typename T>
