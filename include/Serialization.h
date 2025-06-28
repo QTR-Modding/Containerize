@@ -36,7 +36,7 @@ namespace Serialization {
         [[nodiscard]] bool Save(SKSE::SerializationInterface* serializationInterface, std::uint32_t type,
                                 std::uint32_t version) override;
 
-        [[nodiscard]] bool Load(SKSE::SerializationInterface* serializationInterface, const bool is_older_version) override;
+        [[nodiscard]] bool Load(SKSE::SerializationInterface* serializationInterface, bool is_older_version) override;
     };
 
 
@@ -52,7 +52,7 @@ namespace Serialization {
         [[nodiscard]] bool Save(SKSE::SerializationInterface* serializationInterface, std::uint32_t type,
                                 std::uint32_t version) override;
 
-        [[nodiscard]] bool Load(SKSE::SerializationInterface* serializationInterface, const bool) override;
+        [[nodiscard]] bool Load(SKSE::SerializationInterface* serializationInterface, bool) override;
     };
 
     void SaveCallback(SKSE::SerializationInterface* serializationInterface);

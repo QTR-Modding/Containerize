@@ -1187,7 +1187,7 @@ void Manager::MsgBoxCallbackMore(const int result) {
                 RE::TESForm* emptyForm2 = nullptr;
                 const auto args = RE::MakeFunctionArguments(std::move(menuID), std::move(emptyForm),
                                                             std::move(emptyForm2));
-                RE::BSTSmartPointer<RE::BSScript::IStackCallbackFunctor> callback(new RenameCallbackFunctor());
+                RE::BSTSmartPointer<RE::BSScript::IStackCallbackFunctor> callback(new Papyrus::RenameCallbackFunctor());
 			    if (!vm->DispatchStaticCall("UIExtensions", "OpenMenu", args, callback)) {
 					logger::error("Failed to call UIExtensions OpenMenu.");
 					MsgBoxCallback(3);
