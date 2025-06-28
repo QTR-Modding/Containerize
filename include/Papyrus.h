@@ -10,7 +10,7 @@ class ConversationCallbackFunctor final : public RE::BSScript::IStackCallbackFun
     void SetObject(const RE::BSTSmartPointer<RE::BSScript::Object>&) override {}
 
 public:
-    ConversationCallbackFunctor(){}
+    ConversationCallbackFunctor() = default;
 };
 
 class RenameCallbackFunctor final : public RE::BSScript::IStackCallbackFunctor {
@@ -25,5 +25,5 @@ class RenameCallbackFunctor final : public RE::BSScript::IStackCallbackFunctor {
 
 
 public:
-	RenameCallbackFunctor(){};
+	RenameCallbackFunctor() = default;
 };

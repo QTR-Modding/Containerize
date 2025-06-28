@@ -220,7 +220,7 @@ namespace MsgBoxesNotifs {
             std::function<void(unsigned int)> _callback;
 
         public:
-            ~MessageBoxResultCallback() override {}
+            ~MessageBoxResultCallback() override = default;
             explicit MessageBoxResultCallback(std::function<void(unsigned int)> callback) : _callback(callback) {}
             void Run(RE::IMessageBoxCallback::Message message) override {
                 _callback(static_cast<unsigned int>(message));
