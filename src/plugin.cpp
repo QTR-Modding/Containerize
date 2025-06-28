@@ -1,6 +1,7 @@
 #include "Hooks.h"
 #include "MCP.h"
 #include "Translations.h"
+#include "API.h"
 
 void OnMessage(SKSE::MessagingInterface::Message* message) {
     if (message->type == SKSE::MessagingInterface::kDataLoaded) {
@@ -17,6 +18,10 @@ void OnMessage(SKSE::MessagingInterface::Message* message) {
         eventSourceHolder->AddEventSink<RE::TESFormDeleteEvent>(eventSink);
 		SKSE::GetCrosshairRefEventSource()->AddEventSink(eventSink);
 		logger::info("EventSinks added.");
+
+		MyPromptSink::GetSingleton()->SetManager(M);
+        /*g_clientID = SkyPromptAPI::RequestClientID();
+	    logger::info("SkyPrompt Client ID: {}", g_clientID);*/
     }
     if (message->type == SKSE::MessagingInterface::kPostLoadGame ||
         message->type == SKSE::MessagingInterface::kNewGame) {

@@ -153,9 +153,12 @@ public:
 	void UpdateFakeWV(RE::TESBoundObject* fake_form);
     Count CanBeAdded(const RE::TESBoundObject* a_item, Count a_count, const RE::TESBoundObject* fake_container);
     [[nodiscard]] RE::TESBoundObject* FakeToRealContainer(FormID fake);
+    void OpenContainer() {if (current_container) MsgBoxCallback(0);}
+	void TakeContainer() {if (current_container) MsgBoxCallback(1); }
+	void OpenRenameContainer() {if (current_container) MsgBoxCallbackMore(0); }
 
 
-    void OnActivateContainer(RE::TESObjectREFR* a_container);
+    void OnActivateContainer(RE::TESObjectREFR* a_container, bool prompt=true);
 
     // places fake objects in external containers after load game
     void HandleFakePlacement(RE::TESObjectREFR* external_cont);

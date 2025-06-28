@@ -1,4 +1,5 @@
 #include "Events.h"
+#include "API.h"
 
 void EventSink::Reset() {
 	furniture = nullptr;
@@ -8,14 +9,30 @@ void EventSink::Reset() {
 
 RE::BSEventNotifyControl EventSink::ProcessEvent(const SKSE::CrosshairRefEvent* a_event, RE::BSTEventSource<SKSE::CrosshairRefEvent>*)
 {
-	if (!a_event->crosshairRef) return RE::BSEventNotifyControl::kContinue;
+    if (!a_event->crosshairRef) {
+        SkyPromptAPI::RemovePrompt(MyPromptSink::GetSingleton(),g_clientID);
+        return RE::BSEventNotifyControl::kContinue;
+    }
     if (const auto ref = a_event->crosshairRef.get()) {
 		Manager::GetSingleton()->HandleFakePlacement(ref);
     }
-	if (const auto baseform = DynamicFormTracker::GetSingleton()->GetOGFormOfDynamic(a_event->crosshairRef.get()->GetBaseObject()->GetFormID())) {
+	if (const auto baseform = DynamicFormTracker::GetSingleton()->GetOGFormOfDynamic(a_event->crosshairRef->GetBaseObject()->GetFormID())) {
         logger::warn("Fake object not found in ChestToFakeContainer.");
 	    WorldObject::SwapObjects(a_event->crosshairRef.get(), skyrim_cast<RE::TESBoundObject*>(baseform), false);    
 	}
+
+    if (M->IsRealContainer(a_event->crosshairRef.get()) && M->IsARegistry(a_event->crosshairRef->GetFormID())) {
+		const auto prompt_sink = MyPromptSink::GetSingleton();
+		prompt_sink->SetRef(a_event->crosshairRef->GetFormID());
+        if (!SkyPromptAPI::SendPrompt(prompt_sink, g_clientID)) {
+			logger::error("Prompt failed.");
+		}
+        prompt_sink->UnSetRef();
+    }
+    else {
+        SkyPromptAPI::RemovePrompt(MyPromptSink::GetSingleton(),g_clientID);
+    }
+
 	return RE::BSEventNotifyControl::kContinue;
 }
 
@@ -29,8 +46,6 @@ RE::BSEventNotifyControl EventSink::ProcessEvent(const RE::TESFurnitureEvent* ev
     if (!furniture_entered && event->type == RE::TESFurnitureEvent::FurnitureEventType::kExit)
         return RE::BSEventNotifyControl::kContinue;
     if (event->targetFurniture->GetBaseObject()->formType.underlying() != 40) return RE::BSEventNotifyControl::kContinue;
-
-    logger::trace("Furniture event");
 
     const auto bench = event->targetFurniture->GetBaseObject()->As<RE::TESFurniture>();
     if (!bench) return RE::BSEventNotifyControl::kContinue;
