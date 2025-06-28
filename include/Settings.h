@@ -63,15 +63,6 @@ namespace Settings {
         "ALCH",  //	2E ALCH	AlchemyItem
 	};
 
-    const std::vector<int> xRemove = {
-        //0x99, 
-        //0x3C, 0x0B, 0x48,
-        //0x21,
-        //
-        // 0x24,
-        //0x70, 0x7E, 0x88, 0x8C, 0x1C};
-    };
-
     inline bool problems_in_YAML_sources = false;
     inline bool problems_in_INI_sources = false;
     inline bool duplicate_sources = false;

@@ -10,5 +10,5 @@ set(sources ${sources}
 	src/Serialization.cpp
 	src/CustomObjects.cpp
 	src/Translations.cpp
-	src/FormReader.cpp
+	src/Papyrus.cpp
 )

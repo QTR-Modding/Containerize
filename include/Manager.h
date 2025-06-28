@@ -1,9 +1,11 @@
 #pragma once
 #include "DynamicFormTracker.h"
-#include <algorithm>
+#include "ClibUtil/singleton.hpp"
 #include <shared_mutex>
 
-class Manager : public SaveLoadData {
+class Manager final : public SaveLoadData,
+public clib_util::singleton::ISingleton<Manager>
+{
     // private variables
 
     bool uiextensions_is_present = false;
@@ -18,8 +20,8 @@ class Manager : public SaveLoadData {
     // unowned stuff
     const RefID unownedChestOGRefID = 0x000EA29A;
     const RefID unownedChestFormID = 0x000EA299;
-    RE::TESObjectCELL* unownedCell = RE::TESForm::LookupByID<RE::TESObjectCELL>(0x000EA28B);
-    RE::TESObjectCONT* unownedChest = RE::TESForm::LookupByID<RE::TESObjectCONT>(unownedChestFormID);
+    RE::TESObjectCELL* unownedCell = nullptr;
+    RE::TESObjectCONT* unownedChest = nullptr;
     //RE::TESObjectCELL* unownedCell = RE::TESForm::LookupByID<RE::TESObjectCELL>(0x000FE47B);  // cwquartermastercontainers
     //RE::TESObjectCONT* unownedChest = RE::TESForm::LookupByID<RE::TESObjectCONT>(0x000A0DB5); // playerhousechestnew
     const RE::NiPoint3 unownedChestPos = {1986.f, 1780.f, 6784.f};
@@ -37,68 +39,12 @@ class Manager : public SaveLoadData {
     mutable std::shared_mutex source_mutex_;
 	mutable std::shared_mutex chest2fake_mutex_;
 
-    class RenameCallbackFunctor final : public RE::BSScript::IStackCallbackFunctor {
-
-		void operator()(const RE::BSScript::Variable a_result) override {
-            OnRename();
-        }
-
-        void OnRename() const {
-            logger::trace("Rename menu closed.");
-            const auto skyrimVM = RE::SkyrimVM::GetSingleton();
-            if (const auto vm = skyrimVM ? skyrimVM->impl : nullptr) {
-                const char* menuID = "UITextEntryMenu";
-                RE::BSTSmartPointer<RE::BSScript::IStackCallbackFunctor> callback(new ConversationCallbackFunctor(M));
-                const auto args = RE::MakeFunctionArguments(std::move(menuID));
-                if (!vm->DispatchStaticCall("UIExtensions", "GetMenuResultString", args, callback)) {
-			        M->MsgBoxCallback(3);
-                }
-            }
-            else {
-                M->MsgBoxCallback(3);
-            }
-        }
-
-        void SetObject(const RE::BSTSmartPointer<RE::BSScript::Object>&) override {}
-
-		Manager* M = nullptr;
-
-    public:
-		explicit RenameCallbackFunctor(Manager* mngr) : M(mngr) {}
-    };
-
-    // Thanks and credits to Bloc: https://discord.com/channels/874895328938172446/945560222670393406/1093262407989731338
-    class ConversationCallbackFunctor final : public RE::BSScript::IStackCallbackFunctor {
-
-        std::string rename;
-	    Manager* M;
-
-        void operator()(const RE::BSScript::Variable a_result) override {
-            if (a_result.IsNoneObject()) {
-                logger::trace("Result: None");
-            } else if (a_result.IsString()) {
-                rename = a_result.GetString();
-                logger::trace("Result rename: {}", rename);
-                if (!rename.empty()) {
-				    M->RenameContainer(rename);
-                    return;
-			    }
-            }
-            M->MsgBoxCallback(3);
-        }
-
-        void SetObject(const RE::BSTSmartPointer<RE::BSScript::Object>&) override {}
-
-    public:
-        explicit ConversationCallbackFunctor(Manager* mngr) : M(mngr) {}
-    };
-
     void SendReal(RE::TESBoundObject* real_obj, RE::TESObjectREFR* chest);
 
     // Activates a container
     //void Activate(RE::TESObjectREFR* a_objref);
 
-    [[nodiscard]] bool ActivateChest(const RE::TESObjectREFR* chest, const char* chest_name) const;
+    [[nodiscard]] bool ActivateChest(RE::TESObjectREFR* chest, const char* chest_name) const;
 
     [[nodiscard]] int GetChestValue(RE::TESObjectREFR* a_chest);
 
@@ -155,8 +101,6 @@ class Manager : public SaveLoadData {
 
     void InitFailed();
 
-    void Init();
-
     template <typename T>
     FormID CreateFakeContainer(T* realcontainer, RefID connected_chest, RE::ExtraDataList*);
 
@@ -176,8 +120,6 @@ class Manager : public SaveLoadData {
 
     bool HandleRegistration(RE::TESObjectREFR* a_container);
 
-    void MsgBoxCallback(int result);
-
     void MsgBoxCallbackMore(int result);
 
     void PromptInterface();
@@ -190,6 +132,14 @@ class Manager : public SaveLoadData {
     }
 
 public:
+
+    std::set<FormID> doppelgangers;
+	std::atomic<bool> isUninstalled = false;
+
+    const char* GetType() override { return "Manager"; }
+    void Init();
+
+    void MsgBoxCallback(int result);
 
     [[nodiscard]] RefID GetRealContainerChestID(RefID real_refid) const;
     [[nodiscard]] RefID GetFakeContainerChestID(FormID fake_id);
@@ -206,18 +156,6 @@ public:
     void OpenContainer() {if (current_container) MsgBoxCallback(0);}
 	void TakeContainer() {if (current_container) MsgBoxCallback(1); }
 	void OpenRenameContainer() {if (current_container) MsgBoxCallbackMore(0); }
-
-    explicit Manager(const std::vector<Source>& data) : sources(data) { Init(); }
-
-    static Manager* GetSingleton(const std::vector<Source>& data) {
-        static Manager singleton(data);
-        return &singleton;
-    }
-
-    const char* GetType() override { return "Manager"; }
-
-    std::set<FormID> doppelgangers;
-	std::atomic<bool> isUninstalled = false;
 
 
     void OnActivateContainer(RE::TESObjectREFR* a_container, bool prompt=true);
@@ -262,7 +200,6 @@ public:
 	const std::vector<Source>& GetSources() const { return sources; }
 
     void Uninstall();
-
 };
 
 template <typename T>
@@ -309,7 +246,7 @@ void Manager::UpdateFakeWV(T* fake_form, RE::TESObjectREFR* chest_linked, const 
 
     // do binary search to find the correct value up to a tolerance
     constexpr float tolerance = 0.01f; // 1%
-    const float tolerance_val = std::max(2.0f, std::floor(tolerance * target_value) + 1);  // at least 2
+    const float tolerance_val = std::max(2.0f, std::floor(tolerance * static_cast<float>(target_value)) + 1);  // at least 2
     constexpr int max_iter = 1000;
     int curr_iter = max_iter;
 
@@ -317,7 +254,7 @@ void Manager::UpdateFakeWV(T* fake_form, RE::TESObjectREFR* chest_linked, const 
     int upper_bound = x_0;
     int x_search = (lower_bound + upper_bound) / 2;
 
-    while (std::abs(f_search - target_value) > tolerance_val && curr_iter > 0) {
+    while (static_cast<float>(std::abs(f_search - target_value)) > tolerance_val && curr_iter > 0) {
         FunctionsSkyrim::FormTraits<T>::SetValue(fake_form, x_search);
 		f_search = Inventory::GetItemValue(fake_bound, player_ref->GetInventory());
 

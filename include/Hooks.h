@@ -1,15 +1,8 @@
 #pragma once
-#include "Manager.h"
 
 namespace Hooks {
 
 	void Install();
-
-    inline Manager* M = nullptr;
-
-    inline void SetManager(Manager* a_manager) {
-		M = a_manager;
-	}
 
     inline bool HandleEquip(RE::InputEvent* event);
     RE::TESBoundObject* GetSelectedItemInMenu();

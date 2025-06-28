@@ -10,6 +10,5 @@ set(headers ${headers}
 	include/DynamicFormTracker.h
 	include/CustomObjects.h
 	include/Translations.h
-	include/FormReader.h
-	include/API.h
+	include/Papyrus.h
 )

@@ -1,6 +1,8 @@
 #include "Manager.h"
 #include <ranges>
 
+#include "Papyrus.h"
+
 void Manager::SendReal(RE::TESBoundObject* real_obj, RE::TESObjectREFR* chest) {
     const auto unownedChestOG = RE::TESForm::LookupByID<RE::TESObjectREFR>(unownedChestOGRefID);
     if (!unownedChestOG) return RaiseMngrErr("MsgBoxCallback unownedChestOG is null");
@@ -140,17 +142,16 @@ void Manager::OnLongPressEquip(const RE::TESBoundObject* a_selected_item)
 	}
 }
 
-bool Manager::ActivateChest(const RE::TESObjectREFR* chest, const char* chest_name) const {
+bool Manager::ActivateChest(RE::TESObjectREFR* chest, const char* chest_name) const {
 
     unownedChest->fullName = chest_name;
-    chest->OpenContainer(0);
-	return true;
-    /*const auto a_obj = chest->GetBaseObject()->As<RE::TESObjectCONT>();
-    if (!a_obj) {
-        RaiseMngrErr("Object is not a container");
-		return false;
+    /*chest->OpenContainer(0);
+	return true;*/
+    if (const auto a_obj = chest->GetBaseObject()->As<RE::TESObjectCONT>()) {
+        return a_obj->Activate(chest, player_ref, 0, a_obj, 1);
     }
-    return a_obj->Activate(chest, player_ref, 0, a_obj, 1);*/
+    logger::error("ActivateChest: Chest is not a container.");
+    return false;
 }
 
 void Manager::HandleCraftingExit() {
@@ -564,6 +565,8 @@ void Manager::Init() {
 
     bool init_failed = false;
 
+    sources = LoadSources();
+
     if (sources.empty()) {
         logger::error("No sources found.");
         InitFailed();
@@ -598,8 +601,9 @@ void Manager::Init() {
         }
     }
 
-    logger::info("No of chests in cell: {}", GetNoChests());
     const auto unownedChestOG = RE::TESForm::LookupByID<RE::TESObjectREFR>(0x000EA29A);
+    unownedChest = RE::TESForm::LookupByID<RE::TESObjectCONT>(unownedChestFormID);
+    unownedCell = RE::TESForm::LookupByID<RE::TESObjectCELL>(0x000EA28B);
     if (!unownedChestOG || unownedChestOG->GetBaseObject()->GetFormID() != unownedChest->GetFormID() ||
         !unownedCell ||
         !unownedChest ||
@@ -1077,7 +1081,7 @@ bool Manager::HandleRegistration(RE::TESObjectREFR* a_container) {
         // if it is registered, we expect its fake counterpart to exist. Make sure via DFT:
         else {
             const auto chest_refid = GetRealContainerChestID(container_refid);
-            const auto real_cont_id = GetRealID(chest_refid);;
+            const auto real_cont_id = GetRealID(chest_refid);
             const auto real_cont_editorid = GetEditorID(real_cont_id);
             if (real_cont_editorid.empty()) {
                 RaiseMngrErr("Failed to get editorid of real container.");
@@ -1181,7 +1185,7 @@ void Manager::MsgBoxCallbackMore(const int result) {
                 RE::TESForm* emptyForm2 = nullptr;
                 const auto args = RE::MakeFunctionArguments(std::move(menuID), std::move(emptyForm),
                                                             std::move(emptyForm2));
-                RE::BSTSmartPointer<RE::BSScript::IStackCallbackFunctor> callback(new RenameCallbackFunctor(this));
+                RE::BSTSmartPointer<RE::BSScript::IStackCallbackFunctor> callback(new Papyrus::RenameCallbackFunctor());
 			    if (!vm->DispatchStaticCall("UIExtensions", "OpenMenu", args, callback)) {
 					logger::error("Failed to call UIExtensions OpenMenu.");
 					MsgBoxCallback(3);
@@ -1273,15 +1277,7 @@ RE::ObjectRefHandle Manager::RemoveItem(RE::TESObjectREFR* moveFrom, RE::TESObje
 bool Manager::PickUpItem(RE::TESObjectREFR* item, const unsigned int max_try) {
     logger::trace("PickUpItem");
 
-    if (!item) {
-        logger::warn("Item is null");
-        return false;
-    }
-    RE::Actor* actor = RE::PlayerCharacter::GetSingleton();
-    if (!actor) {
-        logger::warn("PlayerCharacter is null");
-        return false;
-    }
+    auto player = RE::PlayerCharacter::GetSingleton();
 
 
     const auto item_bound = item->GetObjectReference();
@@ -1289,21 +1285,17 @@ bool Manager::PickUpItem(RE::TESObjectREFR* item, const unsigned int max_try) {
         logger::warn("Item bound is null");
         return false;
     }
-    const auto item_count = Inventory::GetItemCount(item_bound, actor->GetInventory());
+    const auto item_count = player->GetItemCount(item_bound);
     logger::trace("Item count: {}", item_count);
-
-    for (const auto& x_i : Settings::xRemove) {
-        item->extraList.RemoveByType(static_cast<RE::ExtraDataType>(x_i));
-    }
 
     item->extraList.SetOwner(RE::TESForm::LookupByID(0x07));
 
     unsigned int i = 0;
     while (i < max_try) {
         logger::trace("Critical: PickUpItem");
-        actor->PickUpObject(item, 1, false, false);
+        player->PickUpObject(item, 1, false, false);
         logger::trace("Item picked up. Checking if it is in inventory...");
-        if (const auto new_item_count = Inventory::GetItemCount(item_bound, actor->GetInventory()); new_item_count > item_count) {
+        if (const auto new_item_count = player->GetItemCount(item_bound); new_item_count > item_count) {
             logger::trace("Item picked up. Took {} extra tries.", i);
             return true;
         } else logger::trace("item count: {}", new_item_count);

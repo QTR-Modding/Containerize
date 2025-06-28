@@ -1,16 +1,10 @@
 #pragma once
 #include "Manager.h"
 
-class OurEventSink final : public RE::BSTEventSink<RE::TESFurnitureEvent>,
+class EventSink final : public clib_util::singleton::ISingleton<EventSink>,
+                            public RE::BSTEventSink<RE::TESFurnitureEvent>,
                             public RE::BSTEventSink<SKSE::CrosshairRefEvent>,
                            public RE::BSTEventSink<RE::TESFormDeleteEvent> {
-
-    OurEventSink() = default;
-    OurEventSink(const OurEventSink&) = delete;
-    OurEventSink(OurEventSink&&) = delete;
-    OurEventSink& operator=(const OurEventSink&) = delete;
-    OurEventSink& operator=(OurEventSink&&) = delete;
-
 
 	std::atomic<bool> block_droptake = false;
 
@@ -19,15 +13,6 @@ class OurEventSink final : public RE::BSTEventSink<RE::TESFurnitureEvent>,
 public:
 
 	std::atomic<bool> furniture_entered = false;
-    Manager* M = nullptr;
-
-    explicit OurEventSink(Manager* mngr)
-        :  M(mngr){}
-
-    static OurEventSink* GetSingleton(Manager* manager) {
-        static OurEventSink singleton(manager);
-        return &singleton;
-    }
 
     void Reset();
 

@@ -2,6 +2,8 @@
 #include "Serialization.h"
 #include <ranges>
 
+using namespace Serialization;
+
 struct ActEff {
     FormID baseFormid;
     FormID dynamicFormid;
@@ -795,6 +797,6 @@ public:
             }
         }
 
-    };
+    }
 };
 
