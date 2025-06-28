@@ -12,7 +12,7 @@ RE::BSEventNotifyControl EventSink::ProcessEvent(const SKSE::CrosshairRefEvent* 
     if (const auto ref = a_event->crosshairRef.get()) {
 		Manager::GetSingleton()->HandleFakePlacement(ref);
     }
-	if (const auto baseform = DynamicFormTracker::GetSingleton()->GetOGFormOfDynamic(a_event->crosshairRef.get()->GetBaseObject()->GetFormID())) {
+	if (const auto baseform = DynamicFormTracker::GetSingleton()->GetOGFormOfDynamic(a_event->crosshairRef->GetBaseObject()->GetFormID())) {
         logger::warn("Fake object not found in ChestToFakeContainer.");
 	    WorldObject::SwapObjects(a_event->crosshairRef.get(), skyrim_cast<RE::TESBoundObject*>(baseform), false);    
 	}
