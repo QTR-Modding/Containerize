@@ -8,11 +8,11 @@ void OnMessage(SKSE::MessagingInterface::Message* message) {
         // Start
 
         Manager::GetSingleton()->Init();
-        auto eventSink = EventSink::GetSingleton();
+        const auto eventSink = EventSink::GetSingleton();
 	    LoadTranslations();
         UI::Register();
 
-        auto* eventSourceHolder = RE::ScriptEventSourceHolder::GetSingleton();
+        auto eventSourceHolder = RE::ScriptEventSourceHolder::GetSingleton();
         eventSourceHolder->AddEventSink<RE::TESFurnitureEvent>(eventSink);
         eventSourceHolder->AddEventSink<RE::TESFormDeleteEvent>(eventSink);
 		SKSE::GetCrosshairRefEventSource()->AddEventSink(eventSink);
