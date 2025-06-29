@@ -18,14 +18,21 @@ void Hooks::Install()
 
 	const REL::Relocation<std::uintptr_t> add_item_functor_hook{ RELOCATION_ID(55946, 56490) };
 	add_item_functor_ = trampoline.write_call<5>(add_item_functor_hook.address() + 0x15D, add_item_functor);
-
+}
+void Hooks::InstallUseOrTakeHooks()
+{
+	ActivateHook<RE::TESObjectARMO>::install();
+	ActivateHook<RE::TESObjectWEAP>::install();
+	ActivateHook<RE::ScrollItem>::install();
+	ActivateHook<RE::AlchemyItem>::install();
+	ActivateHook<RE::IngredientItem>::install();
 }
 bool Hooks::HandleEquip(RE::InputEvent* event)
 {
 #undef GetObject
 	const auto ui = RE::UI::GetSingleton();
 	if (!ui->IsMenuOpen(RE::ContainerMenu::MENU_NAME) &&
-		!ui->IsMenuOpen(RE::InventoryMenu::MENU_NAME)&&
+		!ui->IsMenuOpen(RE::InventoryMenu::MENU_NAME) &&
 		!ui->IsMenuOpen(RE::FavoritesMenu::MENU_NAME)) {
 		equip_was_pressed.store(false);
 		return false;
@@ -309,24 +316,15 @@ void Hooks::InputHook::thunk(RE::BSTEventSource<RE::InputEvent*>* a_dispatcher, 
 
 bool Hooks::InputHook::ProcessInput(RE::InputEvent* event)
 {
-	bool block = false;
+	const bool block = false;
     if (const auto button_event = event->AsButtonEvent()) {
         if (button_event->userEvent == RE::UserEvents::GetSingleton()->activate) {
             const auto crosshair_pick_data = RE::CrosshairPickData::GetSingleton();
 			if (const auto crosshair_target = crosshair_pick_data->target) {
                 if (Manager::GetSingleton()->IsRealContainer(crosshair_target.get()->GetBaseObject()->GetFormID())) {
 		            if (button_event->IsDown()) {
-			            block = true;
-						down_pressed.store(true);
                     }
                     else if (button_event->IsUp()) {
-			            block = true;
-						if (down_pressed.exchange(false)) {
-                            if (const auto grabbed_ref = RE::PlayerCharacter::GetSingleton()->GetGrabbedRef(); 
-                                !grabbed_ref || crosshair_target.get()->GetFormID() != grabbed_ref->GetFormID()) {
-                                Manager::GetSingleton()->OnActivateContainer(crosshair_target.get().get());
-                            }
-						}
                     }
 				}
 			}
@@ -369,6 +367,34 @@ RE::UI_MESSAGE_RESULTS Hooks::MenuHook<MenuType>::ProcessMessage_Hook(RE::UIMess
         }
 	}
     return _ProcessMessage(this, a_message);
+}
+
+template<typename FormType>
+bool Hooks::ActivateHook<FormType>::Activate_Hook(RE::TESBoundObject* a_this, RE::TESObjectREFR* a_targetRef, RE::TESObjectREFR* a_activatorRef, std::uint8_t a_arg3, RE::TESBoundObject* a_obj, std::int32_t a_targetCount)
+{
+	if (!a_activatorRef->IsPlayerRef()) {
+		return _Activate(a_this, a_targetRef, a_activatorRef, a_arg3, a_obj, a_targetCount);
+	}
+	//Manager::GetSingleton()->Swap2Fake(a_targetRef);
+	/*SKSE::GetTaskInterface()->AddTask(
+		[a_targetRef,a_arg3,a_targetCount] {
+	        auto base = a_targetRef->GetBaseObject();
+		    if (!_Activate(base,a_targetRef,RE::PlayerCharacter::GetSingleton(),a_arg3,base,a_targetCount)) {
+	            Manager::GetSingleton()->Swap2Real(a_targetRef);
+		    }
+		}
+	);*/
+	//logger::info("swapped {:x}", a_targetRef->GetBaseObject()->GetFormID());
+	//return false;
+	//auto base = a_targetRef->GetBaseObject();
+	if (auto base = Manager::GetSingleton()->GetFakeBound(a_targetRef)) {
+	    return _Activate(base, a_targetRef, a_activatorRef, a_arg3, a_obj, a_targetCount);
+	}
+	//const bool res = _Activate(base, a_targetRef, a_activatorRef, a_arg3, a_obj, a_targetCount);
+	//if (!res && a_targetRef) {
+	//    //Manager::GetSingleton()->Swap2Real(a_targetRef);
+	//}
+	return _Activate(a_this, a_targetRef, a_activatorRef, a_arg3, a_obj, a_targetCount);
 }
 
 template<typename MenuType>

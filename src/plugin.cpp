@@ -1,5 +1,6 @@
 #include "Hooks.h"
 #include "MCP.h"
+#include "SkyPrompt.h"
 #include "Translations.h"
 
 void OnMessage(SKSE::MessagingInterface::Message* message) {
@@ -7,19 +8,35 @@ void OnMessage(SKSE::MessagingInterface::Message* message) {
         SpeedProfiler prof("Loading Sources");
         // Start
 
-        Manager::GetSingleton()->Init();
-        const auto eventSink = EventSink::GetSingleton();
-	    LoadTranslations();
-        UI::Register();
+        if (SkyPrompt::g_clientID == 0) {
+            SkyPrompt::g_clientID = SkyPromptAPI::RequestClientID();
+        }
+        if (SkyPrompt::g_clientID>0) {
+            Manager::GetSingleton()->Init();
+            const auto eventSink = EventSink::GetSingleton();
+	        LoadTranslations();
+            UI::Register();
 
-        auto eventSourceHolder = RE::ScriptEventSourceHolder::GetSingleton();
-        eventSourceHolder->AddEventSink<RE::TESFurnitureEvent>(eventSink);
-        eventSourceHolder->AddEventSink<RE::TESFormDeleteEvent>(eventSink);
-		SKSE::GetCrosshairRefEventSource()->AddEventSink(eventSink);
-		logger::info("EventSinks added.");
+            const auto eventSourceHolder = RE::ScriptEventSourceHolder::GetSingleton();
+            eventSourceHolder->AddEventSink<RE::TESFurnitureEvent>(eventSink);
+            eventSourceHolder->AddEventSink<RE::TESFormDeleteEvent>(eventSink);
+		    SKSE::GetCrosshairRefEventSource()->AddEventSink(eventSink);
+		    logger::info("EventSinks added.");
+
+        }
+        else {
+            logger::error("Failed to get client ID from SkyPrompt API. Plugin will not work properly.");
+        }
+
     }
     if (message->type == SKSE::MessagingInterface::kPostLoadGame ||
         message->type == SKSE::MessagingInterface::kNewGame) {
+    }
+    if (message->type == SKSE::MessagingInterface::kPostPostLoad) {
+        if (po3_use_or_take) {
+	        Hooks::InstallUseOrTakeHooks();
+			logger::info("Use or Take hooks installed.");
+        }
     }
 }
 
@@ -35,9 +52,9 @@ SKSEPluginLoad(const SKSE::LoadInterface *skse) {
 		return false;
     }
 	Settings::po3installed = true;
+    Hooks::Install();
     LoadOtherSettings();
     Serialization::InitializeSerialization();
     SKSE::GetMessagingInterface()->RegisterListener(OnMessage);
-	Hooks::Install();
     return true;
 }

@@ -49,7 +49,7 @@ public clib_util::singleton::ISingleton<Manager>
     [[nodiscard]] int GetChestValue(RE::TESObjectREFR* a_chest);
 
     // from container out in the world to linked chest
-    [[nodiscard]] RE::TESObjectREFR* GetRealContainerChest(const RE::TESObjectREFR* real_container) const;
+    [[nodiscard]] RE::TESObjectREFR* GetContainerChest(const RE::TESObjectREFR* a_container) const;
 
     [[nodiscard]] uint32_t GetNoChests() const;
 
@@ -68,6 +68,7 @@ public clib_util::singleton::ISingleton<Manager>
     void DeRegisterChest(RefID chest_ref);
 
     // OK. from real container formid to linked source
+    [[nodiscard]] const Source* GetContainerSource(FormID real_id) const;
     [[nodiscard]] Source* GetContainerSource(FormID real_id);
 
     // returns true only if the item is in the inventory with positive count. removes the item if it is in the inventory with 0 count
@@ -120,9 +121,7 @@ public clib_util::singleton::ISingleton<Manager>
 
     bool HandleRegistration(RE::TESObjectREFR* a_container);
 
-    void MsgBoxCallbackMore(int result);
-
-    void PromptInterface();
+    void RenameCallback();
 
     template <typename T>
     static void Rename(const std::string& new_name, T item) {
@@ -141,8 +140,8 @@ public:
 
     void MsgBoxCallback(int result);
 
-    [[nodiscard]] RefID GetRealContainerChestID(RefID real_refid) const;
-    [[nodiscard]] RefID GetFakeContainerChestID(FormID fake_id);
+    [[nodiscard]] RefID GetContainerChestID(RefID container_refid) const;
+    [[nodiscard]] RefID GetFakeContainerChestID(FormID fake_id) const;
     RE::TESBoundObject* GetFakeBound(RefID chest_id) const;
     FormID GetFakeID(RefID chest_id) const;
     FormID GetRealID(RefID chest_id) const;
@@ -152,10 +151,10 @@ public:
     void OnLongPressEquip(const RE::TESBoundObject* a_selected_item);
 	void UpdateFakeWV(RE::TESBoundObject* fake_form);
     Count CanBeAdded(const RE::TESBoundObject* a_item, Count a_count, const RE::TESBoundObject* fake_container);
-    [[nodiscard]] RE::TESBoundObject* FakeToRealContainer(FormID fake);
+    [[nodiscard]] RE::TESBoundObject* FakeToRealContainer(FormID fake) const;
 
 
-    void OnActivateContainer(RE::TESObjectREFR* a_container);
+    void OnActivateContainer(RE::TESObjectREFR* a_container, int msgbox_action);
 
     // places fake objects in external containers after load game
     void HandleFakePlacement(RE::TESObjectREFR* external_cont);
@@ -197,6 +196,8 @@ public:
 	const std::vector<Source>& GetSources() const { return sources; }
 
     void Uninstall();
+
+    RE::TESBoundObject* GetFakeBound(const RE::TESObjectREFR* a_container) const;
 };
 
 template <typename T>

@@ -211,7 +211,7 @@ bool Serialization::DFSaveLoadData::Load(SKSE::SerializationInterface* serializa
 void Serialization::SaveCallback(SKSE::SerializationInterface* serializationInterface) {
     DISABLE_IF_UNINSTALLED 
         logger::trace("Saving Data to skse co-save.");
-    auto M = Manager::GetSingleton();
+    const auto M = Manager::GetSingleton();
     M->SendData();
     if (!M->Save(serializationInterface, Settings::kDataKey, Settings::kSerializationVersion)) {
         logger::critical("Failed to save Data");

@@ -1,4 +1,5 @@
 #include "Events.h"
+#include "SkyPrompt.h"
 
 void EventSink::Reset() {
 	furniture = nullptr;
@@ -8,7 +9,10 @@ void EventSink::Reset() {
 
 RE::BSEventNotifyControl EventSink::ProcessEvent(const SKSE::CrosshairRefEvent* a_event, RE::BSTEventSource<SKSE::CrosshairRefEvent>*)
 {
-	if (!a_event->crosshairRef) return RE::BSEventNotifyControl::kContinue;
+	if (!a_event->crosshairRef) {
+	    SkyPromptAPI::RemovePrompt(SkyPrompt::MyPromptSink::GetSingleton(), SkyPrompt::g_clientID);
+        return RE::BSEventNotifyControl::kContinue;
+	}
     if (const auto ref = a_event->crosshairRef.get()) {
 		Manager::GetSingleton()->HandleFakePlacement(ref);
     }
@@ -16,6 +20,22 @@ RE::BSEventNotifyControl EventSink::ProcessEvent(const SKSE::CrosshairRefEvent* 
         logger::warn("Fake object not found in ChestToFakeContainer.");
 	    WorldObject::SwapObjects(a_event->crosshairRef.get(), skyrim_cast<RE::TESBoundObject*>(baseform), false);    
 	}
+
+    const auto M = Manager::GetSingleton();
+
+    if (M->IsRealContainer(a_event->crosshairRef.get())) {
+		const auto prompt_sink = SkyPrompt::MyPromptSink::GetSingleton();
+		prompt_sink->SetRef(a_event->crosshairRef->GetFormID());
+        if (!SkyPromptAPI::SendPrompt(prompt_sink, SkyPrompt::g_clientID)) {
+			//logger::error("Prompt failed.");
+		}
+        prompt_sink->UnSetRef();
+    }
+    else {
+        SkyPromptAPI::RemovePrompt(SkyPrompt::MyPromptSink::GetSingleton(), SkyPrompt::g_clientID);
+    }
+
+
 	return RE::BSEventNotifyControl::kContinue;
 }
 

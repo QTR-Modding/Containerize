@@ -11,4 +11,5 @@ set(headers ${headers}
 	include/CustomObjects.h
 	include/Translations.h
 	include/Papyrus.h
+	include/SkyPrompt.h
 )

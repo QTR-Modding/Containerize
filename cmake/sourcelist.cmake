@@ -10,4 +10,5 @@ set(sources ${sources}
 	src/CustomObjects.cpp
 	src/Translations.cpp
 	src/Papyrus.cpp
+	src/SkyPrompt.cpp
 )
