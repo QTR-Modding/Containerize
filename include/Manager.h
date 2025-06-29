@@ -41,9 +41,6 @@ public clib_util::singleton::ISingleton<Manager>
 
     void SendReal(RE::TESBoundObject* real_obj, RE::TESObjectREFR* chest);
 
-    // Activates a container
-    //void Activate(RE::TESObjectREFR* a_objref);
-
     [[nodiscard]] bool ActivateChest(RE::TESObjectREFR* chest, const char* chest_name) const;
 
     [[nodiscard]] int GetChestValue(RE::TESObjectREFR* a_chest);

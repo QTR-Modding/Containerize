@@ -375,25 +375,9 @@ bool Hooks::ActivateHook<FormType>::Activate_Hook(RE::TESBoundObject* a_this, RE
 	if (!a_activatorRef->IsPlayerRef()) {
 		return _Activate(a_this, a_targetRef, a_activatorRef, a_arg3, a_obj, a_targetCount);
 	}
-	//Manager::GetSingleton()->Swap2Fake(a_targetRef);
-	/*SKSE::GetTaskInterface()->AddTask(
-		[a_targetRef,a_arg3,a_targetCount] {
-	        auto base = a_targetRef->GetBaseObject();
-		    if (!_Activate(base,a_targetRef,RE::PlayerCharacter::GetSingleton(),a_arg3,base,a_targetCount)) {
-	            Manager::GetSingleton()->Swap2Real(a_targetRef);
-		    }
-		}
-	);*/
-	//logger::info("swapped {:x}", a_targetRef->GetBaseObject()->GetFormID());
-	//return false;
-	//auto base = a_targetRef->GetBaseObject();
 	if (auto base = Manager::GetSingleton()->GetFakeBound(a_targetRef)) {
 	    return _Activate(base, a_targetRef, a_activatorRef, a_arg3, a_obj, a_targetCount);
 	}
-	//const bool res = _Activate(base, a_targetRef, a_activatorRef, a_arg3, a_obj, a_targetCount);
-	//if (!res && a_targetRef) {
-	//    //Manager::GetSingleton()->Swap2Real(a_targetRef);
-	//}
 	return _Activate(a_this, a_targetRef, a_activatorRef, a_arg3, a_obj, a_targetCount);
 }
 
