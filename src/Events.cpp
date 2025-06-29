@@ -84,3 +84,20 @@ RE::BSEventNotifyControl EventSink::ProcessEvent(const RE::TESFormDeleteEvent* a
     Manager::GetSingleton()->HandleFormDelete(a_event->formID);
     return RE::BSEventNotifyControl::kContinue;
 }
+
+RE::BSEventNotifyControl EventSink::ProcessEvent(const RE::MenuOpenCloseEvent* a_event, RE::BSTEventSource<RE::MenuOpenCloseEvent>*)
+{
+	if (a_event && a_event->opening) {
+	    SkyPromptAPI::RemovePrompt(SkyPrompt::MyPromptSink::GetSingleton(),SkyPrompt::g_clientID);
+	}
+    
+	return RE::BSEventNotifyControl::kContinue;
+}
+
+void EventSink::Install() {
+    const auto eventSourceHolder = RE::ScriptEventSourceHolder::GetSingleton();
+    eventSourceHolder->AddEventSink<RE::TESFurnitureEvent>(this);
+    eventSourceHolder->AddEventSink<RE::TESFormDeleteEvent>(this);
+	SKSE::GetCrosshairRefEventSource()->AddEventSink(this);
+	RE::UI::GetSingleton()->AddEventSink<RE::MenuOpenCloseEvent>(this);
+}

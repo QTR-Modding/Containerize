@@ -2,9 +2,10 @@
 #include "Manager.h"
 
 class EventSink final : public clib_util::singleton::ISingleton<EventSink>,
-                            public RE::BSTEventSink<RE::TESFurnitureEvent>,
-                            public RE::BSTEventSink<SKSE::CrosshairRefEvent>,
-                           public RE::BSTEventSink<RE::TESFormDeleteEvent> {
+                        public RE::BSTEventSink<RE::TESFurnitureEvent>,
+                        public RE::BSTEventSink<SKSE::CrosshairRefEvent>,
+                        public RE::BSTEventSink<RE::TESFormDeleteEvent>,
+                        public RE::BSTEventSink<RE::MenuOpenCloseEvent> {
 
 	std::atomic<bool> block_droptake = false;
 
@@ -23,4 +24,9 @@ public:
 
     RE::BSEventNotifyControl ProcessEvent(const RE::TESFormDeleteEvent* a_event,
                                           RE::BSTEventSource<RE::TESFormDeleteEvent>*) override;
+
+    RE::BSEventNotifyControl ProcessEvent(const RE::MenuOpenCloseEvent* a_event,
+		RE::BSTEventSource<RE::MenuOpenCloseEvent>* a_eventSource) override;
+
+	void Install();
 };

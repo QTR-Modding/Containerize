@@ -972,18 +972,19 @@ std::string_view Menu::CloseMenu()
 {
 	const auto uiManager = RE::UI::GetSingleton();
     if (const auto inventoryMenu = uiManager->GetMenu<RE::InventoryMenu>()) {
-        RE::UIMessageQueue::GetSingleton()->AddMessage("InventoryMenu", RE::UI_MESSAGE_TYPE::kHide, nullptr);
-        RE::UIMessageQueue::GetSingleton()->AddMessage("TweenMenu", RE::UI_MESSAGE_TYPE::kHide, nullptr);
+        RE::UIMessageQueue::GetSingleton()->AddMessage( RE::InventoryMenu::MENU_NAME, RE::UI_MESSAGE_TYPE::kHide, nullptr);
+        RE::UIMessageQueue::GetSingleton()->AddMessage(RE::TweenMenu::MENU_NAME, RE::UI_MESSAGE_TYPE::kHide, nullptr);
 		return RE::InventoryMenu::MENU_NAME;
     }
 
     if (const auto favoritesMenu = uiManager->GetMenu<RE::FavoritesMenu>()) {
-        RE::UIMessageQueue::GetSingleton()->AddMessage("FavoritesMenu", RE::UI_MESSAGE_TYPE::kHide, nullptr);
+        RE::UIMessageQueue::GetSingleton()->AddMessage(RE::FavoritesMenu::MENU_NAME, RE::UI_MESSAGE_TYPE::kHide, nullptr);
 		return RE::FavoritesMenu::MENU_NAME;
     }
 
     if (const auto containerMenu = uiManager->GetMenu<RE::ContainerMenu>()) {
-        RE::UIMessageQueue::GetSingleton()->AddMessage("ContainerMenu", RE::UI_MESSAGE_TYPE::kHide, nullptr);
+        RE::UIMessageQueue::GetSingleton()->AddMessage(RE::ContainerMenu::MENU_NAME, RE::UI_MESSAGE_TYPE::kHide, nullptr);
+        RE::UIMessageQueue::GetSingleton()->AddMessage(RE::DialogueMenu::MENU_NAME, RE::UI_MESSAGE_TYPE::kHide, nullptr);
 		return RE::ContainerMenu::MENU_NAME;
     }
     static std::string_view empty_menuname;

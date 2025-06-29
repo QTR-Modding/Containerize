@@ -13,14 +13,10 @@ void OnMessage(SKSE::MessagingInterface::Message* message) {
         }
         if (SkyPrompt::g_clientID>0) {
             Manager::GetSingleton()->Init();
-            const auto eventSink = EventSink::GetSingleton();
 	        LoadTranslations();
             UI::Register();
 
-            const auto eventSourceHolder = RE::ScriptEventSourceHolder::GetSingleton();
-            eventSourceHolder->AddEventSink<RE::TESFurnitureEvent>(eventSink);
-            eventSourceHolder->AddEventSink<RE::TESFormDeleteEvent>(eventSink);
-		    SKSE::GetCrosshairRefEventSource()->AddEventSink(eventSink);
+            EventSink::GetSingleton()->Install();
 		    logger::info("EventSinks added.");
 
         }
