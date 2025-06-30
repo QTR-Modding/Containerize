@@ -41,9 +41,11 @@ public clib_util::singleton::ISingleton<Manager>
 
     void SendReal(RE::TESBoundObject* real_obj, RE::TESObjectREFR* chest);
 
-    [[nodiscard]] bool ActivateChest(RE::TESObjectREFR* chest, const char* chest_name) const;
+    std::string GetChestName(const RE::TESObjectREFR* chest) const;
 
-    [[nodiscard]] int GetChestValue(RE::TESObjectREFR* a_chest);
+    [[nodiscard]] bool ActivateChest(RE::TESObjectREFR* chest) const;
+
+    [[nodiscard]] static int GetChestValue(RE::TESObjectREFR* a_chest);
 
     // from container out in the world to linked chest
     [[nodiscard]] RE::TESObjectREFR* GetContainerChest(const RE::TESObjectREFR* a_container) const;
@@ -195,6 +197,8 @@ public:
     void Uninstall();
 
     RE::TESBoundObject* GetFakeBound(const RE::TESObjectREFR* a_container) const;
+    std::string GetWeightText(const RE::TESObjectREFR* a_container) const;
+    std::string GetValueText(const RE::TESObjectREFR* a_container) const;
 };
 
 template <typename T>
@@ -205,20 +209,13 @@ void Manager::UpdateFakeWV(T* fake_form, RE::TESObjectREFR* chest_linked, const 
     const auto fake_formid = fake_form->GetFormID();
     auto real_container = FakeToRealContainer(fake_formid);
     fake_form->Copy(real_container->As<T>());
-    if (!renames.empty() && renames.count(fake_formid)) fake_form->fullName = renames[fake_form->GetFormID()];
+    if (renames.contains(fake_formid)) fake_form->fullName = renames.at(fake_form->GetFormID());
 
     FunctionsSkyrim::FormTraits<T>::SetWeight(fake_form, weight_ratio*chest_linked->GetWeightInContainer() + (1-weight_ratio) * real_container->GetWeight()); // dont change (1-weight_ratio)
 
     const auto chest_inventory = chest_linked->GetInventory();
 
-//#ifndef NDEBUG
-//    for (auto& [key, value] : chest_inventory) {
-//        logger::trace("Item: {}, Count: {}", key->GetName(), value.first);
-//    }
-//#endif
-
     // get the ench costoverride of fake in player inventory
-
     int x_0 = real_container->GetGoldValue();
     const int target_value = Inventory::GetValueInContainer(chest_linked);
 

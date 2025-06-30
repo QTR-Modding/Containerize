@@ -316,21 +316,7 @@ void Hooks::InputHook::thunk(RE::BSTEventSource<RE::InputEvent*>* a_dispatcher, 
 
 bool Hooks::InputHook::ProcessInput(RE::InputEvent* event)
 {
-	const bool block = false;
-    if (const auto button_event = event->AsButtonEvent()) {
-        if (button_event->userEvent == RE::UserEvents::GetSingleton()->activate) {
-            const auto crosshair_pick_data = RE::CrosshairPickData::GetSingleton();
-			if (const auto crosshair_target = crosshair_pick_data->target) {
-                if (Manager::GetSingleton()->IsRealContainer(crosshair_target.get()->GetBaseObject()->GetFormID())) {
-		            if (button_event->IsDown()) {
-                    }
-                    else if (button_event->IsUp()) {
-                    }
-				}
-			}
-		}
-    }
-	return block ? block : HandleEquip(event);
+	return HandleEquip(event);
 }
 
 bool Hooks::InputHook::IsOtherButtonHeld(RE::InputEvent* const* a_event) {

@@ -11,6 +11,8 @@ class EventSink final : public clib_util::singleton::ISingleton<EventSink>,
 
     RE::NiPointer<RE::TESObjectREFR> furniture;
 
+    static void SendPrompts(const RE::TESObjectREFR* a_container);
+
 public:
 
 	std::atomic<bool> furniture_entered = false;
@@ -27,6 +29,8 @@ public:
 
     RE::BSEventNotifyControl ProcessEvent(const RE::MenuOpenCloseEvent* a_event,
 		RE::BSTEventSource<RE::MenuOpenCloseEvent>* a_eventSource) override;
+
+    static void RemovePrompts();
 
 	void Install();
 };

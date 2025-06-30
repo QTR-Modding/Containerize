@@ -1,4 +1,5 @@
 #include "SkyPrompt.h"
+#include "Events.h"
 #include "Manager.h"
 
 using namespace SkyPrompt;
@@ -8,7 +9,7 @@ void MyPromptSink::ProcessEvent(SkyPromptAPI::PromptEvent event) const
 	if (event.type) {
 		return;
 	}
-	SkyPromptAPI::RemovePrompt(this,g_clientID);
+	EventSink::RemovePrompts();
 	const auto M = Manager::GetSingleton();
 	if (const auto crosshairref = RE::CrosshairPickData::GetSingleton()->target) {
         //if (const auto prompt_text = event.prompt.text; prompt_text == "Open") {
@@ -29,15 +30,33 @@ void MyPromptSink::ProcessEvent(SkyPromptAPI::PromptEvent event) const
 	}
 }
 
-void MyPromptSink::SetRef(const RefID a_refid) {
-	return;
-    for (auto& prompt : prompts) {
-        prompt.refid = a_refid;
-    }
+void MyPromptSink2::Start(const RE::TESObjectREFR* a_ref) {
+	weight_text.clear();
+	value_text.clear();
+
+    const auto manager = Manager::GetSingleton();
+	const auto a_weight_text = manager->GetWeightText(a_ref);
+
+    const auto a_value_text = manager->GetValueText(a_ref);
+	if (a_weight_text.empty() || a_value_text.empty()) {
+		return;
+	}
+
+	weight_text.append("W: ").append(a_weight_text);
+	value_text.append("V: ").append(a_value_text);
+
+	weight_prompt.text = weight_text;
+	value_prompt.text = value_text;
+
+    prompts = { weight_prompt, value_prompt };
 }
 
-void MyPromptSink::UnSetRef() {
-    for (auto& prompt : prompts) {
-        prompt.refid = 0;
+bool SkyPrompt::IsAnyMenuOpen() {
+    const auto ui = RE::UI::GetSingleton();
+    for (const auto a_name : blockedMenus) {
+        if (ui->IsMenuOpen(a_name)) {
+            return true;
+        }
     }
+	return false;
 }

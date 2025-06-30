@@ -11,6 +11,45 @@ void Manager::SendReal(RE::TESBoundObject* real_obj, RE::TESObjectREFR* chest) {
     unownedChestOG->RemoveItem(real_obj,1,RE::ITEM_REMOVE_REASON::kStoreInContainer,nullptr,chest);
 }
 
+std::string Manager::GetWeightText(const RE::TESObjectREFR* a_container) const
+{
+    if (const auto chest = GetContainerChest(a_container)) {
+        const auto chest_id = chest->GetFormID();
+        if (const auto a_real_id = GetRealID(chest_id)) {
+			const auto real = RE::TESForm::LookupByID<RE::TESBoundObject>(a_real_id);
+            if (const auto src = GetContainerSource(a_real_id); src && src->capacity>0) {
+				const auto a_weight = std::max(0.f, chest->GetWeightInContainer()-real->GetWeight());
+                std::ostringstream stream1;
+                stream1 << std::fixed << std::setprecision(2) << a_weight*src->weight_ratio;
+                std::ostringstream stream2;
+                stream2 << std::fixed << std::setprecision(2) << src->capacity;
+		        return fmt::format(" {}/{}", stream1.str(), stream2.str());
+            }
+        }
+    }
+	return "";
+}
+
+std::string Manager::GetValueText(const RE::TESObjectREFR* a_container) const {
+    if (const auto chest = GetContainerChest(a_container)) {
+        return std::to_string(GetChestValue(chest));
+    }
+    return "";
+}
+
+std::string Manager::GetChestName(const RE::TESObjectREFR* chest) const
+{
+    auto chest_id = chest->GetFormID();
+    const auto fake_id = GetFakeID(chest_id);
+    if (const auto real_bound = FakeToRealContainer(fake_id)) {
+        std::string chest_name = renames.contains(fake_id) ? renames.at(fake_id).c_str() : real_bound->GetName();
+        chest_name.append(GetWeightText(chest));
+		return chest_name;
+    }
+    logger::error("Fake to real container failed for chest ID: {:x}", chest_id);
+    return "";
+}
+
 RE::TESBoundObject* Manager::FakeToRealContainer(const FormID fake) const {
 
 	std::shared_lock lock(chest2fake_mutex_);
@@ -132,8 +171,8 @@ void Manager::OnLongPressEquip(const RE::TESBoundObject* a_selected_item)
 				}
             }
             closed_menu = Menu::CloseMenu();
-			SKSE::GetTaskInterface()->AddTask([this, fake_id, real_bound, chest, chest_refid]() {
-			    if (ActivateChest(chest, renames.contains(fake_id) ? renames.at(fake_id).c_str() : real_bound->GetName())) {
+			SKSE::GetTaskInterface()->AddTask([this, real_bound, chest, chest_refid]() {
+			    if (ActivateChest(chest)) {
                     queued_real_to_sendback = {real_bound, chest_refid};
 			    }
 			});
@@ -141,21 +180,11 @@ void Manager::OnLongPressEquip(const RE::TESBoundObject* a_selected_item)
 	}
 }
 
-bool Manager::ActivateChest(RE::TESObjectREFR* chest, const char* chest_name) const {
+bool Manager::ActivateChest(RE::TESObjectREFR* chest) const {
 
-    std::string extra_text;
-    if (const auto src = GetContainerSource(GetRealID(chest->GetFormID())); src && src->capacity>0) {
-        std::ostringstream stream1;
-        stream1 << std::fixed << std::setprecision(2) << chest->GetWeightInContainer()*src->weight_ratio;
-        std::ostringstream stream2;
-        stream2 << std::fixed << std::setprecision(2) << src->capacity;
-		extra_text = fmt::format(" ({}/{})", stream1.str(), stream2.str());
-    }
-	const std::string name = std::string(chest_name).append(extra_text);
-    unownedChest->fullName = name;
-    /*chest->OpenContainer(0);
-	return true;*/
+    unownedChest->fullName = GetChestName(chest);
     if (const auto a_obj = chest->GetBaseObject()->As<RE::TESObjectCONT>()) {
+        RE::TESObjectCONT::SetOpenState(chest,false,true);
         return a_obj->Activate(chest, player_ref, 0, a_obj, 1);
     }
     logger::error("ActivateChest: Chest is not a container.");
@@ -239,7 +268,6 @@ void Manager::OnConsume(const FormID fake_formid, RE::TESObjectREFR* consumed_by
 
 int Manager::GetChestValue(RE::TESObjectREFR* a_chest) {
     if (!a_chest) {
-        RaiseMngrErr("Chest is null");
         return 0;
     }
     const auto chest_inventory = a_chest->GetInventory();
@@ -1176,9 +1204,7 @@ void Manager::MsgBoxCallback(const int result) {
     // Activate the unowned chest
     if (const auto chest = GetContainerChest(current_container)) {
 		const auto chest_refid = chest->GetFormID();
-        const auto fake_id = ChestToFakeContainer[chest_refid].innerKey;
-        const auto chest_rename = renames.contains(fake_id) ? renames.at(fake_id).c_str() : current_container->GetName();
-        if (ActivateChest(chest, chest_rename)) {
+        if (ActivateChest(chest)) {
             real_to_sendback = {current_container->GetBaseObject(), chest_refid};
 		}
 		else {

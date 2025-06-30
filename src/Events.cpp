@@ -1,6 +1,26 @@
 #include "Events.h"
 #include "SkyPrompt.h"
 
+void EventSink::SendPrompts(const RE::TESObjectREFR* a_container) {
+    if (SkyPrompt::IsAnyMenuOpen()) {
+        return;
+    }
+    if (!SkyPromptAPI::SendPrompt(SkyPrompt::MyPromptSink::GetSingleton(), SkyPrompt::g_clientID)) {
+		//logger::error("Prompt failed.");
+	}
+    auto ps = SkyPrompt::MyPromptSink2::GetSingleton();
+    ps->Start(a_container);
+    if (!SkyPromptAPI::SendPrompt(ps, SkyPrompt::g_clientID)) {
+		//logger::error("Prompt failed.");
+	}
+}
+
+void EventSink::RemovePrompts()
+{
+    SkyPromptAPI::RemovePrompt(SkyPrompt::MyPromptSink::GetSingleton(), SkyPrompt::g_clientID);
+    SkyPromptAPI::RemovePrompt(SkyPrompt::MyPromptSink2::GetSingleton(), SkyPrompt::g_clientID);
+}
+
 void EventSink::Reset() {
 	furniture = nullptr;
 	furniture_entered.store(false);
@@ -10,7 +30,7 @@ void EventSink::Reset() {
 RE::BSEventNotifyControl EventSink::ProcessEvent(const SKSE::CrosshairRefEvent* a_event, RE::BSTEventSource<SKSE::CrosshairRefEvent>*)
 {
 	if (!a_event->crosshairRef) {
-	    SkyPromptAPI::RemovePrompt(SkyPrompt::MyPromptSink::GetSingleton(), SkyPrompt::g_clientID);
+	    RemovePrompts();
         return RE::BSEventNotifyControl::kContinue;
 	}
     if (const auto ref = a_event->crosshairRef.get()) {
@@ -24,15 +44,10 @@ RE::BSEventNotifyControl EventSink::ProcessEvent(const SKSE::CrosshairRefEvent* 
     const auto M = Manager::GetSingleton();
 
     if (M->IsRealContainer(a_event->crosshairRef.get())) {
-		const auto prompt_sink = SkyPrompt::MyPromptSink::GetSingleton();
-		prompt_sink->SetRef(a_event->crosshairRef->GetFormID());
-        if (!SkyPromptAPI::SendPrompt(prompt_sink, SkyPrompt::g_clientID)) {
-			//logger::error("Prompt failed.");
-		}
-        prompt_sink->UnSetRef();
+		SendPrompts(a_event->crosshairRef.get());
     }
     else {
-        SkyPromptAPI::RemovePrompt(SkyPrompt::MyPromptSink::GetSingleton(), SkyPrompt::g_clientID);
+        RemovePrompts();
     }
 
 
@@ -87,10 +102,11 @@ RE::BSEventNotifyControl EventSink::ProcessEvent(const RE::TESFormDeleteEvent* a
 
 RE::BSEventNotifyControl EventSink::ProcessEvent(const RE::MenuOpenCloseEvent* a_event, RE::BSTEventSource<RE::MenuOpenCloseEvent>*)
 {
-	if (a_event && a_event->opening) {
-	    SkyPromptAPI::RemovePrompt(SkyPrompt::MyPromptSink::GetSingleton(),SkyPrompt::g_clientID);
+	if (!a_event) return RE::BSEventNotifyControl::kContinue;
+	if (a_event->opening) {
+	    RemovePrompts();
 	}
-    
+
 	return RE::BSEventNotifyControl::kContinue;
 }
 
