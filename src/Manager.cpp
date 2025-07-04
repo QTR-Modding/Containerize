@@ -23,7 +23,7 @@ std::string Manager::GetWeightText(const RE::TESObjectREFR* a_container) const
                 stream1 << std::fixed << std::setprecision(2) << a_weight*src->weight_ratio;
                 std::ostringstream stream2;
                 stream2 << std::fixed << std::setprecision(2) << src->capacity;
-		        return fmt::format(" {}/{}", stream1.str(), stream2.str());
+		        return fmt::format("{}/{}", stream1.str(), stream2.str());
             }
         }
     }
