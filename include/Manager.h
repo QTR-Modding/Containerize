@@ -66,6 +66,8 @@ public clib_util::singleton::ISingleton<Manager>
 
     void DeRegisterChest(RefID chest_ref);
 
+    void OpenChestFromMenu();
+
     // OK. from real container formid to linked source
     [[nodiscard]] const Source* GetContainerSource(FormID real_id) const;
     [[nodiscard]] Source* GetContainerSource(FormID real_id);

@@ -984,7 +984,7 @@ std::string_view Menu::CloseMenu()
 
     if (const auto containerMenu = uiManager->GetMenu<RE::ContainerMenu>()) {
         RE::UIMessageQueue::GetSingleton()->AddMessage(RE::ContainerMenu::MENU_NAME, RE::UI_MESSAGE_TYPE::kHide, nullptr);
-        RE::UIMessageQueue::GetSingleton()->AddMessage(RE::DialogueMenu::MENU_NAME, RE::UI_MESSAGE_TYPE::kHide, nullptr);
+        //RE::UIMessageQueue::GetSingleton()->AddMessage(RE::DialogueMenu::MENU_NAME, RE::UI_MESSAGE_TYPE::kHide, nullptr);
 		return RE::ContainerMenu::MENU_NAME;
     }
     static std::string_view empty_menuname;

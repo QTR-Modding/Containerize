@@ -255,7 +255,7 @@ namespace Inventory {
 
     inline bool HasItem(RE::TESBoundObject* item, RE::TESObjectREFR* inventory_owner) {
         return HasItemEntry(item, inventory_owner->GetInventory(), true);
-    };
+    }
 
     std::int32_t GetItemCount(RE::TESBoundObject* item, const RE::TESObjectREFR::InventoryItemMap& inventory);
 

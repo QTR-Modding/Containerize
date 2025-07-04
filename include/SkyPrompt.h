@@ -1,5 +1,4 @@
 #pragma once
-
 #include "ClibUtil/singleton.hpp"
 #include "SkyPrompt/API.hpp"
 

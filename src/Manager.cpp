@@ -1,6 +1,7 @@
 #include "Manager.h"
 #include <ranges>
 #include "Papyrus.h"
+#include "CLibUtilsQTR/Tasker.hpp"
 
 void Manager::SendReal(RE::TESBoundObject* real_obj, RE::TESObjectREFR* chest) {
     const auto unownedChestOG = RE::TESForm::LookupByID<RE::TESObjectREFR>(unownedChestOGRefID);
@@ -163,20 +164,19 @@ void Manager::OnLongPressEquip(const RE::TESBoundObject* a_selected_item)
 {
 	const auto fake_id = a_selected_item->GetFormID();
 	const auto chest_refid = GetFakeContainerChestID(fake_id);
-	if (const auto chest = RE::TESForm::LookupByID<RE::TESObjectREFR>(chest_refid)) {
-		if (const auto real_bound = FakeToRealContainer(fake_id)) {
-            if (const auto ui = RE::UI::GetSingleton(); ui->IsMenuOpen(RE::ContainerMenu::MENU_NAME)) {
-				if (!LookupReferenceByHandle(RE::ContainerMenu::GetTargetRefHandle(), containermenu_owner)) {
-					containermenu_owner.reset();
-				}
-            }
-            closed_menu = Menu::CloseMenu();
-			SKSE::GetTaskInterface()->AddTask([this, real_bound, chest, chest_refid]() {
-			    if (ActivateChest(chest)) {
-                    queued_real_to_sendback = {real_bound, chest_refid};
-			    }
-			});
-		}
+	if (const auto real_bound = FakeToRealContainer(fake_id)) {
+        if (const auto ui = RE::UI::GetSingleton(); ui->IsMenuOpen(RE::ContainerMenu::MENU_NAME)) {
+			if (!LookupReferenceByHandle(RE::ContainerMenu::GetTargetRefHandle(), containermenu_owner)) {
+				containermenu_owner.reset();
+			}
+        }
+        closed_menu = Menu::CloseMenu();
+        queued_real_to_sendback = {real_bound, chest_refid};
+        SKSE::GetTaskInterface()->AddUITask(
+            [this] {
+                    OpenChestFromMenu();
+                }
+        );
 	}
 }
 
@@ -483,6 +483,28 @@ void Manager::DeRegisterChest(const RefID chest_ref) {
         RaiseMngrErr("Chest still has items in it. Degistering failed");
         return;
     }   
+}
+
+void Manager::OpenChestFromMenu()
+{
+    if (!closed_menu.empty()) {
+        if (!RE::UI::GetSingleton()->IsMenuOpen(closed_menu)) {
+			auto chest_refid = queued_real_to_sendback.second;
+            if (const auto chest = RE::TESForm::LookupByID<RE::TESObjectREFR>(chest_refid)) {
+			    if (!ActivateChest(chest)) {
+				    logger::error("ActivateChest failed for chest: {:x}", chest_refid);
+			    }
+            }
+		}
+        else {
+			logger::info("Menu is still open. Delaying chest opening.");
+            SKSE::GetTaskInterface()->AddUITask(
+                [this] {
+                    OpenChestFromMenu();
+                }
+            );
+        }
+	}
 }
 
 const Source* Manager::GetContainerSource(const FormID real_id) const {
@@ -853,7 +875,7 @@ void Manager::RenameContainer(const std::string& new_name) {
     MsgBoxCallback(3);
 }
 
-void Manager::OnContainerMenuExit() { 
+void Manager::OnContainerMenuExit() {
     if (real_to_sendback.first && real_to_sendback.second) {
         const auto chest = RE::TESForm::LookupByID<RE::TESObjectREFR>(real_to_sendback.second);
         if (!chest) return RaiseMngrErr("OnContainerMenuExit: Chest is null");
@@ -862,13 +884,16 @@ void Manager::OnContainerMenuExit() {
 		fake_bound->formFlags = real_to_sendback.first->formFlags;
 		if (other_settings.at(Settings::otherstuffKeys[2])) {
             if (closed_menu == RE::ContainerMenu::MENU_NAME) {
-				SKSE::GetTaskInterface()->AddTask([this]() {
-                    if (containermenu_owner) {
-						logger::trace("Opening container menu");
+                if (containermenu_owner) {
+                    SKSE::GetTaskInterface()->AddUITask(
+                    [this] {
                         containermenu_owner->OpenContainer(0);
                         containermenu_owner.reset();
-                    }
-				});
+                    });
+                }
+				else {
+					logger::error("containermenu_owner is null in OnContainerMenuExit");
+                }
             }
             else {
 			    Menu::OpenMenu(closed_menu);
@@ -1189,17 +1214,14 @@ void Manager::MsgBoxCallback(const int result) {
         return;
     }
         
-    // Take
+    // Take (unused)
     if (result == 1) {
         RE::PlayerCharacter::GetSingleton()->PickUpObject(current_container,1);
         current_container = nullptr;
         return;
     }
 
-    // Opening container
-
-    // Listen for menu close
-    //listen_menuclose = true;
+	// Opening container (0)
 
     // Activate the unowned chest
     if (const auto chest = GetContainerChest(current_container)) {
