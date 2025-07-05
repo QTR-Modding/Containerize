@@ -71,14 +71,25 @@ void SkyPrompt::MenuPromptSink::ProcessEvent(const SkyPromptAPI::PromptEvent eve
 	}
 }
 
-void SkyPrompt::MenuPromptSink::Show() const {
+void SkyPrompt::MenuPromptSink::Show(RE::TESBoundObject* a_item) const {
+
+    weight_text.clear();
+
 	if (const auto a_ref = RE::Inventory3DManager::GetSingleton()->tempRef) {
-		open_prompt.refid = a_ref->GetFormID();
+		const auto refid = a_ref->GetFormID();
+		open_prompt.refid = refid;
+		weight_prompt.refid = refid;
+
+		const auto a_weight_text = Manager::GetSingleton()->GetWeightText(a_item);
+		weight_text.append("W: ").append(a_weight_text);
+		weight_prompt.text = weight_text;
 	}
 	else {
 		open_prompt.refid = 0;
+		weight_prompt.refid = 0;
 	}
-    prompts.at(0) = open_prompt;
+	prompts = { open_prompt,weight_prompt};
+
 	if (!SkyPromptAPI::SendPrompt(this,g_clientID)) {
 	}
 }

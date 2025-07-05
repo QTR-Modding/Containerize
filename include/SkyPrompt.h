@@ -3,6 +3,12 @@
 #include "SkyPrompt/API.hpp"
 
 namespace SkyPrompt {
+
+	inline std::array<std::pair<RE::INPUT_DEVICE, uint32_t>, 2> akatosh_keys = { {
+		    std::make_pair(RE::INPUT_DEVICE::kKeyboard,SkyPromptAPI::kSkyrim),
+	        std::make_pair(RE::INPUT_DEVICE::kGamepad,SkyPromptAPI::kSkyrim)
+	    } };
+
     class MyPromptSink final : public SkyPromptAPI::PromptSink,
                                public clib_util::singleton::ISingleton<MyPromptSink>
     {
@@ -19,16 +25,12 @@ namespace SkyPrompt {
 	class MyPromptSink2 final : public SkyPromptAPI::PromptSink,
                                public clib_util::singleton::ISingleton<MyPromptSink2>
     {
-		std::array<std::pair<RE::INPUT_DEVICE, uint32_t>, 2> keys = { {
-		    std::make_pair(RE::INPUT_DEVICE::kKeyboard,SkyPromptAPI::kSkyrim),
-	        std::make_pair(RE::INPUT_DEVICE::kGamepad,SkyPromptAPI::kSkyrim)
-	    } };
 
 		std::string weight_text;
 		std::string value_text;
 
-	    SkyPromptAPI::Prompt weight_prompt{ weight_text,2,0, SkyPromptAPI::PromptType::kSinglePress,0, keys};
-	    SkyPromptAPI::Prompt value_prompt{ value_text ,3, 0, SkyPromptAPI::PromptType::kSinglePress, 0, keys};
+	    SkyPromptAPI::Prompt weight_prompt{ weight_text,2,0, SkyPromptAPI::PromptType::kSinglePress,0, akatosh_keys};
+	    SkyPromptAPI::Prompt value_prompt{ value_text ,3, 0, SkyPromptAPI::PromptType::kSinglePress, 0, akatosh_keys};
 
 		std::array<SkyPromptAPI::Prompt, 2> prompts = { weight_prompt, value_prompt };
 
@@ -42,13 +44,16 @@ namespace SkyPrompt {
 	class MenuPromptSink final : public SkyPromptAPI::PromptSink,
                                public clib_util::singleton::ISingleton<MenuPromptSink>
     {
+		mutable std::string weight_text;
+
+		mutable SkyPromptAPI::Prompt weight_prompt{ weight_text,2,0, SkyPromptAPI::PromptType::kSinglePress,0, akatosh_keys};
 	    mutable SkyPromptAPI::Prompt open_prompt{ "Open",0,0, SkyPromptAPI::PromptType::kHold};
-		mutable std::array<SkyPromptAPI::Prompt, 1> prompts = { open_prompt };
+		mutable std::array<SkyPromptAPI::Prompt, 2> prompts = { open_prompt, weight_prompt};
 
     public:
         void ProcessEvent(SkyPromptAPI::PromptEvent event) const override;
 	    std::span<const SkyPromptAPI::Prompt> GetPrompts() const override { return prompts; }
-		void Show() const;
+		void Show(RE::TESBoundObject* a_item) const;
 		void Hide() const;
     };
 

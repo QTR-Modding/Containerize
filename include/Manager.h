@@ -133,6 +133,8 @@ public clib_util::singleton::ISingleton<Manager>
         else item->fullName = new_name;
     }
 
+    std::string GetWeightText(RE::TESObjectREFR* a_chest) const;
+
 public:
 
     std::set<FormID> doppelgangers;
@@ -202,6 +204,7 @@ public:
 
     RE::TESBoundObject* GetFakeBound(const RE::TESObjectREFR* a_container) const;
     std::string GetWeightText(const RE::TESObjectREFR* a_container) const;
+    std::string GetWeightText(RE::TESBoundObject* a_fake) const;
     std::string GetValueText(const RE::TESObjectREFR* a_container) const;
 };
 

@@ -14,18 +14,15 @@ void Manager::TakeBackReal(RE::TESBoundObject* real_obj, RE::TESObjectREFR* ches
 std::string Manager::GetWeightText(const RE::TESObjectREFR* a_container) const
 {
     if (const auto chest = GetContainerChest(a_container)) {
-        const auto chest_id = chest->GetFormID();
-        if (const auto a_real_id = GetRealID(chest_id)) {
-			const auto real = RE::TESForm::LookupByID<RE::TESBoundObject>(a_real_id);
-            if (const auto src = GetContainerSource(a_real_id); src && src->capacity>0) {
-				const auto a_weight = std::max(0.f, chest->GetWeightInContainer()-real->GetWeight());
-                std::ostringstream stream1;
-                stream1 << std::fixed << std::setprecision(2) << a_weight*src->weight_ratio;
-                std::ostringstream stream2;
-                stream2 << std::fixed << std::setprecision(2) << src->capacity;
-		        return fmt::format("{}/{}", stream1.str(), stream2.str());
-            }
-        }
+        return GetWeightText(chest);
+    }
+	return "";
+}
+
+std::string Manager::GetWeightText(RE::TESBoundObject* a_fake) const
+{
+    if (const auto chest = GetFakeContainerChest(a_fake)) {
+        return GetWeightText(chest);
     }
 	return "";
 }
@@ -1287,6 +1284,22 @@ void Manager::RenameCallback() {
 		logger::error("Failed to call UIExtensions functions.");
 		MsgBoxCallback(3);
 	}
+}
+
+std::string Manager::GetWeightText(RE::TESObjectREFR* a_chest) const {
+    const auto chest_id = a_chest->GetFormID();
+    if (const auto a_real_id = GetRealID(chest_id)) {
+        const auto real = RE::TESForm::LookupByID<RE::TESBoundObject>(a_real_id);
+        if (const auto src = GetContainerSource(a_real_id); src && src->capacity>0) {
+            const auto a_weight = std::max(0.f, a_chest->GetWeightInContainer()-real->GetWeight());
+            std::ostringstream stream1;
+            stream1 << std::fixed << std::setprecision(2) << a_weight*src->weight_ratio;
+            std::ostringstream stream2;
+            stream2 << std::fixed << std::setprecision(2) << src->capacity;
+            return fmt::format("{}/{}", stream1.str(), stream2.str());
+        }
+    }
+	return "";
 }
 
 bool Manager::PickUpItem(RE::TESObjectREFR* item, const unsigned int max_try) {

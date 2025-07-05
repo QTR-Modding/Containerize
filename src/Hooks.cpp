@@ -346,7 +346,7 @@ int64_t Hooks::InventoryHoverHook::thunk(RE::InventoryEntryData* a1)
 			const auto a_formid = a_bound->GetFormID();
 			if (const auto mngr = Manager::GetSingleton();
 				mngr->IsFakeContainer(a_formid)) {
-	            SkyPrompt::MenuPromptSink::GetSingleton()->Show();
+	            SkyPrompt::MenuPromptSink::GetSingleton()->Show(a_bound);
 			}
 			else {
 				SkyPrompt::MenuPromptSink::GetSingleton()->Hide();
