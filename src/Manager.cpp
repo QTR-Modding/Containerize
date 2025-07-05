@@ -1,9 +1,8 @@
 #include "Manager.h"
 #include <ranges>
 #include "Papyrus.h"
-#include "CLibUtilsQTR/Tasker.hpp"
 
-void Manager::SendReal(RE::TESBoundObject* real_obj, RE::TESObjectREFR* chest) {
+void Manager::TakeBackReal(RE::TESBoundObject* real_obj, RE::TESObjectREFR* chest) {
     const auto unownedChestOG = RE::TESForm::LookupByID<RE::TESObjectREFR>(unownedChestOGRefID);
     if (!unownedChestOG) return RaiseMngrErr("MsgBoxCallback unownedChestOG is null");
     if (real_obj && !Inventory::HasItem(real_obj, unownedChestOG)){
@@ -78,6 +77,11 @@ RE::TESBoundObject* Manager::GetFakeBound(const RefID chest_id) const {
 		return RE::TESForm::LookupByID<RE::TESBoundObject>(ChestToFakeContainer.at(chest_id).innerKey);
 	}
     return nullptr;
+}
+
+RE::TESBoundObject* Manager::GetRealBound(const RefID chest_id) const
+{
+    return RE::TESForm::LookupByID<RE::TESBoundObject>(GetRealID(chest_id));
 }
 
 FormID Manager::GetFakeID(const RefID chest_id) const
@@ -160,24 +164,21 @@ void Manager::UpdateData(const RefID chestID, const RefID loc_id)
     }
 }
 
-void Manager::OnLongPressEquip(RE::TESBoundObject* a_container)
+void Manager::OnLongPressEquip(RE::TESBoundObject* a_fake)
 {
-	const auto fake_id = a_container->GetFormID();
-	const auto chest_refid = GetFakeContainerChestID(fake_id);
-	if (const auto real_bound = FakeToRealContainer(fake_id)) {
-        if (const auto ui = RE::UI::GetSingleton(); ui->IsMenuOpen(RE::ContainerMenu::MENU_NAME)) {
-			if (!LookupReferenceByHandle(RE::ContainerMenu::GetTargetRefHandle(), containermenu_owner)) {
-				containermenu_owner.reset();
-			}
-        }
-        closed_menu = Menu::CloseMenu();
-        queued_real_to_sendback = {real_bound, chest_refid};
-        SKSE::GetTaskInterface()->AddUITask(
-            [this] {
-                    OpenChestFromMenu();
-                }
-        );
-	}
+    if (const auto ui = RE::UI::GetSingleton(); ui->IsMenuOpen(RE::ContainerMenu::MENU_NAME)) {
+		if (!LookupReferenceByHandle(RE::ContainerMenu::GetTargetRefHandle(), containermenu_owner)) {
+			containermenu_owner.reset();
+		}
+    }
+	auto chest = GetFakeContainerChest(a_fake);
+    queued_chests.insert(chest->GetFormID());
+    closed_menu = Menu::CloseMenu();
+    SKSE::GetTaskInterface()->AddUITask(
+        [this,chest] {
+                OpenChestFromMenu(chest);
+            }
+    );
 }
 
 bool Manager::ActivateChest(RE::TESObjectREFR* chest) const {
@@ -285,6 +286,10 @@ RE::TESObjectREFR* Manager::GetContainerChest(const RE::TESObjectREFR* a_contain
 		return RE::TESForm::LookupByID<RE::TESObjectREFR>(chest_refid);
     }
     return nullptr;
+}
+
+RE::TESObjectREFR* Manager::GetFakeContainerChest(RE::TESBoundObject* fake_id) const {
+    return RE::TESForm::LookupByID<RE::TESObjectREFR>(GetFakeContainerChestID(fake_id->GetFormID()));
 }
 
 uint32_t Manager::GetNoChests() const {
@@ -485,22 +490,19 @@ void Manager::DeRegisterChest(const RefID chest_ref) {
     }   
 }
 
-void Manager::OpenChestFromMenu()
+void Manager::OpenChestFromMenu(RE::TESObjectREFR* a_chest)
 {
     if (!closed_menu.empty()) {
         if (!RE::UI::GetSingleton()->IsMenuOpen(closed_menu)) {
-			auto chest_refid = queued_real_to_sendback.second;
-            if (const auto chest = RE::TESForm::LookupByID<RE::TESObjectREFR>(chest_refid)) {
-			    if (!ActivateChest(chest)) {
-				    logger::error("ActivateChest failed for chest: {:x}", chest_refid);
-			    }
-            }
+			if (!ActivateChest(a_chest)) {
+				logger::error("ActivateChest failed for chest: {:x}", a_chest->GetFormID());
+			}
 		}
         else {
 			logger::info("Menu is still open. Delaying chest opening.");
             SKSE::GetTaskInterface()->AddUITask(
-                [this] {
-                    OpenChestFromMenu();
+                [this,a_chest] {
+                    OpenChestFromMenu(a_chest);
                 }
             );
         }
@@ -874,24 +876,35 @@ void Manager::RenameContainer(const std::string& new_name) {
     MsgBoxCallback(3);
 }
 
-void Manager::OnContainerMenuExit() {
-    if (real_to_sendback.first && real_to_sendback.second) {
-        const auto chest = RE::TESForm::LookupByID<RE::TESObjectREFR>(real_to_sendback.second);
-        if (!chest) return RaiseMngrErr("OnContainerMenuExit: Chest is null");
-        SendReal(real_to_sendback.first, chest);
-        const auto fake_bound = RE::TESForm::LookupByID<RE::TESBoundObject>(ChestToFakeContainer.at(real_to_sendback.second).innerKey);
-		fake_bound->formFlags = real_to_sendback.first->formFlags;
-		if (other_settings.at(Settings::otherstuffKeys[2])) {
+void Manager::OnChestExit(RE::TESObjectREFR* a_chest) {
+	const auto chest_id = a_chest->GetFormID();
+    if (reals_to_takeback.contains(chest_id)) {
+
+        reals_to_takeback.erase(chest_id);
+
+        const auto real_bound = GetRealBound(chest_id);
+        TakeBackReal(real_bound, a_chest);
+        const auto fake_bound = GetFakeBound(chest_id);
+		fake_bound->formFlags = real_bound->formFlags;
+
+        if (other_settings.at(Settings::otherstuffKeys[2]) && queued_chests.empty()) {
             if (closed_menu == RE::ContainerMenu::MENU_NAME) {
                 if (containermenu_owner) {
                     SKSE::GetTaskInterface()->AddUITask(
                     [this] {
-                        containermenu_owner->OpenContainer(0);
+                        if (IsChest(containermenu_owner->GetFormID())) {
+                            if (!ActivateChest(containermenu_owner.get())) {
+								logger::error("ActivateChest failed for containermenu_owner: {:x}", containermenu_owner->GetFormID());
+                            }
+                        }
+                        else {
+                            containermenu_owner->OpenContainer(0);
+                        }
                         containermenu_owner.reset();
                     });
                 }
 				else {
-					logger::error("containermenu_owner is null in OnContainerMenuExit");
+					logger::error("containermenu_owner is null in OnChestExit");
                 }
             }
             else {
@@ -899,22 +912,28 @@ void Manager::OnContainerMenuExit() {
             }
             closed_menu = "";
 		}
+
 		UpdateFakeWV(fake_bound);
-        real_to_sendback = {nullptr,0};
+    }
+
+	auto ui = RE::UI::GetSingleton();
+    if (!ui->IsMenuOpen(RE::ContainerMenu::MENU_NAME) &&
+        !ui->IsMenuOpen(RE::InventoryMenu::MENU_NAME) &&
+        !ui->IsMenuOpen(RE::FavoritesMenu::MENU_NAME)) {
+        queued_chests.clear();
     }
 }
 
-void Manager::OnContainerMenuEnter()
+void Manager::OnChestEnter(RE::TESObjectREFR* a_chest)
 {
-    if (queued_real_to_sendback.first && queued_real_to_sendback.second) {
-		real_to_sendback = queued_real_to_sendback;
-		const auto chest = RE::TESForm::LookupByID<RE::TESObjectREFR>(real_to_sendback.second);
-		const auto unownedChestOG = RE::TESForm::LookupByID<RE::TESObjectREFR>(unownedChestOGRefID);
-		RemoveItem(chest, unownedChestOG, real_to_sendback.first, RE::ITEM_REMOVE_REASON::kStoreInContainer);
-		const auto fake_bound = RE::TESForm::LookupByID<RE::TESBoundObject>(ChestToFakeContainer.at(real_to_sendback.second).innerKey);
-		fake_bound->formFlags = 13;
-    }
-	queued_real_to_sendback = { nullptr,0 };
+	const auto chest_id = a_chest->GetFormID();
+    queued_chests.erase(chest_id);
+    const auto real_bound = RE::TESForm::LookupByID<RE::TESBoundObject>(GetRealID(chest_id));
+	reals_to_takeback.insert(chest_id);
+	const auto unownedChestOG = RE::TESForm::LookupByID<RE::TESObjectREFR>(unownedChestOGRefID);
+	RemoveItem(a_chest, unownedChestOG, real_bound, RE::ITEM_REMOVE_REASON::kStoreInContainer);
+	const auto fake_bound = GetFakeBound(chest_id);
+	fake_bound->formFlags = 13;
 }
 
 bool Manager::IsARegistry(const RefID registry) const {
@@ -1201,9 +1220,9 @@ void Manager::MsgBoxCallback(const int result) {
     if (result == 3 || result == 1){
         const auto chest = GetContainerChest(current_container);
         if (!chest) return RaiseMngrErr("MsgBoxCallback Chest not found");
-        SendReal(current_container->GetBaseObject(), chest);
-        // erase real_formid from vector reals_to_sendback
-        real_to_sendback = {nullptr,0};
+        TakeBackReal(current_container->GetBaseObject(), chest);
+        // erase real_formid from vector reals_to_takeback
+        reals_to_takeback.clear();
 
     }
 
@@ -1226,7 +1245,7 @@ void Manager::MsgBoxCallback(const int result) {
     if (const auto chest = GetContainerChest(current_container)) {
 		const auto chest_refid = chest->GetFormID();
         if (ActivateChest(chest)) {
-            real_to_sendback = {current_container->GetBaseObject(), chest_refid};
+            reals_to_takeback.insert(chest_refid);
 		}
 		else {
 			logger::critical("Failed to activate chest.");

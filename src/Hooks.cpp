@@ -1,5 +1,4 @@
 #include "Hooks.h"
-
 #include "Manager.h"
 #include "SkyPrompt.h"
 #include "CLibUtilsQTR/Tasker.hpp"
@@ -312,8 +311,8 @@ RE::UI_MESSAGE_RESULTS Hooks::MenuHook<MenuType>::ProcessMessage_Hook(RE::UIMess
 	    if (menuname == RE::ContainerMenu::MENU_NAME) {
             if (RE::TESObjectREFRPtr refr; LookupReferenceByHandle(RE::ContainerMenu::GetTargetRefHandle(), refr)) {
 				if (manager->IsChest(refr->GetFormID())) {
-			        if (msg_type == 3) manager->OnContainerMenuExit();
-			        else if (msg_type == 1) manager->OnContainerMenuEnter();
+			        if (msg_type == 3) manager->OnChestExit(refr.get());
+			        else if (msg_type == 1) manager->OnChestEnter(refr.get());
 				}
 			}
         }

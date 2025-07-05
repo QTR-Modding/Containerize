@@ -29,8 +29,8 @@ public clib_util::singleton::ISingleton<Manager>
     std::vector<FormID> external_favs; // runtime specific, FormIDs of fake containers if faved
     std::vector<RefID> handled_external_conts; // runtime specific to prevent unnecessary checks in HandleFakePlacement
     std::map<FormID,std::string> renames;  // runtime specific, custom names for fake containers
-    std::pair<RE::TESBoundObject*, RefID> real_to_sendback = {nullptr,0};  // pff
-    std::pair<RE::TESBoundObject*, RefID> queued_real_to_sendback = {nullptr,0};  // pff
+    std::set<RefID> reals_to_takeback = {};
+    std::set<RefID> queued_chests = {};
     std::string closed_menu;
 	RE::TESObjectREFRPtr containermenu_owner = nullptr;
 
@@ -39,7 +39,7 @@ public clib_util::singleton::ISingleton<Manager>
     mutable std::shared_mutex source_mutex_;
 	mutable std::shared_mutex chest2fake_mutex_;
 
-    void SendReal(RE::TESBoundObject* real_obj, RE::TESObjectREFR* chest);
+    void TakeBackReal(RE::TESBoundObject* real_obj, RE::TESObjectREFR* chest);
 
     std::string GetChestName(const RE::TESObjectREFR* chest) const;
 
@@ -49,6 +49,7 @@ public clib_util::singleton::ISingleton<Manager>
 
     // from container out in the world to linked chest
     [[nodiscard]] RE::TESObjectREFR* GetContainerChest(const RE::TESObjectREFR* a_container) const;
+    [[nodiscard]] RE::TESObjectREFR* GetFakeContainerChest(RE::TESBoundObject* fake_id) const;
 
     [[nodiscard]] uint32_t GetNoChests() const;
 
@@ -66,7 +67,7 @@ public clib_util::singleton::ISingleton<Manager>
 
     void DeRegisterChest(RefID chest_ref);
 
-    void OpenChestFromMenu();
+    void OpenChestFromMenu(RE::TESObjectREFR* a_chest);
 
     // OK. from real container formid to linked source
     [[nodiscard]] const Source* GetContainerSource(FormID real_id) const;
@@ -145,16 +146,16 @@ public:
     [[nodiscard]] RefID GetContainerChestID(RefID container_refid) const;
     [[nodiscard]] RefID GetFakeContainerChestID(FormID fake_id) const;
     RE::TESBoundObject* GetFakeBound(RefID chest_id) const;
+    RE::TESBoundObject* GetRealBound(RefID chest_id) const;
     FormID GetFakeID(RefID chest_id) const;
     FormID GetRealID(RefID chest_id) const;
     void OnPickup(RE::TESObjectREFR* picked_up_by, RE::TESObjectREFR * a_object);
 	void HandleDrop(RE::TESObjectREFR* fake_object);
     void UpdateData(RefID chestID, RefID loc_id);
-    void OnLongPressEquip(RE::TESBoundObject* a_container);
+    void OnLongPressEquip(RE::TESBoundObject* a_fake);
 	void UpdateFakeWV(RE::TESBoundObject* fake_form);
     Count CanBeAdded(const RE::TESBoundObject* a_item, Count a_count, const RE::TESBoundObject* fake_container);
     [[nodiscard]] RE::TESBoundObject* FakeToRealContainer(FormID fake) const;
-
 
     void OnActivateContainer(RE::TESObjectREFR* a_container, int msgbox_action);
 
@@ -171,8 +172,8 @@ public:
 
     void RenameContainer(const std::string& new_name);
 
-    void OnContainerMenuExit();
-    void OnContainerMenuEnter();
+    void OnChestExit(RE::TESObjectREFR* a_chest);
+    void OnChestEnter(RE::TESObjectREFR* a_chest);
 
     [[nodiscard]] bool IsARegistry(RefID registry) const;
 
@@ -230,7 +231,6 @@ RE::ObjectRefHandle Manager::RemoveItem(T* moveFrom, RE::TESObjectREFR* moveTo, 
         ref_handle = moveFrom->RemoveItem(a_item, 1, reason, nullptr, moveTo);
     } else {
         ref_handle = moveFrom->RemoveItem(a_item, 1, reason, asd->front(), moveTo);
-		logger::info("Item removed from moveFrom with extra data.");
     }
     return ref_handle;
 }
