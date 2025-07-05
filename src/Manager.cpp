@@ -43,7 +43,6 @@ std::string Manager::GetChestName(const RE::TESObjectREFR* chest) const
     const auto fake_id = GetFakeID(chest_id);
     if (const auto real_bound = FakeToRealContainer(fake_id)) {
         std::string chest_name = renames.contains(fake_id) ? renames.at(fake_id).c_str() : real_bound->GetName();
-        chest_name.append(GetWeightText(chest));
 		return chest_name;
     }
     logger::error("Fake to real container failed for chest ID: {:x}", chest_id);
