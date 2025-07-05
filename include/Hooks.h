@@ -8,6 +8,7 @@ namespace Hooks {
     inline bool HandleEquip(RE::InputEvent* event);
     RE::TESBoundObject* GetSelectedItemInMenu();
 	inline std::atomic_bool equip_was_pressed = false;
+    inline std::atomic_bool is_open = false;
 
     template <typename FormType>
     class ActivateHook : public FormType {
@@ -23,9 +24,14 @@ namespace Hooks {
     struct InputHook {
 		static void thunk(RE::BSTEventSource<RE::InputEvent*>* a_dispatcher, RE::InputEvent* const* a_event);
 		static inline REL::Relocation<decltype(thunk)> func;
-		static bool ProcessInput(RE::InputEvent* event);
         static bool IsOtherButtonHeld(RE::InputEvent* const* a_event);
 	};
+
+    // Credits: SkyrimThiago
+    struct InventoryHoverHook {
+        static int64_t thunk(RE::InventoryEntryData* a1);
+        static inline REL::Relocation<decltype(thunk)> originalFunction;
+    };
 
     template <typename MenuType>
     class MenuHook : public MenuType {

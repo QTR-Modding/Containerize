@@ -1,10 +1,11 @@
 #include "SkyPrompt.h"
 #include "Events.h"
+#include "Hooks.h"
 #include "Manager.h"
 
 using namespace SkyPrompt;
 
-void MyPromptSink::ProcessEvent(SkyPromptAPI::PromptEvent event) const
+void MyPromptSink::ProcessEvent(const SkyPromptAPI::PromptEvent event) const
 {
 	if (event.type) {
 		return;
@@ -12,7 +13,6 @@ void MyPromptSink::ProcessEvent(SkyPromptAPI::PromptEvent event) const
 	EventSink::RemovePrompts();
 	const auto M = Manager::GetSingleton();
 	if (const auto crosshairref = RE::CrosshairPickData::GetSingleton()->target) {
-        //if (const auto prompt_text = event.prompt.text; prompt_text == "Open") {
         if (const auto prompt_eventid = event.prompt.eventID; 
 			prompt_eventid == 0) {
 		    M->OnActivateContainer(crosshairref.get().get(), 0);
@@ -59,4 +59,30 @@ bool SkyPrompt::IsAnyMenuOpen() {
         }
     }
 	return false;
+}
+
+void SkyPrompt::MenuPromptSink::ProcessEvent(const SkyPromptAPI::PromptEvent event) const
+{
+	if (event.type) {
+		return;
+	}
+	if (const auto a_item = Hooks::GetSelectedItemInMenu()) {
+	    Manager::GetSingleton()->OnLongPressEquip(a_item);
+	}
+}
+
+void SkyPrompt::MenuPromptSink::Show() const {
+	if (const auto a_ref = RE::Inventory3DManager::GetSingleton()->tempRef) {
+		open_prompt.refid = a_ref->GetFormID();
+	}
+	else {
+		open_prompt.refid = 0;
+	}
+    prompts.at(0) = open_prompt;
+	if (!SkyPromptAPI::SendPrompt(this,g_clientID)) {
+	}
+}
+
+void SkyPrompt::MenuPromptSink::Hide() const {
+	SkyPromptAPI::RemovePrompt(this,g_clientID);
 }

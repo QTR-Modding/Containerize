@@ -76,7 +76,8 @@ public clib_util::singleton::ISingleton<Manager>
     [[nodiscard]] static bool HasItemPlusCleanUp(RE::TESBoundObject* item, RE::TESObjectREFR* item_owner);
 
     // removes only one unit of the item
-    static RE::ObjectRefHandle RemoveItem(RE::TESObjectREFR* moveFrom, RE::TESObjectREFR* moveTo, RE::TESBoundObject* a_item,
+	template <typename T>
+    static RE::ObjectRefHandle RemoveItem(T* moveFrom, RE::TESObjectREFR* moveTo, RE::TESBoundObject* a_item,
                                           RE::ITEM_REMOVE_REASON reason);
 
     [[nodiscard]] static bool PickUpItem(RE::TESObjectREFR* item, unsigned int max_try = 3);
@@ -120,7 +121,7 @@ public clib_util::singleton::ISingleton<Manager>
 
     void RemoveCarryWeightBoost(FormID item_formid, RE::TESObjectREFR* inventory_owner);
 
-    bool HandleRegistration(RE::TESObjectREFR* a_container);
+    bool HandleRegistration(RE::TESObjectREFR* a_item);
 
     void RenameCallback();
 
@@ -149,7 +150,7 @@ public:
     void OnPickup(RE::TESObjectREFR* picked_up_by, RE::TESObjectREFR * a_object);
 	void HandleDrop(RE::TESObjectREFR* fake_object);
     void UpdateData(RefID chestID, RefID loc_id);
-    void OnLongPressEquip(const RE::TESBoundObject* a_selected_item);
+    void OnLongPressEquip(RE::TESBoundObject* a_container);
 	void UpdateFakeWV(RE::TESBoundObject* fake_form);
     Count CanBeAdded(const RE::TESBoundObject* a_item, Count a_count, const RE::TESBoundObject* fake_container);
     [[nodiscard]] RE::TESBoundObject* FakeToRealContainer(FormID fake) const;
@@ -202,6 +203,37 @@ public:
     std::string GetWeightText(const RE::TESObjectREFR* a_container) const;
     std::string GetValueText(const RE::TESObjectREFR* a_container) const;
 };
+
+template<typename T>
+RE::ObjectRefHandle Manager::RemoveItem(T* moveFrom, RE::TESObjectREFR* moveTo, RE::TESBoundObject* a_item, RE::ITEM_REMOVE_REASON reason)
+{
+    auto ref_handle = RE::ObjectRefHandle();
+
+    if (!moveFrom) {
+        logger::critical("moveFrom is null!");
+        return ref_handle;
+    }
+    if (moveTo && moveFrom->GetFormID() == moveTo->GetFormID()) {
+        logger::info("moveFrom and moveTo are the same!");
+        return ref_handle;
+    }
+
+	const auto inventory = moveFrom->GetInventory();
+	const auto it_item = inventory.find(a_item);
+	if (it_item == inventory.end()) {
+		logger::warn("Item not found in inventory {:x}", a_item ? a_item->GetFormID() : 0);
+		return ref_handle;
+	}
+
+    const auto inv_data = it_item->second.second.get();
+    if (const auto asd = inv_data ? inv_data->extraLists : nullptr; !asd || asd->empty()) {
+        ref_handle = moveFrom->RemoveItem(a_item, 1, reason, nullptr, moveTo);
+    } else {
+        ref_handle = moveFrom->RemoveItem(a_item, 1, reason, asd->front(), moveTo);
+		logger::info("Item removed from moveFrom with extra data.");
+    }
+    return ref_handle;
+}
 
 template <typename T>
 void Manager::UpdateFakeWV(T* fake_form, RE::TESObjectREFR* chest_linked, const float weight_ratio) {

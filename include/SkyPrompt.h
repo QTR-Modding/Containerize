@@ -39,6 +39,19 @@ namespace SkyPrompt {
 		void Start(const RE::TESObjectREFR* a_ref);
     };
 
+	class MenuPromptSink final : public SkyPromptAPI::PromptSink,
+                               public clib_util::singleton::ISingleton<MenuPromptSink>
+    {
+	    mutable SkyPromptAPI::Prompt open_prompt{ "Open",0,0, SkyPromptAPI::PromptType::kHold};
+		mutable std::array<SkyPromptAPI::Prompt, 1> prompts = { open_prompt };
+
+    public:
+        void ProcessEvent(SkyPromptAPI::PromptEvent event) const override;
+	    std::span<const SkyPromptAPI::Prompt> GetPrompts() const override { return prompts; }
+		void Show() const;
+		void Hide() const;
+    };
+
     inline SkyPromptAPI::ClientID g_clientID = 0;
 
     inline std::array blockedMenus = {
