@@ -4,12 +4,17 @@
 #include "CLibUtilsQTR/Tasker.hpp"
 #include "SkyPrompt/API.hpp"
 
+static inline RE::NiAVObject* ContainerMesh; //ToDo move in better place
+
 void Hooks::Install()
 {
 	MoveItemHooks<RE::PlayerCharacter>::install();
 	MoveItemHooks<RE::TESObjectREFR>::install(false);
 	MoveItemHooks<RE::Character>::install();
 	MenuHook<RE::ContainerMenu>::InstallHook(RE::VTABLE_ContainerMenu[0]);
+	
+	AnimObjectHook::Install(); //ToDo: Use one trampoline
+  
 	MenuHook<RE::InventoryMenu>::InstallHook(RE::VTABLE_InventoryMenu[0]);
 
 	auto& trampoline = SKSE::GetTrampoline();
@@ -339,6 +344,94 @@ void Hooks::MenuHook<MenuType>::InstallHook(const REL::VariantID& varID)
     _ProcessMessage = vTable.write_vfunc(0x4, &MenuHook<MenuType>::ProcessMessage_Hook);
 }
 
+namespace PointerUtil  // yoinked po3's code ToDo: move to a better place
+{
+    template <class T, class U>
+    inline auto adjust_pointer(U* a_ptr, std::ptrdiff_t a_adjust) noexcept {
+        auto addr = a_ptr ? reinterpret_cast<std::uintptr_t>(a_ptr) + a_adjust : 0;
+        if constexpr (std::is_const_v<U> && std::is_volatile_v<U>) {
+            return reinterpret_cast<std::add_cv_t<T>*>(addr);
+        } else if constexpr (std::is_const_v<U>) {
+            return reinterpret_cast<std::add_const_t<T>*>(addr);
+        } else if constexpr (std::is_volatile_v<U>) {
+            return reinterpret_cast<std::add_volatile_t<T>*>(addr);
+        } else {
+            return reinterpret_cast<T*>(addr);
+        }
+    }
+}
+
+RE::NiNode* GetAttachNode(RE::NiAVObject* animObjectMesh) {
+    auto* root = animObjectMesh->AsFadeNode();
+    RE::NiNode* defaultAttachNode = nullptr;
+    if (root) {
+        auto* attachNode = root->GetObjectByName("Attach");
+        if (attachNode) {
+            defaultAttachNode = attachNode->AsNode();
+        }
+    }
+    return defaultAttachNode;
+}
+
+static std::vector<RE::BSGeometry*> GetAllGeometries(RE::NiAVObject* root) {
+    std::vector<RE::BSGeometry*> geometries;
+    RE::BSVisit::TraverseScenegraphGeometries(root, [&geometries](RE::BSGeometry* geom) -> RE::BSVisit::BSVisitControl {
+        if (geom && geom->AsGeometry()) {
+            geometries.emplace_back(geom);
+        }
+
+        return RE::BSVisit::BSVisitControl::kContinue;
+    });
+    return geometries;
+}
+
+static RE::NiAVObject* Clone(RE::NiAVObject* original) {
+    typedef RE::NiAVObject* (*func_t)(RE::NiAVObject* avObj);
+    REL::Relocation<func_t> func{RELOCATION_ID(68835, 70187)};
+    return func(original);
+}
+
+RE::NiAVObject* GetContainerMesh(RE::NiAVObject* original) {
+    if (ContainerMesh == nullptr) {
+        return nullptr;
+    }
+
+    auto* node = GetAttachNode(original);
+
+    auto geometries = GetAllGeometries(ContainerMesh);
+
+    for (auto* geom : geometries) {
+        if (!geom) {
+            continue;
+        }
+
+        auto* clone = Clone(geom);
+
+        SKSE::log::info("Trishape Attached: {}", geom->name.c_str());
+
+        if (node) {
+            node->AttachChild(clone, true);
+        }
+    }
+    ContainerMesh = nullptr;
+    return original->AsFadeNode();
+}
+
+RE::NiAVObject* Hooks::AnimObjectHook::LoadAnimObject(RE::TESModel* a_model, RE::BIPED_OBJECT a_bipedObj,
+                                               RE::TESObjectREFR* a_actor, RE::BSTSmartPointer<RE::BipedAnim>& a_biped,
+                                               RE::NiAVObject* a_root) {
+    RE::NiAVObject* output = _LoadAnimObject(a_model, a_bipedObj, a_actor, a_biped, a_root);
+    if (const auto animObject = PointerUtil::adjust_pointer<RE::TESObjectANIO>(a_model->GetAsModelTextureSwap(), -0x20);
+        animObject) { 
+		// Add check if in container menu?
+        if (auto* containerMesh = GetContainerMesh(output)) {
+            output = containerMesh;
+        }
+    }
+
+    return output;
+}
+
 int64_t Hooks::InventoryHoverHook::thunk(RE::InventoryEntryData* a1)
 {
 	if (is_open.load()) {
@@ -355,4 +448,3 @@ int64_t Hooks::InventoryHoverHook::thunk(RE::InventoryEntryData* a1)
 	}
 	return originalFunction(a1);
 }
-

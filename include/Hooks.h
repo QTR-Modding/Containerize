@@ -83,6 +83,26 @@ namespace Hooks {
 
     };
 
+    class AnimObjectHook {
+    public:
+        static void Install() {
+            auto& trampoline = SKSE::GetTrampoline();
+            SKSE::AllocTrampoline(14);
+            REL::Relocation<std::uintptr_t> target{REL::RelocationID(42420, 43576),
+                                                   REL::Relocate(0x22A, 0x21F)};  // AnimationObjects::Load
+            _LoadAnimObject = trampoline.write_call<5>(target.address(), LoadAnimObject);
+
+            SKSE::log::info("Hook AnimObject installed");
+        }
+
+    private:
+        static RE::NiAVObject* LoadAnimObject(RE::TESModel* a_model, RE::BIPED_OBJECT a_bipedObj,
+                                              RE::TESObjectREFR* a_actor, RE::BSTSmartPointer<RE::BipedAnim>& a_biped,
+                                              RE::NiAVObject* a_root);
+
+        static inline REL::Relocation<decltype(LoadAnimObject)> _LoadAnimObject;
+    };
+
     static void
 		add_item_functor(RE::TESObjectREFR* a_this, RE::TESObjectREFR* a_object, int32_t a_count, bool a4, bool a5);
 	static inline REL::Relocation<decltype(add_item_functor)> add_item_functor_;
