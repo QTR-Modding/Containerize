@@ -1,27 +1,37 @@
 #pragma once
-#include "Manager.h"
 
 namespace Hooks {
 
 	void Install();
-
-    inline Manager* M = nullptr;
-
-    inline void SetManager(Manager* a_manager) {
-		M = a_manager;
-	}
+	void InstallUseOrTakeHooks();
 
     inline bool HandleEquip(RE::InputEvent* event);
     RE::TESBoundObject* GetSelectedItemInMenu();
 	inline std::atomic_bool equip_was_pressed = false;
+    inline std::atomic_bool is_open = false;
+
+    template <typename FormType>
+    class ActivateHook : public FormType {
+        static bool Activate_Hook(RE::TESBoundObject* a_this, RE::TESObjectREFR* a_targetRef, RE::TESObjectREFR* a_activatorRef, std::uint8_t a_arg3, RE::TESBoundObject* a_obj, std::int32_t a_targetCount);
+        static inline REL::Relocation<decltype(&FormType::Activate)> _Activate;
+    public:
+        static void install() {
+		    REL::Relocation<std::uintptr_t> _vtbl{ FormType::VTABLE[0] };
+		    _Activate = _vtbl.write_vfunc(0x37, Activate_Hook);
+        }
+    };
 
     struct InputHook {
 		static void thunk(RE::BSTEventSource<RE::InputEvent*>* a_dispatcher, RE::InputEvent* const* a_event);
 		static inline REL::Relocation<decltype(thunk)> func;
-		static bool ProcessInput(RE::InputEvent* event);
         static bool IsOtherButtonHeld(RE::InputEvent* const* a_event);
-		static inline std::atomic_bool down_pressed = false;
 	};
+
+    // Credits: SkyrimThiago
+    struct InventoryHoverHook {
+        static int64_t thunk(RE::InventoryEntryData* a1);
+        static inline REL::Relocation<decltype(thunk)> originalFunction;
+    };
 
     template <typename MenuType>
     class MenuHook : public MenuType {

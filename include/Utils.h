@@ -53,46 +53,9 @@ static T* GetFormByID(const RE::FormID id, const std::string& editor_id="") {
     return nullptr;
 };
 
-std::string GetEditorID(const FormID a_formid);
+std::string GetEditorID(FormID a_formid);
 FormID GetFormEditorIDFromString(const std::string& formEditorId);
 std::string GetGameLanguage();
-
-namespace Papyrus {
-
-    using VM = RE::BSScript::Internal::VirtualMachine;
-    using ObjectPtr = RE::BSTSmartPointer<RE::BSScript::Object>;
-
-    inline RE::VMHandle GetHandle(const RE::TESForm* a_form)
-    {
-	    const auto vm = VM::GetSingleton();
-	    const auto policy = vm->GetObjectHandlePolicy();
-	    return policy->GetHandleForObject(a_form->GetFormType(), a_form);
-    }
-
-    inline ObjectPtr GetObjectPtr(const RE::TESForm* a_form, const char* a_class, const bool a_create) {
-	    const auto vm = VM::GetSingleton();
-	    const auto handle = GetHandle(a_form);
-
-	    ObjectPtr object = nullptr;
-        if (const bool found = vm->FindBoundObject(handle, a_class, object); !found && a_create) {
-		    vm->CreateObject2(a_class, object);
-		    vm->BindObject(object, handle, false);
-	    }
-	    return object;
-    }
-
-    template <class... Args>
-	bool CallFunction(const std::string_view functionClass, const std::string_view function, Args... a_args)
-	{
-		const auto skyrimVM = RE::SkyrimVM::GetSingleton();
-        if (const auto vm = skyrimVM ? skyrimVM->impl : nullptr) {
-			RE::BSTSmartPointer<RE::BSScript::IStackCallbackFunctor> callback;
-			auto args = RE::MakeFunctionArguments(std::forward<Args>(a_args)...);
-			return vm->DispatchStaticCall(std::string(functionClass).c_str(), std::string(function).c_str(), args, callback);
-		}
-		return false;
-	}
-}
 
 namespace Functions {
 
@@ -220,7 +183,7 @@ namespace MsgBoxesNotifs {
             std::function<void(unsigned int)> _callback;
 
         public:
-            ~MessageBoxResultCallback() override {}
+            ~MessageBoxResultCallback() override = default;
             explicit MessageBoxResultCallback(std::function<void(unsigned int)> callback) : _callback(callback) {}
             void Run(RE::IMessageBoxCallback::Message message) override {
                 _callback(static_cast<unsigned int>(message));
@@ -273,7 +236,7 @@ namespace MsgBoxesNotifs {
             RE::DebugMessageBox(message.c_str());
         }
 
-        inline void ProblemWithContainer(int id) {
+        inline void ProblemWithContainer(RE::FormID id) {
             std::string message = fmt::vformat("{}: {}", fmt::make_format_args(mod_name, problem_with_container_msgbox));
             message = fmt::vformat(message, fmt::make_format_args(id));
             RE::DebugMessageBox(message.c_str());
@@ -292,14 +255,14 @@ namespace Inventory {
 
     inline bool HasItem(RE::TESBoundObject* item, RE::TESObjectREFR* inventory_owner) {
         return HasItemEntry(item, inventory_owner->GetInventory(), true);
-    };
+    }
 
     std::int32_t GetItemCount(RE::TESBoundObject* item, const RE::TESObjectREFR::InventoryItemMap& inventory);
 
     std::int32_t GetItemValue(RE::TESBoundObject* item,
                               const RE::TESObjectREFR::InventoryItemMap& inventory);
 
-    bool IsQuestItem(const FormID formid, RE::TESObjectREFR* inv_owner);
+    bool IsQuestItem(FormID formid, RE::TESObjectREFR* inv_owner);
 
     inline int32_t GetEntryCostOverride(const RE::InventoryEntryData* entry);
 
@@ -334,7 +297,7 @@ namespace WorldObject {
     inline void StartDraggingObject(RE::TESObjectREFR* ref) {
         using func_t = void(*)(RE::TESObjectREFR*);
         static auto ObjectManipulationOverhaul = GetModuleHandle(L"ObjectManipulationOverhaul");
-        const func_t func = reinterpret_cast<func_t>(GetProcAddress(ObjectManipulationOverhaul, "StartDraggingObject"));
+        const auto func = reinterpret_cast<func_t>(GetProcAddress(ObjectManipulationOverhaul, "StartDraggingObject"));
         return func(ref);
     }
 };
@@ -473,7 +436,7 @@ namespace Menu {
 
     bool IsOpen(const RE::BSFixedString& menu_name);
 
-    void OpenMenu(const std::string_view menuname);;
+    void OpenMenu(std::string_view menuname);;
 };
 
 
