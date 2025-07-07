@@ -1,6 +1,8 @@
 #include "Manager.h"
 #include <ranges>
 #include "Papyrus.h"
+#include "Animations.hpp"
+#include "Hooks.h"
 
 void Manager::TakeBackReal(RE::TESBoundObject* real_obj, RE::TESObjectREFR* chest) {
     const auto unownedChestOG = RE::TESForm::LookupByID<RE::TESObjectREFR>(unownedChestOGRefID);
@@ -490,7 +492,9 @@ void Manager::OpenChestFromMenu(RE::TESObjectREFR* a_chest)
 {
     if (!closed_menu.empty()) {
         if (!RE::UI::GetSingleton()->IsMenuOpen(closed_menu)) {
-			if (!ActivateChest(a_chest)) {
+            Animation a_anim(nullptr,"Vitrium_Backpack01",3000);
+            Animations::MyAnimator::GetSingleton()->Add2Q({a_anim});
+            if (!ActivateChest(a_chest)) {
 				logger::error("ActivateChest failed for chest: {:x}", a_chest->GetFormID());
 			}
 		}

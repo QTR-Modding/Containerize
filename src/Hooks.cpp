@@ -4,8 +4,6 @@
 #include "CLibUtilsQTR/Tasker.hpp"
 #include "SkyPrompt/API.hpp"
 
-static inline RE::NiAVObject* ContainerMesh; //ToDo move in better place
-
 void Hooks::Install()
 {
 	MoveItemHooks<RE::PlayerCharacter>::install();
@@ -13,13 +11,12 @@ void Hooks::Install()
 	MoveItemHooks<RE::Character>::install();
 	MenuHook<RE::ContainerMenu>::InstallHook(RE::VTABLE_ContainerMenu[0]);
 	
-	AnimObjectHook::Install(); //ToDo: Use one trampoline
   
 	MenuHook<RE::InventoryMenu>::InstallHook(RE::VTABLE_InventoryMenu[0]);
 
 	auto& trampoline = SKSE::GetTrampoline();
     constexpr size_t size_per_hook = 14;
-	trampoline.create(size_per_hook*3);
+	trampoline.create(size_per_hook*4);
 
 	const REL::Relocation<std::uintptr_t> target4{REL::RelocationID(67315, 68617)};
     InputHook::func = trampoline.write_call<5>(target4.address() + 0x7B, InputHook::thunk);
@@ -29,6 +26,10 @@ void Hooks::Install()
 
 	const REL::Relocation<std::uintptr_t> function{REL::RelocationID(51019, 51897)};
     InventoryHoverHook::originalFunction = trampoline.write_call<5>(function.address() + REL::Relocate(0x114, 0x22c), InventoryHoverHook::thunk);
+
+	REL::Relocation<std::uintptr_t> target{REL::RelocationID(42420, 43576),
+                                                   REL::Relocate(0x22A, 0x21F)};  // AnimationObjects::Load
+    AnimObjectHook::_LoadAnimObject = trampoline.write_call<5>(target.address(), AnimObjectHook::LoadAnimObject);
 }
 void Hooks::InstallUseOrTakeHooks()
 {
@@ -361,12 +362,11 @@ namespace PointerUtil  // yoinked po3's code ToDo: move to a better place
     }
 }
 
-RE::NiNode* GetAttachNode(RE::NiAVObject* animObjectMesh) {
+static RE::NiNode* GetAttachNode(RE::NiAVObject* animObjectMesh) {
     auto* root = animObjectMesh->AsFadeNode();
     RE::NiNode* defaultAttachNode = nullptr;
     if (root) {
-        auto* attachNode = root->GetObjectByName("Attach");
-        if (attachNode) {
+        if (auto* attachNode = root->GetObjectByName("Attach")) {
             defaultAttachNode = attachNode->AsNode();
         }
     }
@@ -391,12 +391,16 @@ static RE::NiAVObject* Clone(RE::NiAVObject* original) {
     return func(original);
 }
 
-RE::NiAVObject* GetContainerMesh(RE::NiAVObject* original) {
+static RE::NiAVObject* GetContainerMesh(RE::NiAVObject* original, RE::NiAVObject* ContainerMesh) {
     if (ContainerMesh == nullptr) {
         return nullptr;
     }
 
     auto* node = GetAttachNode(original);
+	if (!node) {
+		logger::error("Failed to get attach node for anim object mesh");
+		return nullptr;
+	}
 
     auto geometries = GetAllGeometries(ContainerMesh);
 
@@ -409,24 +413,32 @@ RE::NiAVObject* GetContainerMesh(RE::NiAVObject* original) {
 
         SKSE::log::info("Trishape Attached: {}", geom->name.c_str());
 
-        if (node) {
-            node->AttachChild(clone, true);
-        }
+        node->AttachChild(clone, true);
     }
-    ContainerMesh = nullptr;
     return original->AsFadeNode();
 }
 
 RE::NiAVObject* Hooks::AnimObjectHook::LoadAnimObject(RE::TESModel* a_model, RE::BIPED_OBJECT a_bipedObj,
                                                RE::TESObjectREFR* a_actor, RE::BSTSmartPointer<RE::BipedAnim>& a_biped,
                                                RE::NiAVObject* a_root) {
+
+	logger::info("Loading anim object for model1");
     RE::NiAVObject* output = _LoadAnimObject(a_model, a_bipedObj, a_actor, a_biped, a_root);
     if (const auto animObject = PointerUtil::adjust_pointer<RE::TESObjectANIO>(a_model->GetAsModelTextureSwap(), -0x20);
         animObject) { 
+	    logger::info("Loading anim object for model2");
 		// Add check if in container menu?
-        if (auto* containerMesh = GetContainerMesh(output)) {
-            output = containerMesh;
-        }
+		if (container_mesh) {
+	        logger::info("Loading anim object for model3");
+            if (auto* containerMesh = GetContainerMesh(output,container_mesh.get())) {
+	            logger::info("Loading anim object for model4");
+				container_mesh.reset();
+                output = containerMesh;
+            }
+		    else {
+			    logger::error("Failed to get container mesh for anim object");
+		    }
+		}
     }
 
     return output;

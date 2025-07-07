@@ -77,6 +77,7 @@ void SkyPrompt::MenuPromptSink::Show(RE::TESBoundObject* a_item) const {
 
 	if (const auto a_ref = RE::Inventory3DManager::GetSingleton()->tempRef) {
 		const auto refid = a_ref->GetFormID();
+        Hooks::container_mesh = RE::Inventory3DManager::GetSingleton()->GetRuntimeData().loadedModels.front().spModel;
 		open_prompt.refid = refid;
 		weight_prompt.refid = refid;
 

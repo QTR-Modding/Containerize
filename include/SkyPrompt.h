@@ -82,4 +82,6 @@ namespace SkyPrompt {
 	                                };
 
     bool IsAnyMenuOpen();
+
+	inline std::map<FormID,RE::NiPointer<RE::NiAVObject>> saved_models;
 }

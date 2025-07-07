@@ -2,17 +2,18 @@
 #include <queue>
 #include <shared_mutex>
 #include "Ticker.hpp"
+#include "ClibUtil/singleton.hpp"
+
+struct Animation {
+	RE::TESIdleForm* a_idle;
+    std::string anim_name;
+	int t_wait_ms;
+};
 
 class Animator:
 public Ticker,
 public RE::BSTEventSink<RE::BSAnimationGraphEvent>
 {
-	struct Animation {
-	    RE::TESIdleForm* a_idle;
-        std::string anim_name;
-	    int t_wait_ms;
-    };
-
     virtual RE::BSEventNotifyControl ProcessEvent(const RE::BSAnimationGraphEvent* a_event,
                                           RE::BSTEventSource<RE::BSAnimationGraphEvent>*)=0;
 
@@ -35,7 +36,7 @@ public RE::BSTEventSink<RE::BSAnimationGraphEvent>
 
 	static void PlayIdle(RE::TESIdleForm* a_idle, RE::TESObjectREFR* a_target=nullptr) {
 	    const auto player = RE::PlayerCharacter::GetSingleton();
-        player->GetActorRuntimeData().currentProcess->PlayIdle(player,a_idle,nullptr);
+        player->GetActorRuntimeData().currentProcess->PlayIdle(player,a_idle,a_target);
 	}
 
     void UpdateLoop() {
@@ -102,10 +103,13 @@ public:
 
 namespace Animations
 {
-	class MyAnimator : public Animator
+	class MyAnimator : 
+		public Animator,
+		public clib_util::singleton::ISingleton<MyAnimator>
 	{
 		RE::BSEventNotifyControl ProcessEvent(const RE::BSAnimationGraphEvent* a_event,
 			RE::BSTEventSource<RE::BSAnimationGraphEvent>*){
+			return RE::BSEventNotifyControl::kContinue;
 		}
-	}
+	};
 }
