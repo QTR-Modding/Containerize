@@ -366,7 +366,7 @@ static RE::NiNode* GetAttachNode(RE::NiAVObject* animObjectMesh) {
     auto* root = animObjectMesh->AsFadeNode();
     RE::NiNode* defaultAttachNode = nullptr;
     if (root) {
-        if (auto* attachNode = root->GetObjectByName("Attach")) {
+        if (auto* attachNode = root->GetObjectByName("BookAnimObject")) {
             defaultAttachNode = attachNode->AsNode();
         }
     }

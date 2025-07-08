@@ -492,7 +492,7 @@ void Manager::OpenChestFromMenu(RE::TESObjectREFR* a_chest)
 {
     if (!closed_menu.empty()) {
         if (!RE::UI::GetSingleton()->IsMenuOpen(closed_menu)) {
-            Animation a_anim(nullptr,"Vitrium_Backpack01",3000);
+            Animation a_anim(nullptr,"IdleBook_Read",3000);
             Animations::MyAnimator::GetSingleton()->Add2Q({a_anim});
             if (!ActivateChest(a_chest)) {
 				logger::error("ActivateChest failed for chest: {:x}", a_chest->GetFormID());
