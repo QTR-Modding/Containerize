@@ -3,6 +3,7 @@
 #include "Papyrus.h"
 #include "Animations.hpp"
 #include "Hooks.h"
+#include "CLibUtilsQTR/Tasker.hpp"
 
 void Manager::TakeBackReal(RE::TESBoundObject* real_obj, RE::TESObjectREFR* chest) {
     const auto unownedChestOG = RE::TESForm::LookupByID<RE::TESObjectREFR>(unownedChestOGRefID);
@@ -492,18 +493,15 @@ void Manager::OpenChestFromMenu(RE::TESObjectREFR* a_chest)
 {
     if (!closed_menu.empty()) {
         if (!RE::UI::GetSingleton()->IsMenuOpen(closed_menu)) {
-            Animation a_anim(nullptr,"IdleBook_Read",3000);
-            Animations::MyAnimator::GetSingleton()->Add2Q({a_anim});
             if (!ActivateChest(a_chest)) {
 				logger::error("ActivateChest failed for chest: {:x}", a_chest->GetFormID());
 			}
 		}
         else {
-			logger::info("Menu is still open. Delaying chest opening.");
-            SKSE::GetTaskInterface()->AddUITask(
+            clib_utilsQTR::Tasker::GetSingleton()->PushTask(
                 [this,a_chest] {
-                    OpenChestFromMenu(a_chest);
-                }
+                    SKSE::GetTaskInterface()->AddUITask([this,a_chest] {OpenChestFromMenu(a_chest);});
+                },500
             );
         }
 	}
@@ -877,6 +875,9 @@ void Manager::RenameContainer(const std::string& new_name) {
 }
 
 void Manager::OnChestExit(RE::TESObjectREFR* a_chest) {
+
+    Animations::MyAnimator::GetSingleton()->CloseBackpack();
+
 	const auto chest_id = a_chest->GetFormID();
     if (reals_to_takeback.contains(chest_id)) {
 
@@ -916,16 +917,18 @@ void Manager::OnChestExit(RE::TESObjectREFR* a_chest) {
 		UpdateFakeWV(fake_bound);
     }
 
-	auto ui = RE::UI::GetSingleton();
+	const auto ui = RE::UI::GetSingleton();
     if (!ui->IsMenuOpen(RE::ContainerMenu::MENU_NAME) &&
         !ui->IsMenuOpen(RE::InventoryMenu::MENU_NAME) &&
         !ui->IsMenuOpen(RE::FavoritesMenu::MENU_NAME)) {
         queued_chests.clear();
+        Hooks::container_meshes.clear();
     }
 }
 
 void Manager::OnChestEnter(RE::TESObjectREFR* a_chest)
 {
+	Animations::MyAnimator::GetSingleton()->OpenBackpack();
 	const auto chest_id = a_chest->GetFormID();
     queued_chests.erase(chest_id);
     const auto real_bound = RE::TESForm::LookupByID<RE::TESBoundObject>(GetRealID(chest_id));
@@ -934,6 +937,11 @@ void Manager::OnChestEnter(RE::TESObjectREFR* a_chest)
 	RemoveItem(a_chest, unownedChestOG, real_bound, RE::ITEM_REMOVE_REASON::kStoreInContainer);
 	const auto fake_bound = GetFakeBound(chest_id);
 	fake_bound->formFlags = 13;
+
+    if (const auto a_formid = fake_bound->GetFormID();
+        Hooks::container_meshes.contains(a_formid)) {
+		Hooks::container_mesh = a_formid;
+    }
 }
 
 bool Manager::IsARegistry(const RefID registry) const {

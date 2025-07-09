@@ -85,14 +85,15 @@ namespace Hooks {
 
     class AnimObjectHook {
     public:
-        static RE::NiAVObject* LoadAnimObject(RE::TESModel* a_model, RE::BIPED_OBJECT a_bipedObj,
+        static RE::NiAVObject* thunk(RE::TESModel* a_model, RE::BIPED_OBJECT a_bipedObj,
                                               RE::TESObjectREFR* a_actor, RE::BSTSmartPointer<RE::BipedAnim>& a_biped,
                                               RE::NiAVObject* a_root);
-        static inline REL::Relocation<decltype(LoadAnimObject)> _LoadAnimObject;
+
+        static inline REL::Relocation<decltype(thunk)> _LoadAnimObject;
     };
 
-	inline RE::NiPointer<RE::NiAVObject> container_mesh = nullptr;
-	inline RE::TESModel* container_model = nullptr;
+	inline std::map<FormID,RE::NiPointer<RE::NiAVObject>> container_meshes;
+	inline FormID container_mesh;
 
     static void add_item_functor(RE::TESObjectREFR* a_this, RE::TESObjectREFR* a_object, int32_t a_count, bool a4, bool a5);
 	static inline REL::Relocation<decltype(add_item_functor)> add_item_functor_;

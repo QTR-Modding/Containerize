@@ -66,7 +66,17 @@ void SkyPrompt::MenuPromptSink::ProcessEvent(const SkyPromptAPI::PromptEvent eve
 	if (event.type) {
 		return;
 	}
-	if (const auto a_item = Hooks::GetSelectedItemInMenu()) {
+	if (const auto a_item = Hooks::GetSelectedItemInMenu()){
+        if (const auto a_formid = a_item->GetFormID(); 
+			!Hooks::container_meshes.contains(a_formid)) {
+            for (const auto& loaded_models = RE::Inventory3DManager::GetSingleton()->GetRuntimeData().loadedModels; 
+				auto& a_loaded_model : loaded_models) {
+			    if (a_loaded_model.modelObj->GetFormID() == a_formid) {
+                    Hooks::container_meshes[a_formid] = a_loaded_model.spModel;
+					break;
+			    }
+		    }
+	    }
 	    Manager::GetSingleton()->OnLongPressEquip(a_item);
 	}
 }
@@ -77,7 +87,6 @@ void SkyPrompt::MenuPromptSink::Show(RE::TESBoundObject* a_item) const {
 
 	if (const auto a_ref = RE::Inventory3DManager::GetSingleton()->tempRef) {
 		const auto refid = a_ref->GetFormID();
-        Hooks::container_mesh = RE::Inventory3DManager::GetSingleton()->GetRuntimeData().loadedModels.front().spModel;
 		open_prompt.refid = refid;
 		weight_prompt.refid = refid;
 

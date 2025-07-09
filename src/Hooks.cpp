@@ -29,7 +29,7 @@ void Hooks::Install()
 
 	REL::Relocation<std::uintptr_t> target{REL::RelocationID(42420, 43576),
                                                    REL::Relocate(0x22A, 0x21F)};  // AnimationObjects::Load
-    AnimObjectHook::_LoadAnimObject = trampoline.write_call<5>(target.address(), AnimObjectHook::LoadAnimObject);
+    AnimObjectHook::_LoadAnimObject = trampoline.write_call<5>(target.address(), AnimObjectHook::thunk);
 }
 void Hooks::InstallUseOrTakeHooks()
 {
@@ -345,10 +345,11 @@ void Hooks::MenuHook<MenuType>::InstallHook(const REL::VariantID& varID)
     _ProcessMessage = vTable.write_vfunc(0x4, &MenuHook<MenuType>::ProcessMessage_Hook);
 }
 
-namespace PointerUtil  // yoinked po3's code ToDo: move to a better place
-{
+namespace {
+
+	// yoinked po3's code
     template <class T, class U>
-    inline auto adjust_pointer(U* a_ptr, std::ptrdiff_t a_adjust) noexcept {
+    auto adjust_pointer(U* a_ptr, std::ptrdiff_t a_adjust) noexcept {
         auto addr = a_ptr ? reinterpret_cast<std::uintptr_t>(a_ptr) + a_adjust : 0;
         if constexpr (std::is_const_v<U> && std::is_volatile_v<U>) {
             return reinterpret_cast<std::add_cv_t<T>*>(addr);
@@ -357,87 +358,78 @@ namespace PointerUtil  // yoinked po3's code ToDo: move to a better place
         } else if constexpr (std::is_volatile_v<U>) {
             return reinterpret_cast<std::add_volatile_t<T>*>(addr);
         } else {
-            return reinterpret_cast<T*>(addr);
+            return reinterpret_cast<T*>(addr);  // NOLINT(performance-no-int-to-ptr)
         }
+    }
+
+    RE::NiNode* GetAttachNode(RE::NiAVObject* animObjectMesh) {
+        auto* root = animObjectMesh->AsFadeNode();
+        RE::NiNode* defaultAttachNode = nullptr;
+        if (root) {
+            if (auto* attachNode = root->GetObjectByName("Attach")) {
+                defaultAttachNode = attachNode->AsNode();
+            }
+        }
+        return defaultAttachNode;
+    }
+
+    std::vector<RE::BSGeometry*> GetAllGeometries(RE::NiAVObject* root) {
+        std::vector<RE::BSGeometry*> geometries;
+        RE::BSVisit::TraverseScenegraphGeometries(root, [&geometries](RE::BSGeometry* geom) -> RE::BSVisit::BSVisitControl {
+            if (geom && geom->AsGeometry()) {
+                geometries.emplace_back(geom);
+            }
+
+            return RE::BSVisit::BSVisitControl::kContinue;
+        });
+        return geometries;
+    }
+
+    RE::NiAVObject* Clone(RE::NiAVObject* original) {
+        typedef RE::NiAVObject* (*func_t)(RE::NiAVObject* avObj);
+        REL::Relocation<func_t> func{RELOCATION_ID(68835, 70187)};
+        return func(original);
+    }
+
+    RE::NiAVObject* GetContainerMesh(RE::NiAVObject* original, RE::NiAVObject* ContainerMesh) {
+        if (ContainerMesh == nullptr) {
+            return nullptr;
+        }
+
+        auto* node = GetAttachNode(original);
+	    if (!node) {
+		    logger::error("Failed to get attach node for anim object mesh");
+		    return nullptr;
+	    }
+
+        auto geometries = GetAllGeometries(ContainerMesh);
+
+        for (auto* geom : geometries) {
+            if (!geom) {
+                continue;
+            }
+
+            auto* clone = Clone(geom);
+
+            node->AttachChild(clone, true);
+        }
+        return original->AsFadeNode();
     }
 }
 
-static RE::NiNode* GetAttachNode(RE::NiAVObject* animObjectMesh) {
-    auto* root = animObjectMesh->AsFadeNode();
-    RE::NiNode* defaultAttachNode = nullptr;
-    if (root) {
-        if (auto* attachNode = root->GetObjectByName("BookAnimObject")) {
-            defaultAttachNode = attachNode->AsNode();
-        }
-    }
-    return defaultAttachNode;
-}
 
-static std::vector<RE::BSGeometry*> GetAllGeometries(RE::NiAVObject* root) {
-    std::vector<RE::BSGeometry*> geometries;
-    RE::BSVisit::TraverseScenegraphGeometries(root, [&geometries](RE::BSGeometry* geom) -> RE::BSVisit::BSVisitControl {
-        if (geom && geom->AsGeometry()) {
-            geometries.emplace_back(geom);
-        }
 
-        return RE::BSVisit::BSVisitControl::kContinue;
-    });
-    return geometries;
-}
-
-static RE::NiAVObject* Clone(RE::NiAVObject* original) {
-    typedef RE::NiAVObject* (*func_t)(RE::NiAVObject* avObj);
-    REL::Relocation<func_t> func{RELOCATION_ID(68835, 70187)};
-    return func(original);
-}
-
-static RE::NiAVObject* GetContainerMesh(RE::NiAVObject* original, RE::NiAVObject* ContainerMesh) {
-    if (ContainerMesh == nullptr) {
-        return nullptr;
-    }
-
-    auto* node = GetAttachNode(original);
-	if (!node) {
-		logger::error("Failed to get attach node for anim object mesh");
-		return nullptr;
-	}
-
-    auto geometries = GetAllGeometries(ContainerMesh);
-
-    for (auto* geom : geometries) {
-        if (!geom) {
-            continue;
-        }
-
-        auto* clone = Clone(geom);
-
-        SKSE::log::info("Trishape Attached: {}", geom->name.c_str());
-
-        node->AttachChild(clone, true);
-    }
-    return original->AsFadeNode();
-}
-
-RE::NiAVObject* Hooks::AnimObjectHook::LoadAnimObject(RE::TESModel* a_model, RE::BIPED_OBJECT a_bipedObj,
+RE::NiAVObject* Hooks::AnimObjectHook::thunk(RE::TESModel* a_model, RE::BIPED_OBJECT a_bipedObj,
                                                RE::TESObjectREFR* a_actor, RE::BSTSmartPointer<RE::BipedAnim>& a_biped,
                                                RE::NiAVObject* a_root) {
 
-	logger::info("Loading anim object for model1");
     RE::NiAVObject* output = _LoadAnimObject(a_model, a_bipedObj, a_actor, a_biped, a_root);
-    if (const auto animObject = PointerUtil::adjust_pointer<RE::TESObjectANIO>(a_model->GetAsModelTextureSwap(), -0x20);
+    if (const auto animObject = adjust_pointer<RE::TESObjectANIO>(a_model->GetAsModelTextureSwap(), -0x20);
         animObject) { 
-	    logger::info("Loading anim object for model2");
-		// Add check if in container menu?
-		if (container_mesh) {
-	        logger::info("Loading anim object for model3");
-            if (auto* containerMesh = GetContainerMesh(output,container_mesh.get())) {
-	            logger::info("Loading anim object for model4");
-				container_mesh.reset();
+		if (container_meshes.contains(container_mesh)) {
+            if (auto* containerMesh = GetContainerMesh(output,container_meshes.at(container_mesh).get())) {
                 output = containerMesh;
             }
-		    else {
-			    logger::error("Failed to get container mesh for anim object");
-		    }
 		}
     }
 
