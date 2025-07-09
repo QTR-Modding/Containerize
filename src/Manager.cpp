@@ -876,7 +876,9 @@ void Manager::RenameContainer(const std::string& new_name) {
 
 void Manager::OnChestExit(RE::TESObjectREFR* a_chest) {
 
-    Animations::MyAnimator::GetSingleton()->CloseBackpack();
+    if (ModCompatibility::Mods::souls_unpaused_installed) {
+        Animations::MyAnimator::GetSingleton()->CloseBackpack();
+    }
 
 	const auto chest_id = a_chest->GetFormID();
     if (reals_to_takeback.contains(chest_id)) {
@@ -928,7 +930,9 @@ void Manager::OnChestExit(RE::TESObjectREFR* a_chest) {
 
 void Manager::OnChestEnter(RE::TESObjectREFR* a_chest)
 {
-	Animations::MyAnimator::GetSingleton()->OpenBackpack();
+    if (ModCompatibility::Mods::souls_unpaused_installed) {
+	    Animations::MyAnimator::GetSingleton()->OpenBackpack();
+    }
 	const auto chest_id = a_chest->GetFormID();
     queued_chests.erase(chest_id);
     const auto real_bound = RE::TESForm::LookupByID<RE::TESBoundObject>(GetRealID(chest_id));

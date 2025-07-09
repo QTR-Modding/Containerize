@@ -39,6 +39,8 @@ void __stdcall UI::RenderStatus()
 
     ImGui::Text((Strings::use_or_take + ": ").c_str());
     ImGui::SameLine();
+
+	using namespace ModCompatibility::Mods;
     ImGui::TextColored(po3_use_or_take ? color_operational : color_not_operational, po3_use_or_take ? Strings::installed.c_str() : Strings::not_installed.c_str());
 
     ImGui::Text((Strings::object_manipulation + ": ").c_str());

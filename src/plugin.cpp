@@ -29,7 +29,7 @@ void OnMessage(SKSE::MessagingInterface::Message* message) {
         message->type == SKSE::MessagingInterface::kNewGame) {
     }
     if (message->type == SKSE::MessagingInterface::kPostPostLoad) {
-        if (po3_use_or_take) {
+        if (ModCompatibility::Mods::po3_use_or_take) {
 	        Hooks::InstallUseOrTakeHooks();
 			logger::info("Use or Take hooks installed.");
         }
@@ -41,7 +41,7 @@ SKSEPluginLoad(const SKSE::LoadInterface *skse) {
     SpeedProfiler prof("PluginLoad");
     SetupLog();
     SKSE::Init(skse);
-    if (!IsPo3Installed()) {
+    if (!ModCompatibility::Mods::IsPo3Installed()) {
 		logger::critical("Latest version of Po3's Tweaks is not installed.");
 		MsgBoxesNotifs::Windows::Po3ErrMsg();
 		Settings::po3installed = false;

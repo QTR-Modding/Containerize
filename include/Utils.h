@@ -8,14 +8,26 @@ bool GetDllVersion(const std::wstring& dllPath, DWORD& major, DWORD& minor, DWOR
 std::wstring s2ws(const std::string& str);
 
 const auto mod_name = static_cast<std::string>(SKSE::PluginDeclaration::GetSingleton()->GetName());
-constexpr auto po3path = "Data/SKSE/Plugins/po3_Tweaks.dll";
-constexpr auto po3_UoTpath = "Data/SKSE/Plugins/po3_UseOrTake.dll";
-constexpr auto obj_manipu_path = "Data/SKSE/Plugins/ObjectManipulationOverhaul.dll";
-bool IsPo3Installed();
-inline bool IsObjManipuInstalled() { return std::filesystem::exists(obj_manipu_path); };
-inline bool IsPo3_UoTInstalled() { return std::filesystem::exists(po3_UoTpath); };
-const auto po3_use_or_take = IsPo3_UoTInstalled();
-const auto obj_manipu_installed = IsObjManipuInstalled();
+
+namespace ModCompatibility {
+    inline bool IsModInstalled(const char* mod_path) {return std::filesystem::exists(mod_path);}
+    namespace Mods {
+
+        constexpr auto po3path = "Data/SKSE/Plugins/po3_Tweaks.dll";
+        bool IsPo3Installed();
+
+        constexpr auto po3_UoTpath = "Data/SKSE/Plugins/po3_UseOrTake.dll";
+		const auto po3_use_or_take = IsModInstalled(po3_UoTpath);
+
+        constexpr auto obj_manipu_path = "Data/SKSE/Plugins/ObjectManipulationOverhaul.dll";
+		const auto obj_manipu_installed = IsModInstalled(obj_manipu_path);
+
+        constexpr auto souls_unpaused_path = "Data/SKSE/Plugins/SkyrimSoulsRE.dll";
+		const auto souls_unpaused_installed = IsModInstalled(souls_unpaused_path);
+    }
+}
+
+
 
 
 inline std::string no_src_msgbox = std::format(

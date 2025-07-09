@@ -45,8 +45,9 @@ std::wstring s2ws(const std::string& str)
     return wstrTo;
 }
 
-bool IsPo3Installed()
+bool ModCompatibility::Mods::IsPo3Installed()
 {
+    using namespace ModCompatibility::Mods;
     if (!std::filesystem::exists(po3path)) {
         return false;
     }
@@ -165,7 +166,7 @@ FormID GetFormEditorIDFromString(const std::string& formEditorId)
         return 0;
     }
     if (formEditorId.empty()) return 0;
-    if (!IsPo3Installed()) {
+    if (!ModCompatibility::Mods::IsPo3Installed()) {
         logger::error("Po3 is not installed.");
         MsgBoxesNotifs::Windows::Po3ErrMsg();
         return 0;
