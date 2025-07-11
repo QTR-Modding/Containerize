@@ -1,7 +1,7 @@
 #include "Manager.h"
 #include <ranges>
 #include "Papyrus.h"
-#include "Animations.hpp"
+#include "Animations.h"
 #include "Hooks.h"
 #include "CLibUtilsQTR/Tasker.hpp"
 

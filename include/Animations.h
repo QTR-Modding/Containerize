@@ -1,5 +1,6 @@
 #pragma once
-#include "clib_util/singleton.hpp"
+#include "ClibUtil/singleton.hpp"
+#include "CLibUtilsQTR/Animations.hpp"
 
 namespace Animations
 {
