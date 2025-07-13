@@ -47,7 +47,7 @@ namespace Settings {
    
     constexpr std::array<const char*, otherstuffSize> otherstuffKeys = 
     {"INI_changed_msg", "RemoveCarryBoosts","ReturnToInitialMenu", "BatchSell", "CloudStorage", "ObjectManipulationOverhaul"};
-    constexpr std::array<bool, otherstuffSize> otherstuffVals = {true, true, true, true, false, false};
+    constexpr std::array otherstuffVals = {true, true, true, true, false, false};
 
     inline bool cloud_storage_enabled = otherstuffVals[4];
 
@@ -67,11 +67,16 @@ namespace Settings {
     inline bool problems_in_INI_sources = false;
     inline bool duplicate_sources = false;
 
+    struct ConfigData {
+		std::unordered_map<std::string,SourceAnimData> anim_data;
+    };
 };
 
 std::vector<Source> LoadSources();
 void LoadOtherSettings();
-Source parseSource_(const YAML::Node& config);
+std::vector<Source> parseSources(const YAML::Node& config, const Settings::ConfigData& data);
+std::unordered_map<std::string,SourceAnimData> LoadAnimationData();
+void LoadFormGroups();
 std::vector<Source> LoadYAMLSources();
 std::vector<Source> LoadINISources();
 void LoadTranslations();

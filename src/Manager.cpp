@@ -3,6 +3,7 @@
 #include "Papyrus.h"
 #include "Animations.h"
 #include "Hooks.h"
+#include "CLibUtilsQTR/FormReader.hpp"
 #include "CLibUtilsQTR/Tasker.hpp"
 
 void Manager::TakeBackReal(RE::TESBoundObject* real_obj, RE::TESObjectREFR* chest) {
@@ -35,6 +36,20 @@ std::string Manager::GetValueText(const RE::TESObjectREFR* a_container) const {
         return std::to_string(GetChestValue(chest));
     }
     return "";
+}
+
+void Manager::SetUpAnimation(const RE::TESBoundObject* a_fake)
+{
+    constexpr auto a_datatype = Animations::kInventory;
+    const auto a_chestid = GetFakeContainerChestID(a_fake->GetFormID());
+    SetUpAnimation(a_datatype,a_chestid);
+}
+
+void Manager::SetUpAnimation(const RE::TESObjectREFR* a_real)
+{
+    constexpr auto a_datatype = Animations::kDrop;
+    const auto a_chestid = GetContainerChestID(a_real->GetFormID());
+	SetUpAnimation(a_datatype, a_chestid);
 }
 
 std::string Manager::GetChestName(const RE::TESObjectREFR* chest) const
@@ -174,7 +189,8 @@ void Manager::OnLongPressEquip(RE::TESBoundObject* a_fake)
     queued_chests.insert(chest->GetFormID());
     closed_menu = Menu::CloseMenu();
     SKSE::GetTaskInterface()->AddUITask(
-        [this,chest] {
+        [this,chest,a_fake] {
+                SetUpAnimation(a_fake);
                 OpenChestFromMenu(chest);
             }
     );
@@ -198,7 +214,7 @@ void Manager::HandleCraftingExit() {
     for (auto& src : sources) {
         for (const auto& [chest_refid, cont_refid] : src.data) {
             // we trust that the player will leave the crafting menu at some point and everything will be reverted
-            if (cont_refid != 0x14) continue;  // playerda deilse continue
+            if (cont_refid != player_refid) continue;  // playerda deilse continue
             const auto fake_formid = ChestToFakeContainer.at(chest_refid).innerKey;
             const auto fake_bound = RE::TESForm::LookupByID<RE::TESBoundObject>(fake_formid);
             if (!fake_bound) return RaiseMngrErr("Fake bound not found.");
@@ -652,7 +668,7 @@ void Manager::Init() {
 
     // Check for invalid sources (form types etc.)
     for (auto& src : sources) {
-        const auto form_ = GetFormByID(src.formid,src.editorid);
+        const auto form_ = FormReader::GetFormByID(src.formid,src.editorid);
         if (const auto bound_ = src.GetBoundObject(); !form_ || !bound_) {
             init_failed = true;
             logger::error("Failed to initialize Manager due to missing source: {}, {}", src.formid, src.editorid);
@@ -876,9 +892,7 @@ void Manager::RenameContainer(const std::string& new_name) {
 
 void Manager::OnChestExit(RE::TESObjectREFR* a_chest) {
 
-    if (ModCompatibility::Mods::souls_unpaused_installed) {
-        Animations::MyAnimator::GetSingleton()->CloseBackpack();
-    }
+    Animations::MyAnimator::GetSingleton()->CloseBackpack();
 
 	const auto chest_id = a_chest->GetFormID();
     if (reals_to_takeback.contains(chest_id)) {
@@ -930,10 +944,7 @@ void Manager::OnChestExit(RE::TESObjectREFR* a_chest) {
 
 void Manager::OnChestEnter(RE::TESObjectREFR* a_chest)
 {
-    if (ModCompatibility::Mods::souls_unpaused_installed) {
-	    Animations::MyAnimator::GetSingleton()->OpenBackpack();
-    }
-	const auto chest_id = a_chest->GetFormID();
+	const RefID chest_id = a_chest->GetFormID();
     queued_chests.erase(chest_id);
     const auto real_bound = RE::TESForm::LookupByID<RE::TESBoundObject>(GetRealID(chest_id));
 	reals_to_takeback.insert(chest_id);
@@ -946,6 +957,8 @@ void Manager::OnChestEnter(RE::TESObjectREFR* a_chest)
         Hooks::container_meshes.contains(a_formid)) {
 		Hooks::container_mesh = a_formid;
     }
+
+    Animations::MyAnimator::GetSingleton()->OpenBackpack();
 }
 
 bool Manager::IsARegistry(const RefID registry) const {
@@ -1059,9 +1072,9 @@ void Manager::FakePlacement(RefID saved_ref, const RefID chest_ref, RE::TESObjec
     // ya playerda olcak ya da unownedlardan birinde (containerception)
     // bu ikisi disindaki seylere load_game safhasinda bisey yapamiyorum external_cont nullptr sa
     if (Settings::is_pre_0_10_0) {
-		if (chest_ref == saved_ref) saved_ref = 0x14;
+		if (chest_ref == saved_ref) saved_ref = player_refid;
     }
-    if (!external_cont && chest_ref != 0x14 && !IsChest(saved_ref)) return;
+    if (!external_cont && chest_ref != player_refid && !IsChest(saved_ref)) return;
 
     // saved_ref should not be realcontainer out in the world!
     if (IsRealContainer(external_cont)) {
@@ -1101,7 +1114,7 @@ void Manager::FakePlacement(RefID saved_ref, const RefID chest_ref, RE::TESObjec
         
     // (pre 0.10) yani playerda deilse
     //if (chest_ref != saved_ref) {
-    if (saved_ref != 0x14) {
+    if (saved_ref != player_refid) {
 		const auto fake_bound_2 = RE::TESForm::LookupByID<RE::TESBoundObject>(ChestToFakeContainer[chest_ref].innerKey);
         RemoveItem(player_ref, cont_of_fakecont, fake_bound_2,
                    RE::ITEM_REMOVE_REASON::kStoreInContainer);
@@ -1189,7 +1202,7 @@ bool Manager::HandleRegistration(RE::TESObjectREFR* a_item) {
         else {
             const auto chest_refid = GetContainerChestID(container_refid);
             const auto real_cont_id = GetRealID(chest_refid);
-            const auto real_cont_editorid = GetEditorID(real_cont_id);
+            const auto real_cont_editorid = FormReader::GetEditorID(real_cont_id);
             if (real_cont_editorid.empty()) {
                 RaiseMngrErr("Failed to get editorid of real container.");
 			    return false;
@@ -1256,6 +1269,7 @@ void Manager::MsgBoxCallback(const int result) {
     // Activate the unowned chest
     if (const auto chest = GetContainerChest(current_container)) {
 		const auto chest_refid = chest->GetFormID();
+        SetUpAnimation(current_container);
         if (ActivateChest(chest)) {
             reals_to_takeback.insert(chest_refid);
 		}
@@ -1316,6 +1330,27 @@ std::string Manager::GetWeightText(RE::TESObjectREFR* a_chest) const {
         }
     }
 	return "";
+}
+
+void Manager::SetUpAnimation(const Animations::AnimDataType a_datatype, const RefID a_chestid)
+{
+    const auto animator = Animations::MyAnimator::GetSingleton();
+    if (a_datatype == Animations::kInventory && !ModCompatibility::Mods::souls_unpaused_installed) {
+        Hooks::attach_node = "";
+		animator->open_anim = Animation();
+		animator->close_anim = Animation();
+        return;
+    }
+	const auto real_id = GetRealID(a_chestid);
+	if (const auto src = GetContainerSource(real_id)) {
+        const auto anim_data = src->anim_data;
+	    auto [open, close, attach_node] = anim_data.contains(a_datatype)
+                                                    ? anim_data.at(a_datatype)
+                                                    : Animations::AnimData();
+		Hooks::attach_node = attach_node;
+		animator->open_anim = open;
+		animator->close_anim = close;
+	}
 }
 
 bool Manager::PickUpItem(RE::TESObjectREFR* item, const unsigned int max_try) {
@@ -1581,7 +1616,7 @@ void Manager::SendData() {
             bool is_favorited_x = false;
             if (!chest_ref) return RaiseMngrErr("Chest refid is null");
             auto fake_formid = ChestToFakeContainer.at(chest_ref).innerKey;
-            if (cont_ref == 0x14) {
+            if (cont_ref == player_refid) {
                 const auto fake_bound = RE::TESForm::LookupByID<RE::TESBoundObject>(fake_formid);
                 is_equipped_x = Inventory::IsEquipped(fake_bound);
                 is_favorited_x = Inventory::IsFavorited(fake_bound,player_ref);
@@ -1615,7 +1650,7 @@ void Manager::ReceiveData() {
         FormIDX fakecontForm = fakecontForm_contRef.outerKey;
         RefID contRef = fakecontForm_contRef.innerKey;
         if (Settings::is_pre_0_10_0 && contRef == chestRef) {
-			contRef = 0x14;
+			contRef = player_refid;
         }
 
         for (auto& src : sources) {
@@ -1633,7 +1668,7 @@ void Manager::ReceiveData() {
             }
             if (!fakecontForm.name.empty()) renames[fakecontForm.id] = fakecontForm.name;
 
-            if (contRef == 0x14) chest_equipped_fav[chestRef] = {fakecontForm.equipped, fakecontForm.favorited};
+            if (contRef == player_refid) chest_equipped_fav[chestRef] = {fakecontForm.equipped, fakecontForm.favorited};
             else if (fakecontForm.favorited) external_favs.push_back(fakecontForm.id);
 
             no_match = false;
@@ -1682,7 +1717,7 @@ void Manager::ReceiveData() {
         }
         FakePlacementCeption(chest_ref,handled_already);
         const auto _real_fid = ChestToFakeContainer[chest_ref].outerKey;
-        const auto real_editorid = GetEditorID(_real_fid);
+        const auto real_editorid = FormReader::GetEditorID(_real_fid);
         if (real_editorid.empty()) {
             logger::critical("Real container with formid {:x} has no editorid.", _real_fid);
             return RaiseMngrErr("Real container has no editorid.");
@@ -1734,7 +1769,7 @@ void Manager::ReceiveData() {
 
     for (const auto& source : sources) {
         for (auto dyn_formid : DFT->GetFormSet(source.formid, source.editorid)) {
-			const auto editorid = source.editorid.empty() ? GetEditorID(source.formid) : source.editorid;
+			const auto editorid = source.editorid.empty() ? FormReader::GetEditorID(source.formid) : source.editorid;
             DFT->Reserve(source.formid,editorid ,dyn_formid);
 			logger::trace("Reserving formid {:x} for source formid {:x} and editorid {}", dyn_formid, source.formid, source.editorid);
         }

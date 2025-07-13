@@ -19,7 +19,8 @@ void MyPromptSink::ProcessEvent(const SkyPromptAPI::PromptEvent event) const
 	    }
 	    else if (prompt_eventid == 1) {
 		    //logger::info("Prompt event: Rename");
-		    M->OnActivateContainer(crosshairref.get().get(),2);
+			auto a_ref = crosshairref.get().get();
+		    M->OnActivateContainer(a_ref,2);
 	    }
 	    else {
 		    logger::warn("Prompt event: Unrecognized prompt.");

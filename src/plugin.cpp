@@ -7,7 +7,6 @@ void OnMessage(SKSE::MessagingInterface::Message* message) {
     if (message->type == SKSE::MessagingInterface::kDataLoaded) {
         SpeedProfiler prof("Loading Sources");
         // Start
-
         if (SkyPrompt::g_clientID == 0) {
             SkyPrompt::g_clientID = SkyPromptAPI::RequestClientID();
         }
@@ -18,12 +17,10 @@ void OnMessage(SKSE::MessagingInterface::Message* message) {
 
             EventSink::GetSingleton()->Install();
 		    logger::info("EventSinks added.");
-
         }
         else {
             logger::error("Failed to get client ID from SkyPrompt API. Plugin will not work properly.");
         }
-
     }
     if (message->type == SKSE::MessagingInterface::kPostLoadGame ||
         message->type == SKSE::MessagingInterface::kNewGame) {
@@ -41,13 +38,12 @@ SKSEPluginLoad(const SKSE::LoadInterface *skse) {
     SpeedProfiler prof("PluginLoad");
     SetupLog();
     SKSE::Init(skse);
-    if (!ModCompatibility::Mods::IsPo3Installed()) {
+    ModCompatibility::MakeChecks();
+    if (!Settings::po3installed) {
 		logger::critical("Latest version of Po3's Tweaks is not installed.");
-		MsgBoxesNotifs::Windows::Po3ErrMsg();
-		Settings::po3installed = false;
+        MsgBoxesNotifs::Windows::Po3ErrMsg();
 		return false;
     }
-	Settings::po3installed = true;
     Hooks::Install();
     LoadOtherSettings();
     Serialization::InitializeSerialization();

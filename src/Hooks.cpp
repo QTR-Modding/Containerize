@@ -366,7 +366,7 @@ namespace {
         auto* root = animObjectMesh->AsFadeNode();
         RE::NiNode* defaultAttachNode = nullptr;
         if (root) {
-            if (auto* attachNode = root->GetObjectByName("Attach")) {
+            if (auto* attachNode = root->GetObjectByName(Hooks::attach_node)) {
                 defaultAttachNode = attachNode->AsNode();
             }
         }

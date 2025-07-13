@@ -12,7 +12,6 @@ public clib_util::singleton::ISingleton<Manager>
     RE::TESObjectREFR* player_ref = RE::PlayerCharacter::GetSingleton()->As<RE::TESObjectREFR>();
     //RE::EffectSetting* empty_mgeff = nullptr;
     
-    //  maybe i dont need this by using uniqueID for new forms
     // runtime specific
     std::map<RefID,FormFormID> ChestToFakeContainer; // chest refid -> {real container formid (outerKey), fake container formid (innerKey)}
     RE::TESObjectREFR* current_container = nullptr;
@@ -69,11 +68,11 @@ public clib_util::singleton::ISingleton<Manager>
 
     void OpenChestFromMenu(RE::TESObjectREFR* a_chest);
 
-    // OK. from real container formid to linked source
     [[nodiscard]] const Source* GetContainerSource(FormID real_id) const;
     [[nodiscard]] Source* GetContainerSource(FormID real_id);
 
-    // returns true only if the item is in the inventory with positive count. removes the item if it is in the inventory with 0 count
+    // returns true only if the item is in the inventory with positive count. removes the item if it is in the inventory with 0 count.
+    // do I need this?
     [[nodiscard]] static bool HasItemPlusCleanUp(RE::TESBoundObject* item, RE::TESObjectREFR* item_owner);
 
     // removes only one unit of the item
@@ -134,6 +133,7 @@ public clib_util::singleton::ISingleton<Manager>
     }
 
     std::string GetWeightText(RE::TESObjectREFR* a_chest) const;
+    void SetUpAnimation(Animations::AnimDataType a_datatype, RefID a_chestid);
 
 public:
 
@@ -188,7 +188,7 @@ public:
     void HandleFormDelete(RefID refid);
 
     // checks if the refid is in the ChestToFakeContainer, i.e. if it is an unownedchest
-    [[nodiscard]] bool IsChest(const RefID chest_refid) const { return ChestToFakeContainer.contains(chest_refid); }
+    [[nodiscard]] bool IsChest(const RefID a_refid) const { return ChestToFakeContainer.contains(a_refid); }
 
     void Reset();
 
@@ -206,6 +206,8 @@ public:
     std::string GetWeightText(const RE::TESObjectREFR* a_container) const;
     std::string GetWeightText(RE::TESBoundObject* a_fake) const;
     std::string GetValueText(const RE::TESObjectREFR* a_container) const;
+    void SetUpAnimation(const RE::TESBoundObject* a_fake);
+    void SetUpAnimation(const RE::TESObjectREFR* a_real);
 };
 
 template<typename T>
