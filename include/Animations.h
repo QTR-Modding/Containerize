@@ -43,7 +43,7 @@ namespace Animations
 			close_anim = {};
         }
 
-		bool opened = false;
+		bool opened = false; // only for animations with anim object
 		std::vector<Animation> open_anim;
 		std::vector<Animation> close_anim;
 
@@ -57,10 +57,10 @@ namespace Animations
 			close_anim = a_close_anim;
 		}
 
-		void OpenBackpack() {
+		void OpenBag() {
 		    Add2Q(open_anim);
 		}
-		void CloseBackpack() {
+		void CloseBag() {
 		    Add2Q(close_anim);
 		}
 

@@ -2,6 +2,7 @@
 #include "Events.h"
 #include "Hooks.h"
 #include "Manager.h"
+#include "CLibUtilsQTR/Tasker.hpp"
 
 using namespace SkyPrompt;
 
@@ -15,11 +16,20 @@ void MyPromptSink::ProcessEvent(const SkyPromptAPI::PromptEvent event) const
 	if (const auto crosshairref = RE::CrosshairPickData::GetSingleton()->target) {
         if (const auto prompt_eventid = event.prompt.eventID; 
 			prompt_eventid == 0) {
-		    M->OnActivateContainer(crosshairref.get().get(), 0);
+
+            if (SetUpPlayAnimation(crosshairref.get().get())) {
+				const auto duration = Animations::MyAnimator::GetSingleton()->GetOpenDuration();
+                clib_utilsQTR::Tasker::GetSingleton()->PushTask([crosshairref] {
+		            Manager::GetSingleton()->OnActivateContainer(crosshairref.get().get(), 0);
+                },static_cast<int>(duration));
+			}
+	        else {
+		       M->OnActivateContainer(crosshairref.get().get(), 0);
+			}
+
 	    }
 	    else if (prompt_eventid == 1) {
-		    //logger::info("Prompt event: Rename");
-			auto a_ref = crosshairref.get().get();
+			const auto a_ref = crosshairref.get().get();
 		    M->OnActivateContainer(a_ref,2);
 	    }
 	    else {
@@ -62,6 +72,51 @@ bool SkyPrompt::IsAnyMenuOpen() {
 	return false;
 }
 
+void MenuPromptSink::GetContainerMesh(const RE::TESBoundObject* a_item) {
+	if (const auto a_formid = a_item->GetFormID(); 
+		!Hooks::container_meshes.contains(a_formid)) {
+        for (const auto& loaded_models = RE::Inventory3DManager::GetSingleton()->GetRuntimeData().loadedModels; 
+			auto& a_loaded_model : loaded_models) {
+			if (a_loaded_model.modelObj->GetFormID() == a_formid) {
+                Hooks::container_meshes[a_formid] = a_loaded_model.spModel;
+				break;
+			}
+		}
+	}
+}
+
+bool SkyPrompt::MenuPromptSink::SetUpPlayAnimation(const RE::TESBoundObject* a_item) {
+    Hooks::container_mesh = a_item->GetFormID();
+    Manager::GetSingleton()->SetUpAnimation(a_item);
+
+    bool opening_bag = false;
+    if (ModCompatibility::Mods::souls_unpaused_installed || 
+        Settings::AnimationsDelayMenuOpen() && !Animations::MyAnimator::GetSingleton()->isRunning()) {
+        Animations::MyAnimator::GetSingleton()->OpenBag();
+	    opening_bag = true;
+    }
+
+    if (opening_bag && Settings::AnimationsDelayMenuOpen()) {
+	    return true;
+    }
+	return false;
+}
+
+bool SkyPrompt::MyPromptSink::SetUpPlayAnimation(const RE::TESObjectREFR* a_ref) {
+    Manager::GetSingleton()->SetUpAnimation(a_ref);
+    bool opening_bag = false;
+    if (ModCompatibility::Mods::souls_unpaused_installed || 
+        Settings::AnimationsDelayMenuOpen() && !Animations::MyAnimator::GetSingleton()->isRunning()) {
+        Animations::MyAnimator::GetSingleton()->OpenBag();
+	    opening_bag = true;
+    }
+
+    if (opening_bag && Settings::AnimationsDelayMenuOpen()) {
+	    return true;
+    }
+	return false;
+}
+
 void SkyPrompt::MenuPromptSink::ProcessEvent(const SkyPromptAPI::PromptEvent event) const
 {
 #undef GetObject
@@ -70,20 +125,25 @@ void SkyPrompt::MenuPromptSink::ProcessEvent(const SkyPromptAPI::PromptEvent eve
 	}
 	if (const auto a_entry = Hooks::GetSelectedEntryInMenu()) {
 	    if (const auto a_item = a_entry->GetObject()){
-            if (const auto a_formid = a_item->GetFormID(); 
-			    !Hooks::container_meshes.contains(a_formid)) {
-                for (const auto& loaded_models = RE::Inventory3DManager::GetSingleton()->GetRuntimeData().loadedModels; 
-				    auto& a_loaded_model : loaded_models) {
-			        if (a_loaded_model.modelObj->GetFormID() == a_formid) {
-                        Hooks::container_meshes[a_formid] = a_loaded_model.spModel;
-					    break;
-			        }
-		        }
-	        }
+
+	        GetContainerMesh(a_item);
+
 			if (a_entry->IsWorn()) {
                 Hooks::AnimObjectHook::OnIsWorn(a_item);
 			}
-	        Manager::GetSingleton()->OnLongPressEquip(a_item);
+
+            Manager::GetSingleton()->CloseMenu();
+
+
+			if (SetUpPlayAnimation(a_item)) {
+				const auto duration = Animations::MyAnimator::GetSingleton()->GetOpenDuration();
+                clib_utilsQTR::Tasker::GetSingleton()->PushTask([a_item] {
+	                Manager::GetSingleton()->OnLongPressEquip(a_item);
+                },static_cast<int>(duration));
+			}
+	        else {
+	            Manager::GetSingleton()->OnLongPressEquip(a_item);
+			}
 	    }
 	}
 }

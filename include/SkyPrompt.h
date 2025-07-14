@@ -17,6 +17,8 @@ namespace SkyPrompt {
 
 		std::array<SkyPromptAPI::Prompt, 2> prompts = { open_prompt, rename_prompt };
 
+        static bool SetUpPlayAnimation(const RE::TESObjectREFR* a_ref);
+
     public:
         void ProcessEvent(SkyPromptAPI::PromptEvent event) const override;
 	    std::span<const SkyPromptAPI::Prompt> GetPrompts() const override { return prompts; }
@@ -49,6 +51,9 @@ namespace SkyPrompt {
 		mutable SkyPromptAPI::Prompt weight_prompt{ weight_text,2,0, SkyPromptAPI::PromptType::kSinglePress,0, akatosh_keys};
 	    mutable SkyPromptAPI::Prompt open_prompt{ "Open",0,0, SkyPromptAPI::PromptType::kHold};
 		mutable std::array<SkyPromptAPI::Prompt, 2> prompts = { open_prompt, weight_prompt};
+
+        static void GetContainerMesh(const RE::TESBoundObject* a_item);
+        static bool SetUpPlayAnimation(const RE::TESBoundObject* a_item);
 
     public:
         void ProcessEvent(SkyPromptAPI::PromptEvent event) const override;

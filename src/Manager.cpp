@@ -52,6 +52,15 @@ void Manager::SetUpAnimation(const RE::TESObjectREFR* a_real)
 	SetUpAnimation(a_datatype, a_chestid);
 }
 
+void Manager::CloseMenu() {
+    if (const auto ui = RE::UI::GetSingleton(); ui->IsMenuOpen(RE::ContainerMenu::MENU_NAME)) {
+		if (!LookupReferenceByHandle(RE::ContainerMenu::GetTargetRefHandle(), containermenu_owner)) {
+			containermenu_owner.reset();
+		}
+    }
+    closed_menu = Menu::CloseMenu();
+}
+
 std::string Manager::GetChestName(const RE::TESObjectREFR* chest) const
 {
     auto chest_id = chest->GetFormID();
@@ -180,37 +189,13 @@ void Manager::UpdateData(const RefID chestID, const RefID loc_id)
 
 void Manager::OnLongPressEquip(RE::TESBoundObject* a_fake)
 {
-    if (const auto ui = RE::UI::GetSingleton(); ui->IsMenuOpen(RE::ContainerMenu::MENU_NAME)) {
-		if (!LookupReferenceByHandle(RE::ContainerMenu::GetTargetRefHandle(), containermenu_owner)) {
-			containermenu_owner.reset();
-		}
-    }
 	auto chest = GetFakeContainerChest(a_fake);
     queued_chests.insert(chest->GetFormID());
-    closed_menu = Menu::CloseMenu();
-    Hooks::container_mesh = a_fake->GetFormID();
-    SetUpAnimation(a_fake);
-    Animations::MyAnimator::GetSingleton()->OpenBackpack();
-
-    if (Settings::AnimationsDelayMenuOpen()) {
-		const auto duration = Animations::MyAnimator::GetSingleton()->GetOpenDuration();
-        clib_utilsQTR::Tasker::GetSingleton()->PushTask(
-            [this,chest] {
-                SKSE::GetTaskInterface()->AddUITask(
-                    [this,chest] {
-                            OpenChestFromMenu(chest);
-                        }
-                );
-            },static_cast<int>(duration)
-        );
-    }
-    else {
-        SKSE::GetTaskInterface()->AddUITask(
-            [this,chest] {
-                    OpenChestFromMenu(chest);
-                }
-        );
-    }
+    SKSE::GetTaskInterface()->AddUITask(
+        [this,chest] {
+                OpenChestFromMenu(chest);
+            }
+    );
 }
 
 bool Manager::ActivateChest(RE::TESObjectREFR* chest) const {
@@ -910,7 +895,7 @@ void Manager::RenameContainer(const std::string& new_name) {
 
 void Manager::OnChestExit(RE::TESObjectREFR* a_chest) {
 
-    Animations::MyAnimator::GetSingleton()->CloseBackpack();
+    Animations::MyAnimator::GetSingleton()->CloseBag();
 
 	const auto chest_id = a_chest->GetFormID();
     if (reals_to_takeback.contains(chest_id)) {
@@ -1346,12 +1331,6 @@ std::string Manager::GetWeightText(RE::TESObjectREFR* a_chest) const {
 void Manager::SetUpAnimation(const Animations::AnimDataType a_datatype, const RefID a_chestid)
 {
     const auto animator = Animations::MyAnimator::GetSingleton();
-    if (!ModCompatibility::Mods::souls_unpaused_installed) {
-        Hooks::attach_node = "";
-        animator->SetOpenAnim({});
-        animator->SetCloseAnim({});
-        return;
-    }
 	const auto real_id = GetRealID(a_chestid);
 	if (const auto src = GetContainerSource(real_id)) {
         const auto anim_data = src->anim_data;

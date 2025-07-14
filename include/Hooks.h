@@ -5,6 +5,11 @@ namespace Hooks {
 	void Install();
 	void InstallUseOrTakeHooks();
 
+    struct DrawHook {
+		static void thunk(std::uint32_t a_timer);
+        static inline REL::Relocation<decltype(thunk)> func;
+	};
+
     inline bool HandleEquip(RE::InputEvent* event);
     RE::InventoryEntryData* GetSelectedEntryInMenu();
     RE::TESBoundObject* GetSelectedItemInMenu();

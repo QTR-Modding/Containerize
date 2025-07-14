@@ -16,7 +16,7 @@ void Hooks::Install()
 
 	auto& trampoline = SKSE::GetTrampoline();
     constexpr size_t size_per_hook = 14;
-	trampoline.create(size_per_hook*4);
+	trampoline.create(size_per_hook*5);
 
 	const REL::Relocation<std::uintptr_t> target4{REL::RelocationID(67315, 68617)};
     InputHook::func = trampoline.write_call<5>(target4.address() + 0x7B, InputHook::thunk);
@@ -30,6 +30,9 @@ void Hooks::Install()
 	REL::Relocation<std::uintptr_t> target{REL::RelocationID(42420, 43576),
                                                    REL::Relocate(0x22A, 0x21F)};  // AnimationObjects::Load
     AnimObjectHook::_LoadAnimObject = trampoline.write_call<5>(target.address(), AnimObjectHook::thunk);
+
+	const REL::Relocation<std::uintptr_t> target2{REL::RelocationID(75461, 77246)}; // BSGraphics::Renderer::End
+    DrawHook::func = trampoline.write_call<5>(target2.address() + 0x9, DrawHook::thunk);
 }
 void Hooks::InstallUseOrTakeHooks()
 {
@@ -470,4 +473,42 @@ int64_t Hooks::InventoryHoverHook::thunk(RE::InventoryEntryData* a1)
 		}
 	}
 	return originalFunction(a1);
+}
+
+namespace {
+	bool IsGameFrozen() {
+        if (const auto main = RE::Main::GetSingleton()) {
+            if (main->freezeTime) return true;
+            if (!main->gameActive) return true;
+        }
+	    else return true;
+	    if (RE::UI::GetSingleton()->GameIsPaused()) return true;
+	    return false;
+    }
+
+	bool IsGameWindowInFocus() {
+        const HWND foregroundWindow = GetForegroundWindow();
+        if (!foregroundWindow) {
+            return false;
+        }
+
+        DWORD foregroundProcessId;
+        GetWindowThreadProcessId(foregroundWindow, &foregroundProcessId);
+
+        const DWORD currentProcessId = GetCurrentProcessId();
+        return foregroundProcessId == currentProcessId;
+    }
+    
+}
+
+void Hooks::DrawHook::thunk(std::uint32_t a_timer)
+{
+	func(a_timer);
+
+    if (IsGameFrozen() || !IsGameWindowInFocus()) {
+        Animations::MyAnimator::GetSingleton()->Pause();
+    }
+	else {
+        Animations::MyAnimator::GetSingleton()->Resume();
+    }
 }

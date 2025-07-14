@@ -208,6 +208,7 @@ public:
     std::string GetValueText(const RE::TESObjectREFR* a_container) const;
     void SetUpAnimation(const RE::TESBoundObject* a_fake);
     void SetUpAnimation(const RE::TESObjectREFR* a_real);
+    void CloseMenu();
 };
 
 template<typename T>
