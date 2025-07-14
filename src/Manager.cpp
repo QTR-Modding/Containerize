@@ -188,15 +188,29 @@ void Manager::OnLongPressEquip(RE::TESBoundObject* a_fake)
 	auto chest = GetFakeContainerChest(a_fake);
     queued_chests.insert(chest->GetFormID());
     closed_menu = Menu::CloseMenu();
-    SKSE::GetTaskInterface()->AddUITask(
-        [this,chest,a_fake] {
-                SetUpAnimation(a_fake);
-                OpenChestFromMenu(chest);
-                if (Hooks::objectNode) {
-                    Animations::MyAnimator::GetSingleton()->OpenBackpack();
+    Hooks::container_mesh = a_fake->GetFormID();
+    SetUpAnimation(a_fake);
+    Animations::MyAnimator::GetSingleton()->OpenBackpack();
+
+    if (Settings::AnimationsDelayMenuOpen()) {
+		const auto duration = Animations::MyAnimator::GetSingleton()->GetOpenDuration();
+        clib_utilsQTR::Tasker::GetSingleton()->PushTask(
+            [this,chest] {
+                SKSE::GetTaskInterface()->AddUITask(
+                    [this,chest] {
+                            OpenChestFromMenu(chest);
+                        }
+                );
+            },static_cast<int>(duration)
+        );
+    }
+    else {
+        SKSE::GetTaskInterface()->AddUITask(
+            [this,chest] {
+                    OpenChestFromMenu(chest);
                 }
-            }
-    );
+        );
+    }
 }
 
 bool Manager::ActivateChest(RE::TESObjectREFR* chest) const {
@@ -204,13 +218,6 @@ bool Manager::ActivateChest(RE::TESObjectREFR* chest) const {
     unownedChest->fullName = GetChestName(chest);
     if (const auto a_obj = chest->GetBaseObject()->As<RE::TESObjectCONT>()) {
         RE::TESObjectCONT::SetOpenState(chest,false,true);
-
-        if (Hooks::objectNode) {
-            clib_utilsQTR::Tasker::GetSingleton()->PushTask(
-                [this, chest, a_obj] { a_obj->Activate(chest, player_ref, 0, a_obj, 1); },
-                1000);  // Animation enter time?
-            return true;
-        }
         return a_obj->Activate(chest, player_ref, 0, a_obj, 1);
 
     }
@@ -937,14 +944,6 @@ void Manager::OnChestExit(RE::TESObjectREFR* a_chest) {
             }
             else {
 			    Menu::OpenMenu(closed_menu);
-                if (Hooks::objectNode) {
-                    clib_utilsQTR::Tasker::GetSingleton()->PushTask( [] {
-                            Hooks::objectNode->CullGeometry(true);
-                            Hooks::objectNode = nullptr;
-                        },
-                        1500); //Animation exit time?
-
-                }
             }
             closed_menu = "";
 		}
@@ -971,15 +970,6 @@ void Manager::OnChestEnter(RE::TESObjectREFR* a_chest)
 	RemoveItem(a_chest, unownedChestOG, real_bound, RE::ITEM_REMOVE_REASON::kStoreInContainer);
 	const auto fake_bound = GetFakeBound(chest_id);
 	fake_bound->formFlags = 13;
-
-    if (const auto a_formid = fake_bound->GetFormID();
-        Hooks::container_meshes.contains(a_formid)) {
-		Hooks::container_mesh = a_formid;
-    }
-
-    if (!Hooks::objectNode) {
-        Animations::MyAnimator::GetSingleton()->OpenBackpack();
-    }
 }
 
 bool Manager::IsARegistry(const RefID registry) const {
@@ -1356,10 +1346,10 @@ std::string Manager::GetWeightText(RE::TESObjectREFR* a_chest) const {
 void Manager::SetUpAnimation(const Animations::AnimDataType a_datatype, const RefID a_chestid)
 {
     const auto animator = Animations::MyAnimator::GetSingleton();
-    if (!Settings::AnimationsDelayMenuOpen() && !ModCompatibility::Mods::souls_unpaused_installed) {
+    if (!ModCompatibility::Mods::souls_unpaused_installed) {
         Hooks::attach_node = "";
-		animator->open_anim = {};
-		animator->close_anim = {};
+        animator->SetOpenAnim({});
+        animator->SetCloseAnim({});
         return;
     }
 	const auto real_id = GetRealID(a_chestid);
@@ -1369,8 +1359,8 @@ void Manager::SetUpAnimation(const Animations::AnimDataType a_datatype, const Re
                                                     ? anim_data.at(a_datatype)
                                                     : Animations::AnimData();
 		Hooks::attach_node = attach_node;
-		animator->open_anim = open;
-		animator->close_anim = close;
+        animator->SetOpenAnim(open);
+		animator->SetCloseAnim(close);
 	}
 }
 

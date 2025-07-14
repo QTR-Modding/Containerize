@@ -64,21 +64,27 @@ bool SkyPrompt::IsAnyMenuOpen() {
 
 void SkyPrompt::MenuPromptSink::ProcessEvent(const SkyPromptAPI::PromptEvent event) const
 {
+#undef GetObject
 	if (event.type) {
 		return;
 	}
-	if (const auto a_item = Hooks::GetSelectedItemInMenu()){
-        if (const auto a_formid = a_item->GetFormID(); 
-			!Hooks::container_meshes.contains(a_formid)) {
-            for (const auto& loaded_models = RE::Inventory3DManager::GetSingleton()->GetRuntimeData().loadedModels; 
-				auto& a_loaded_model : loaded_models) {
-			    if (a_loaded_model.modelObj->GetFormID() == a_formid) {
-                    Hooks::container_meshes[a_formid] = a_loaded_model.spModel;
-					break;
-			    }
-		    }
+	if (const auto a_entry = Hooks::GetSelectedEntryInMenu()) {
+	    if (const auto a_item = a_entry->GetObject()){
+            if (const auto a_formid = a_item->GetFormID(); 
+			    !Hooks::container_meshes.contains(a_formid)) {
+                for (const auto& loaded_models = RE::Inventory3DManager::GetSingleton()->GetRuntimeData().loadedModels; 
+				    auto& a_loaded_model : loaded_models) {
+			        if (a_loaded_model.modelObj->GetFormID() == a_formid) {
+                        Hooks::container_meshes[a_formid] = a_loaded_model.spModel;
+					    break;
+			        }
+		        }
+	        }
+			if (a_entry->IsWorn()) {
+                Hooks::AnimObjectHook::OnIsWorn(a_item);
+			}
+	        Manager::GetSingleton()->OnLongPressEquip(a_item);
 	    }
-	    Manager::GetSingleton()->OnLongPressEquip(a_item);
 	}
 }
 

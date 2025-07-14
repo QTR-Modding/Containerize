@@ -69,27 +69,20 @@ bool Hooks::HandleEquip(RE::InputEvent* event)
     return false;
 }
 
-RE::TESBoundObject* Hooks::GetSelectedItemInMenu()
+RE::InventoryEntryData* Hooks::GetSelectedEntryInMenu()
 {
-#undef GetObject
     if (const auto ui = RE::UI::GetSingleton()) {
 	    if (const auto menu_c = ui->GetMenu<RE::ContainerMenu>()) {
 		    if (const auto a_itemList = menu_c->GetRuntimeData().itemList) {
 		        if (const auto item = a_itemList->GetSelectedItem()) {
-				    if (const auto a_data = item->data.objDesc) {
-                        AnimObjectHook::OnIsWorn(a_data);
-				        return a_data->GetObject();
-				    }
+					return item->data.objDesc;
 		        }
 		    }
 	    }
 	    else if (const auto menu_i = ui->GetMenu<RE::InventoryMenu>()) {
 		    if (const auto a_itemList = menu_i->GetRuntimeData().itemList) {
 		        if (const auto item = a_itemList->GetSelectedItem()) {
-                    if (const auto a_data = item->data.objDesc) {
-						AnimObjectHook::OnIsWorn(a_data);
-				        return a_data->GetObject();
-				    }
+                    return item->data.objDesc;
 		        }
 		    }
 	    }
@@ -100,17 +93,23 @@ RE::TESBoundObject* Hooks::GetSelectedItemInMenu()
                 const std::int32_t selected_index = static_cast<std::int32_t>(selectedIndex.GetNumber());
 			    const auto& items = runtime_data.favorites;
 			    if (selected_index >= 0 && static_cast<uint32_t>(selected_index) < items.size()) {
-			        if (const auto item = items[selected_index].item) {
-                        if (const auto bound = skyrim_cast<RE::TESBoundObject*>(item)) {
-							AnimObjectHook::OnIsWorn(items[selected_index].entryData);
-						    return bound;
-				        }
-			        }
+					return items[selected_index].entryData;
 			    }
 		    }
 	    }
     }
     return nullptr;
+}
+
+RE::TESBoundObject* Hooks::GetSelectedItemInMenu()
+{
+#undef GetObject
+	if (auto selected_entry = GetSelectedEntryInMenu()) {
+		if (const auto selected_object = selected_entry->GetObject()) {
+			return selected_object;
+		}
+	}
+	return nullptr;
 }
 
 
@@ -401,7 +400,7 @@ namespace {
 
         auto* node = GetAttachNode(original);
 	    if (!node) {
-		    logger::error("Failed to get attach node for anim object mesh");
+		    logger::warn("Failed to get attach node for anim object mesh");
 		    return nullptr;
 	    }
 
@@ -421,25 +420,21 @@ namespace {
 }
 
 
-
-void Hooks::AnimObjectHook::OnIsWorn(RE::InventoryEntryData* a_data)
+void Hooks::AnimObjectHook::OnIsWorn(RE::TESBoundObject* object_to_equip)
 {
-	if (!Settings::AnimationsDelayMenuOpen()) {
-	    return;
-	}
-	return; // let's find an implementation which doesn't explicitly unequip the item
-    if (a_data->IsWorn()) {
-        auto object_to_equip = a_data->GetObject();
-        if (object_to_equip && object_to_equip->GetFormType() == RE::FormType::Armor) {
-            RE::PlayerCharacter* player = RE::PlayerCharacter::GetSingleton();
-            RE::TESObjectARMO* armor = a_data->GetObject()->As<RE::TESObjectARMO>();
-            RE::TESRace* race = player->GetRace();
-            RE::TESObjectARMA* armorAddon = armor->GetArmorAddon(race);
-            char addonString[MAX_PATH]{'\0'};
-            armorAddon->GetNodeName(addonString, player, armor,-1.0f);
-            objectNode = player->GetNodeByName(addonString);
-            objectNode->CullGeometry(false);
-        }
+    if (object_to_equip->GetFormType() == RE::FormType::Armor) {
+        RE::PlayerCharacter* player = RE::PlayerCharacter::GetSingleton();
+        RE::TESObjectARMO* armor = object_to_equip->As<RE::TESObjectARMO>();
+        RE::TESRace* race = player->GetRace();
+        RE::TESObjectARMA* armorAddon = armor->GetArmorAddon(race);
+        char addonString[MAX_PATH]{'\0'};
+        armorAddon->GetNodeName(addonString, player, armor,-1.0f);
+		if (const auto a_node = player->GetNodeByName(addonString)) {
+		    objectNode.reset(a_node);
+		}
+		else {
+			logger::error("Failed to get node by name: {}", addonString);
+		}
     }
 }
 
