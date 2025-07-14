@@ -943,10 +943,10 @@ void Manager::OnChestExit(RE::TESObjectREFR* a_chest) {
                         RE::ActorEquipManager::GetSingleton()->EquipObject(RE::PlayerCharacter::GetSingleton(),
                                                                            Hooks::object_to_equip);
                             Hooks::object_to_equip = nullptr;
+                            RE::SendUIMessage::SendInventoryUpdateMessage(RE::PlayerCharacter::GetSingleton(), nullptr);
                         },
                         1500); //Animation exit time?
 
-                    RE::SendUIMessage::SendInventoryUpdateMessage(RE::PlayerCharacter::GetSingleton(), nullptr);
                 }
             }
             closed_menu = "";
