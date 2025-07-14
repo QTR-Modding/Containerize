@@ -210,9 +210,8 @@ bool Manager::ActivateChest(RE::TESObjectREFR* chest) const {
                 [this, chest, a_obj] { a_obj->Activate(chest, player_ref, 0, a_obj, 1); },
                 1000);  // Animation enter time?
             return true;
-        } else {
-            return a_obj->Activate(chest, player_ref, 0, a_obj, 1);
         }
+        return a_obj->Activate(chest, player_ref, 0, a_obj, 1);
 
     }
     logger::error("ActivateChest: Chest is not a container.");

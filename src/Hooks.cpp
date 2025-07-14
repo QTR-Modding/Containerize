@@ -77,11 +77,7 @@ RE::TESBoundObject* Hooks::GetSelectedItemInMenu()
 		    if (const auto a_itemList = menu_c->GetRuntimeData().itemList) {
 		        if (const auto item = a_itemList->GetSelectedItem()) {
 				    if (const auto a_data = item->data.objDesc) {
-                        if (a_data->IsWorn()) {
-                            object_to_equip = a_data->GetObject();
-                            RE::ActorEquipManager::GetSingleton()->UnequipObject(RE::PlayerCharacter::GetSingleton(),
-                                                                                 object_to_equip);
-                        }
+                        AnimObjectHook::OnIsWorn(a_data);
 				        return a_data->GetObject();
 				    }
 		        }
@@ -91,11 +87,7 @@ RE::TESBoundObject* Hooks::GetSelectedItemInMenu()
 		    if (const auto a_itemList = menu_i->GetRuntimeData().itemList) {
 		        if (const auto item = a_itemList->GetSelectedItem()) {
                     if (const auto a_data = item->data.objDesc) {
-                        if (a_data->IsWorn()) {
-                            object_to_equip = a_data->GetObject();
-                            RE::ActorEquipManager::GetSingleton()->UnequipObject(RE::PlayerCharacter::GetSingleton(),
-                                                                                 object_to_equip);
-                        }
+						AnimObjectHook::OnIsWorn(a_data);
 				        return a_data->GetObject();
 				    }
 		        }
@@ -110,11 +102,7 @@ RE::TESBoundObject* Hooks::GetSelectedItemInMenu()
 			    if (selected_index >= 0 && static_cast<uint32_t>(selected_index) < items.size()) {
 			        if (const auto item = items[selected_index].item) {
                         if (const auto bound = skyrim_cast<RE::TESBoundObject*>(item)) {
-                            if (items[selected_index].entryData->IsWorn()) {
-                                object_to_equip = bound;
-                                RE::ActorEquipManager::GetSingleton()->UnequipObject(
-                                    RE::PlayerCharacter::GetSingleton(), object_to_equip);
-                            }
+							AnimObjectHook::OnIsWorn(items[selected_index].entryData);
 						    return bound;
 				        }
 			        }
@@ -433,6 +421,19 @@ namespace {
 }
 
 
+
+void Hooks::AnimObjectHook::OnIsWorn(RE::InventoryEntryData* a_data)
+{
+	if (!other_settings.at(Settings::otherstuffKeys.at(6))) {
+	    return;
+	}
+	return; // let's find an implementation which doesn't explicitly unequip the item
+    if (a_data->IsWorn()) {
+        object_to_equip = a_data->GetObject();
+        RE::ActorEquipManager::GetSingleton()->UnequipObject(RE::PlayerCharacter::GetSingleton(),
+                                                             object_to_equip);
+    }
+}
 
 RE::NiAVObject* Hooks::AnimObjectHook::thunk(RE::TESModel* a_model, RE::BIPED_OBJECT a_bipedObj,
                                                RE::TESObjectREFR* a_actor, RE::BSTSmartPointer<RE::BipedAnim>& a_biped,

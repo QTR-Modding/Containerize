@@ -35,7 +35,7 @@ namespace Settings {
         };
 
 
-    constexpr size_t otherstuffSize = 6;
+    constexpr size_t otherstuffSize = 7;
     const std::array<std::string, otherstuffSize> os_comments =
 		{";Set to false to suppress the 'INI changed between saves' message.",
 		"; Set to true to remove the initial carry weight bonuses on your container items.",
@@ -43,11 +43,12 @@ namespace Settings {
         "; Set to true to sell your container to vendors together with the items inside it.",
         "; Set to true to make your containers weigh nothing by default.",
         "; Set to true to make use of Object Manipulation Overhaul upon dropping containers.",
+		"; Set to true to delay the opening of the container menu until the animations are finished."
 		};
    
     constexpr std::array<const char*, otherstuffSize> otherstuffKeys = 
-    {"INI_changed_msg", "RemoveCarryBoosts","ReturnToInitialMenu", "BatchSell", "CloudStorage", "ObjectManipulationOverhaul"};
-    constexpr std::array otherstuffVals = {true, true, true, true, false, false};
+    {"INI_changed_msg", "RemoveCarryBoosts","ReturnToInitialMenu", "BatchSell", "CloudStorage", "ObjectManipulationOverhaul", "AnimationsDelayMenuOpen"};
+    constexpr std::array<bool, otherstuffSize> otherstuffVals = {true, true, true, true, false, false, false};
 
     inline bool cloud_storage_enabled = otherstuffVals[4];
 
