@@ -128,14 +128,16 @@ void SkyPrompt::MenuPromptSink::ProcessEvent(const SkyPromptAPI::PromptEvent eve
 
 	        GetContainerMesh(a_item);
 
-			if (a_entry->IsWorn()) {
+			bool is_worn = a_entry->IsWorn();
+			if (is_worn) {
                 Hooks::AnimObjectHook::OnIsWorn(a_item);
 			}
 
             Manager::GetSingleton()->CloseMenu();
 
+			const bool should_play_anim = !other_settings.at(Settings::otherstuffKeys.at(7)) || is_worn;
 
-			if (SetUpPlayAnimation(a_item)) {
+			if (should_play_anim && SetUpPlayAnimation(a_item)) {
 				const auto duration = Animations::MyAnimator::GetSingleton()->GetOpenDuration();
                 clib_utilsQTR::Tasker::GetSingleton()->PushTask([a_item] {
 	                Manager::GetSingleton()->OnLongPressEquip(a_item);
