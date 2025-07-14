@@ -1,7 +1,4 @@
 #include "Settings.h"
-
-#include <SKSE/Logger.h>
-
 #include "Translations.h"
 #include "CLibUtilsQTR/FormReader.hpp"
 #include "rapidjson/document.h"
@@ -97,17 +94,37 @@ namespace {
         }
         return anim;
     }
+
     Animations::AnimData GetAnimDataFromJsonNode(const rapidjson::Value& a_node) {
         Animations::AnimData a_data;
-        if (a_node.HasMember("open") && a_node["open"].IsObject()) {
-			a_data.open = GetAnimationFromJsonNode(a_node["open"]);
-		}
-		if (a_node.HasMember("close") && a_node["close"].IsObject()) {
-			a_data.close = GetAnimationFromJsonNode(a_node["close"]);
+
+        if (a_node.HasMember("open")) {
+            const auto& openNode = a_node["open"];
+            if (openNode.IsArray()) {
+                for (const auto& animNode : openNode.GetArray()) {
+                    a_data.open.push_back(GetAnimationFromJsonNode(animNode));
+                }
+            } else if (openNode.IsObject()) {
+                a_data.open.push_back(GetAnimationFromJsonNode(openNode));
+            }
         }
+
+        if (a_node.HasMember("close")) {
+            const auto& closeNode = a_node["close"];
+            if (closeNode.IsArray()) {
+                for (const auto& animNode : closeNode.GetArray()) {
+                    a_data.close.push_back(GetAnimationFromJsonNode(animNode));
+                }
+            } else if (closeNode.IsObject()) {
+                a_data.close.push_back(GetAnimationFromJsonNode(closeNode));
+            }
+        }
+
+        // Handle "attach_node"
         if (a_node.HasMember("attach_node") && a_node["attach_node"].IsString()) {
             a_data.attach_node = a_node["attach_node"].GetString();
-		}
+        }
+
         return a_data;
     }
 }

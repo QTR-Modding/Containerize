@@ -8,28 +8,25 @@ namespace Animations
 		public Animator,
 		public clib_util::singleton::ISingleton<MyAnimator>
 	{
-		Animation idlestop_anim = {.a_idle= nullptr, .anim_name= "IdleStop", .t_wait_ms= 2000};
-        //Animation backpack_anim = {.idle= nullptr, .anim_name= "ImmersiveBackpackAnimation", .t_wait_ms= 3000};
-
         RE::BSEventNotifyControl ProcessEvent(const RE::BSAnimationGraphEvent*,
                                               RE::BSTEventSource<RE::BSAnimationGraphEvent>*) override {
 			return RE::BSEventNotifyControl::kContinue;
 		}
 
 		void Reset() {
-			open_anim = Animation();
-			close_anim = Animation();
+			open_anim = {};
+			close_anim = {};
         }
 	public:
 
-		Animation open_anim;
-		Animation close_anim;
+		std::vector<Animation> open_anim;
+		std::vector<Animation> close_anim;
 
 		void OpenBackpack() {
-		    Add2Q({open_anim});
+		    Add2Q(open_anim);
 		}
 		void CloseBackpack() {
-		    Add2Q({close_anim});
+		    Add2Q(close_anim);
 			Reset();
 		}
 	};
@@ -40,8 +37,8 @@ namespace Animations
 	};
 
 	struct AnimData {
-		Animation open;
-		Animation close;
+		std::vector<Animation> open;
+		std::vector<Animation> close;
 		std::string attach_node;
 	};
 }
