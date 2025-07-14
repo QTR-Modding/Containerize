@@ -95,6 +95,7 @@ namespace Hooks {
 	inline std::map<FormID,RE::NiPointer<RE::NiAVObject>> container_meshes;
 	inline FormID container_mesh;
     inline std::string attach_node;
+    inline RE::TESBoundObject* object_to_equip;
 
     static void add_item_functor(RE::TESObjectREFR* a_this, RE::TESObjectREFR* a_object, int32_t a_count, bool a4, bool a5);
 	static inline REL::Relocation<decltype(add_item_functor)> add_item_functor_;

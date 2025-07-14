@@ -77,6 +77,11 @@ RE::TESBoundObject* Hooks::GetSelectedItemInMenu()
 		    if (const auto a_itemList = menu_c->GetRuntimeData().itemList) {
 		        if (const auto item = a_itemList->GetSelectedItem()) {
 				    if (const auto a_data = item->data.objDesc) {
+                        if (a_data->IsWorn()) {
+                            object_to_equip = a_data->GetObject();
+                            RE::ActorEquipManager::GetSingleton()->UnequipObject(RE::PlayerCharacter::GetSingleton(),
+                                                                                 object_to_equip);
+                        }
 				        return a_data->GetObject();
 				    }
 		        }
@@ -85,7 +90,12 @@ RE::TESBoundObject* Hooks::GetSelectedItemInMenu()
 	    else if (const auto menu_i = ui->GetMenu<RE::InventoryMenu>()) {
 		    if (const auto a_itemList = menu_i->GetRuntimeData().itemList) {
 		        if (const auto item = a_itemList->GetSelectedItem()) {
-				    if (const auto a_data = item->data.objDesc) {
+                    if (const auto a_data = item->data.objDesc) {
+                        if (a_data->IsWorn()) {
+                            object_to_equip = a_data->GetObject();
+                            RE::ActorEquipManager::GetSingleton()->UnequipObject(RE::PlayerCharacter::GetSingleton(),
+                                                                                 object_to_equip);
+                        }
 				        return a_data->GetObject();
 				    }
 		        }
@@ -99,7 +109,12 @@ RE::TESBoundObject* Hooks::GetSelectedItemInMenu()
 			    const auto& items = runtime_data.favorites;
 			    if (selected_index >= 0 && static_cast<uint32_t>(selected_index) < items.size()) {
 			        if (const auto item = items[selected_index].item) {
-				        if (const auto bound = skyrim_cast<RE::TESBoundObject*>(item)) {
+                        if (const auto bound = skyrim_cast<RE::TESBoundObject*>(item)) {
+                            if (items[selected_index].entryData->IsWorn()) {
+                                object_to_equip = bound;
+                                RE::ActorEquipManager::GetSingleton()->UnequipObject(
+                                    RE::PlayerCharacter::GetSingleton(), object_to_equip);
+                            }
 						    return bound;
 				        }
 			        }

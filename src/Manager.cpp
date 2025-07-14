@@ -192,6 +192,9 @@ void Manager::OnLongPressEquip(RE::TESBoundObject* a_fake)
         [this,chest,a_fake] {
                 SetUpAnimation(a_fake);
                 OpenChestFromMenu(chest);
+                if (Hooks::object_to_equip) {
+                    Animations::MyAnimator::GetSingleton()->OpenBackpack();
+                }
             }
     );
 }
@@ -201,7 +204,16 @@ bool Manager::ActivateChest(RE::TESObjectREFR* chest) const {
     unownedChest->fullName = GetChestName(chest);
     if (const auto a_obj = chest->GetBaseObject()->As<RE::TESObjectCONT>()) {
         RE::TESObjectCONT::SetOpenState(chest,false,true);
-        return a_obj->Activate(chest, player_ref, 0, a_obj, 1);
+
+        if (Hooks::object_to_equip) {
+            clib_utilsQTR::Tasker::GetSingleton()->PushTask(
+                [this, chest, a_obj] { a_obj->Activate(chest, player_ref, 0, a_obj, 1); },
+                1000);  // Animation enter time?
+            return true;
+        } else {
+            return a_obj->Activate(chest, player_ref, 0, a_obj, 1);
+        }
+
     }
     logger::error("ActivateChest: Chest is not a container.");
     return false;
@@ -926,6 +938,16 @@ void Manager::OnChestExit(RE::TESObjectREFR* a_chest) {
             }
             else {
 			    Menu::OpenMenu(closed_menu);
+                if (Hooks::object_to_equip) {
+                    clib_utilsQTR::Tasker::GetSingleton()->PushTask( [] {
+                        RE::ActorEquipManager::GetSingleton()->EquipObject(RE::PlayerCharacter::GetSingleton(),
+                                                                           Hooks::object_to_equip);
+                            Hooks::object_to_equip = nullptr;
+                        },
+                        1500); //Animation exit time?
+
+                    RE::SendUIMessage::SendInventoryUpdateMessage(RE::PlayerCharacter::GetSingleton(), nullptr);
+                }
             }
             closed_menu = "";
 		}
@@ -958,7 +980,9 @@ void Manager::OnChestEnter(RE::TESObjectREFR* a_chest)
 		Hooks::container_mesh = a_formid;
     }
 
-    Animations::MyAnimator::GetSingleton()->OpenBackpack();
+    if (!Hooks::object_to_equip) {
+        Animations::MyAnimator::GetSingleton()->OpenBackpack();
+    }
 }
 
 bool Manager::IsARegistry(const RefID registry) const {
