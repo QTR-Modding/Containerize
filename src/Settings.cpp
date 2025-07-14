@@ -130,6 +130,10 @@ namespace {
 }
 
 
+bool Settings::AnimationsDelayMenuOpen() {
+    return other_settings.at(Settings::otherstuffKeys.at(6));
+}
+
 std::vector<Source> LoadSources()
 {
     LoadFormGroups();

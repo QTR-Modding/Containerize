@@ -1358,7 +1358,7 @@ std::string Manager::GetWeightText(RE::TESObjectREFR* a_chest) const {
 void Manager::SetUpAnimation(const Animations::AnimDataType a_datatype, const RefID a_chestid)
 {
     const auto animator = Animations::MyAnimator::GetSingleton();
-    if (a_datatype == Animations::kInventory && !ModCompatibility::Mods::souls_unpaused_installed) {
+    if (!Settings::AnimationsDelayMenuOpen() && !ModCompatibility::Mods::souls_unpaused_installed) {
         Hooks::attach_node = "";
 		animator->open_anim = {};
 		animator->close_anim = {};
