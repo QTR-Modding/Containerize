@@ -1361,8 +1361,8 @@ void Manager::SetUpAnimation(const Animations::AnimDataType a_datatype, const Re
     const auto animator = Animations::MyAnimator::GetSingleton();
     if (a_datatype == Animations::kInventory && !ModCompatibility::Mods::souls_unpaused_installed) {
         Hooks::attach_node = "";
-		animator->open_anim = Animation();
-		animator->close_anim = Animation();
+		animator->open_anim = {};
+		animator->close_anim = {};
         return;
     }
 	const auto real_id = GetRealID(a_chestid);
