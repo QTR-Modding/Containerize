@@ -71,6 +71,8 @@ namespace Settings {
     struct ConfigData {
 		std::unordered_map<std::string,SourceAnimData> anim_data;
     };
+
+    bool AnimationsDelayMenuOpen();
 };
 
 std::vector<Source> LoadSources();

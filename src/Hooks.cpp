@@ -424,7 +424,7 @@ namespace {
 
 void Hooks::AnimObjectHook::OnIsWorn(RE::InventoryEntryData* a_data)
 {
-	if (!other_settings.at(Settings::otherstuffKeys.at(6))) {
+	if (!Settings::AnimationsDelayMenuOpen()) {
 	    return;
 	}
 	return; // let's find an implementation which doesn't explicitly unequip the item
