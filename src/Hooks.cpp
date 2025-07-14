@@ -429,9 +429,17 @@ void Hooks::AnimObjectHook::OnIsWorn(RE::InventoryEntryData* a_data)
 	}
 	return; // let's find an implementation which doesn't explicitly unequip the item
     if (a_data->IsWorn()) {
-        object_to_equip = a_data->GetObject();
-        RE::ActorEquipManager::GetSingleton()->UnequipObject(RE::PlayerCharacter::GetSingleton(),
-                                                             object_to_equip);
+        auto object_to_equip = a_data->GetObject();
+        if (object_to_equip && object_to_equip->GetFormType() == RE::FormType::Armor) {
+            RE::PlayerCharacter* player = RE::PlayerCharacter::GetSingleton();
+            RE::TESObjectARMO* armor = a_data->GetObject()->As<RE::TESObjectARMO>();
+            RE::TESRace* race = player->GetRace();
+            RE::TESObjectARMA* armorAddon = armor->GetArmorAddon(race);
+            char addonString[MAX_PATH]{'\0'};
+            armorAddon->GetNodeName(addonString, player, armor,-1.0f);
+            objectNode = player->GetNodeByName(addonString);
+            objectNode->CullGeometry(false);
+        }
     }
 }
 

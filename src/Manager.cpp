@@ -192,7 +192,7 @@ void Manager::OnLongPressEquip(RE::TESBoundObject* a_fake)
         [this,chest,a_fake] {
                 SetUpAnimation(a_fake);
                 OpenChestFromMenu(chest);
-                if (Hooks::object_to_equip) {
+                if (Hooks::objectNode) {
                     Animations::MyAnimator::GetSingleton()->OpenBackpack();
                 }
             }
@@ -205,7 +205,7 @@ bool Manager::ActivateChest(RE::TESObjectREFR* chest) const {
     if (const auto a_obj = chest->GetBaseObject()->As<RE::TESObjectCONT>()) {
         RE::TESObjectCONT::SetOpenState(chest,false,true);
 
-        if (Hooks::object_to_equip) {
+        if (Hooks::objectNode) {
             clib_utilsQTR::Tasker::GetSingleton()->PushTask(
                 [this, chest, a_obj] { a_obj->Activate(chest, player_ref, 0, a_obj, 1); },
                 1000);  // Animation enter time?
@@ -937,12 +937,10 @@ void Manager::OnChestExit(RE::TESObjectREFR* a_chest) {
             }
             else {
 			    Menu::OpenMenu(closed_menu);
-                if (Hooks::object_to_equip) {
+                if (Hooks::objectNode) {
                     clib_utilsQTR::Tasker::GetSingleton()->PushTask( [] {
-                        RE::ActorEquipManager::GetSingleton()->EquipObject(RE::PlayerCharacter::GetSingleton(),
-                                                                           Hooks::object_to_equip);
-                            Hooks::object_to_equip = nullptr;
-                            RE::SendUIMessage::SendInventoryUpdateMessage(RE::PlayerCharacter::GetSingleton(), nullptr);
+                            Hooks::objectNode->CullGeometry(true);
+                            Hooks::objectNode = nullptr;
                         },
                         1500); //Animation exit time?
 
@@ -979,7 +977,7 @@ void Manager::OnChestEnter(RE::TESObjectREFR* a_chest)
 		Hooks::container_mesh = a_formid;
     }
 
-    if (!Hooks::object_to_equip) {
+    if (!Hooks::objectNode) {
         Animations::MyAnimator::GetSingleton()->OpenBackpack();
     }
 }
