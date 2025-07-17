@@ -1,5 +1,6 @@
 #pragma once
 #include "MCP.h"
+#include "SkyPrompt.h"
 #include "Utils.h"
 
 namespace Translations {
@@ -97,6 +98,14 @@ namespace Translations {
                 {"location_ref_id",&UI::Strings::location_ref_id},
                 {"name",&UI::Strings::name},
                 {"location_name",&UI::Strings::location_name}
+            }
+        },
+        {"SkyPrompt",
+            {
+                {"open_bag", &SkyPrompt::Strings::open_bag},
+                {"rename_bag", &SkyPrompt::Strings::rename_bag},
+                {"weight", &SkyPrompt::Strings::weight},
+                {"value", &SkyPrompt::Strings::value},
             }
         }
     };
