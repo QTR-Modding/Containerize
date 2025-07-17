@@ -38,27 +38,84 @@ std::string Manager::GetValueText(const RE::TESObjectREFR* a_container) const {
     return "";
 }
 
-void Manager::SetUpAnimation(const RE::TESBoundObject* a_fake)
+void Manager::SetUpAnimation(const RE::TESBoundObject* a_real)
 {
     constexpr auto a_datatype = Animations::kInventory;
-    const auto a_chestid = GetFakeContainerChestID(a_fake->GetFormID());
-    SetUpAnimation(a_datatype,a_chestid);
+    SetUpAnimation(a_datatype,a_real->GetFormID());
 }
 
 void Manager::SetUpAnimation(const RE::TESObjectREFR* a_real)
 {
     constexpr auto a_datatype = Animations::kDrop;
-    const auto a_chestid = GetContainerChestID(a_real->GetFormID());
-	SetUpAnimation(a_datatype, a_chestid);
+	SetUpAnimation(a_datatype, a_real->GetBaseObject()->GetFormID());
 }
 
 void Manager::CloseMenu() {
-    if (const auto ui = RE::UI::GetSingleton(); ui->IsMenuOpen(RE::ContainerMenu::MENU_NAME)) {
-		if (!LookupReferenceByHandle(RE::ContainerMenu::GetTargetRefHandle(), containermenu_owner)) {
-			containermenu_owner.reset();
-		}
+    containermenu_owner.reset();
+    if (!Menu::GetContainerMenuOwner(containermenu_owner)) {
+		containermenu_owner.reset();
     }
     closed_menu = Menu::CloseMenu();
+}
+
+RE::TESBoundObject* Manager::RegisterFromMenu(RE::InventoryEntryData* a_real_entry, RE::TESObjectREFR* a_owner)
+{
+#undef GetObject
+	const auto a_real = a_real_entry ? a_real_entry->GetObject() : nullptr;
+    if (!a_real) {
+		logger::error("RegisterFromMenu: a_real is null");
+		return nullptr;
+    }
+    // get the source corresponding to the container that we are activating
+    if (const auto src = GetContainerSource(a_real->GetFormID())) {
+        // ReSharper disable once CppInitializedValueIsAlwaysRewritten
+        RE::TESBoundObject* fake_bound = nullptr;
+        const auto ChestObjRef = FindNotMatchedChest(); // Not registered. lets find a chest to register it to
+        const auto ChestRefID = ChestObjRef->GetFormID();
+        if (std::unique_lock lock(source_mutex_); !src->data.insert({ChestRefID, player_refid}).second) {
+			return nullptr;
+        }
+        // add to ChestToFakeContainer
+		if (const auto fake_formid = CreateFakeContainer(a_real, ChestRefID, nullptr); !fake_formid) {
+			logger::error("Failed to create fake container for real container {:x}", a_real->GetFormID());
+			return nullptr;
+		}
+        else if (const auto a_fake_bound = RE::TESForm::LookupByID<RE::TESBoundObject>(fake_formid); !a_fake_bound) {
+            RaiseMngrErr("Failed to lookup fake bound.");
+            return nullptr;
+        }
+        else if (std::unique_lock lock(chest2fake_mutex_); !ChestToFakeContainer.insert({ChestRefID, {.outerKey= src->formid, .innerKey= fake_formid}}).second) {
+            RaiseMngrErr("Failed to insert chest refid and fake container refid into ChestToFakeContainer.");
+            return nullptr;
+        }
+        else {
+			fake_bound = a_fake_bound;
+        }
+
+		a_owner = a_owner ? a_owner : player_ref;
+
+		const auto xlist = a_real_entry->extraLists && !a_real_entry->extraLists->empty() ? a_real_entry->extraLists->front() : nullptr;
+        a_owner->RemoveItem(a_real,1,RE::ITEM_REMOVE_REASON::kStoreInContainer,xlist,ChestObjRef);
+
+        if (const auto initial_items_map = src->initial_items; !initial_items_map.empty()) {
+            SKSE::GetTaskInterface()->AddTask([ChestRefID, initial_items_map] {
+                logger::trace("Adding initial items to chest");
+                const auto chest = RE::TESForm::LookupByID<RE::TESObjectREFR>(ChestRefID);
+                if (!chest) return;
+                for (const auto& [item, count] : initial_items_map) {
+                    if (count <= 0) continue;
+                    auto* bound = RE::TESForm::LookupByID<RE::TESBoundObject>(item);
+                    if (!bound) continue;
+                    chest->AddObjectToContainer(bound, nullptr, count, nullptr);
+                }
+            });
+        }
+
+        a_owner->AddObjectToContainer(fake_bound,nullptr,1,nullptr);
+	    return fake_bound;
+    }
+
+    return nullptr;
 }
 
 std::string Manager::GetChestName(const RE::TESObjectREFR* chest) const
@@ -1328,11 +1385,10 @@ std::string Manager::GetWeightText(RE::TESObjectREFR* a_chest) const {
 	return "";
 }
 
-void Manager::SetUpAnimation(const Animations::AnimDataType a_datatype, const RefID a_chestid)
+void Manager::SetUpAnimation(const Animations::AnimDataType a_datatype, const FormID a_real_id)
 {
     const auto animator = Animations::MyAnimator::GetSingleton();
-	const auto real_id = GetRealID(a_chestid);
-	if (const auto src = GetContainerSource(real_id)) {
+	if (const auto src = GetContainerSource(a_real_id)) {
         const auto anim_data = src->anim_data;
 	    auto [open, close, attach_node] = anim_data.contains(a_datatype)
                                                     ? anim_data.at(a_datatype)
