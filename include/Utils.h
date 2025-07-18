@@ -2,20 +2,35 @@
 #include <windows.h>
 #include "ClibUtil/editorID.hpp"
 #include "SimpleIni.h"
+#include "CLibUtilsQTR/FormReader.hpp"
 
 
 bool GetDllVersion(const std::wstring& dllPath, DWORD& major, DWORD& minor, DWORD& build, DWORD& revision);
 std::wstring s2ws(const std::string& str);
 
 const auto mod_name = static_cast<std::string>(SKSE::PluginDeclaration::GetSingleton()->GetName());
-constexpr auto po3path = "Data/SKSE/Plugins/po3_Tweaks.dll";
-constexpr auto po3_UoTpath = "Data/SKSE/Plugins/po3_UseOrTake.dll";
-constexpr auto obj_manipu_path = "Data/SKSE/Plugins/ObjectManipulationOverhaul.dll";
-bool IsPo3Installed();
-inline bool IsObjManipuInstalled() { return std::filesystem::exists(obj_manipu_path); };
-inline bool IsPo3_UoTInstalled() { return std::filesystem::exists(po3_UoTpath); };
-const auto po3_use_or_take = IsPo3_UoTInstalled();
-const auto obj_manipu_installed = IsObjManipuInstalled();
+
+namespace ModCompatibility {
+    inline bool IsModInstalled(const char* mod_path) {return std::filesystem::exists(mod_path);}
+    namespace Mods {
+
+        constexpr auto po3path = "Data/SKSE/Plugins/po3_Tweaks.dll";
+        bool IsPo3Installed();
+
+        constexpr auto po3_UoTpath = "Data/SKSE/Plugins/po3_UseOrTake.dll";
+		const auto po3_use_or_take = IsModInstalled(po3_UoTpath);
+
+        constexpr auto obj_manipu_path = "Data/SKSE/Plugins/ObjectManipulationOverhaul.dll";
+		const auto obj_manipu_installed = IsModInstalled(obj_manipu_path);
+
+        constexpr auto souls_unpaused_path = "Data/SKSE/Plugins/SkyrimSoulsRE.dll";
+		const auto souls_unpaused_installed = IsModInstalled(souls_unpaused_path);
+    }
+
+    void MakeChecks();
+}
+
+
 
 
 inline std::string no_src_msgbox = std::format(
@@ -42,19 +57,6 @@ std::vector<std::string> ReadLogFile();
 
 std::string DecodeTypeCode(std::uint32_t typeCode);
 
-inline bool isValidHexWithLength7or8(const char* input);
-
-template <class T = RE::TESForm>
-static T* GetFormByID(const RE::FormID id, const std::string& editor_id="") {
-    if (!editor_id.empty()) {
-        if (auto* form = RE::TESForm::LookupByEditorID<T>(editor_id)) return form;
-    }
-    if (T* form = RE::TESForm::LookupByID<T>(id)) return form;
-    return nullptr;
-};
-
-std::string GetEditorID(FormID a_formid);
-FormID GetFormEditorIDFromString(const std::string& formEditorId);
 std::string GetGameLanguage();
 
 namespace Functions {
@@ -97,15 +99,7 @@ namespace Math {
     };
 };
 
-namespace String {
-    inline std::string trim(const std::string& str);
 
-    inline std::string toLowercase(const std::string& str);
-
-    inline std::string replaceLineBreaksWithSpace(const std::string& input);
-
-    bool includesWord(const std::string& input, const std::vector<std::string>& strings);
-}
 
 namespace FunctionsSkyrim {
 
@@ -275,13 +269,13 @@ namespace Inventory {
     void EquipItem(const RE::TESBoundObject* item, bool unequip = false);
 
     inline void EquipItem(const FormID formid, const bool unequip = false) {
-	    EquipItem(GetFormByID<RE::TESBoundObject>(formid), unequip);
+	    EquipItem(FormReader::GetFormByID<RE::TESBoundObject>(formid), unequip);
     }
 
     [[nodiscard]] bool IsEquipped(RE::TESBoundObject* item);
 
     [[nodiscard]] inline bool IsEquipped(const FormID formid) {
-	    return IsEquipped(GetFormByID<RE::TESBoundObject>(formid));
+	    return IsEquipped(FormReader::GetFormByID<RE::TESBoundObject>(formid));
     }
 
     void ToggleEquip(RE::TESBoundObject* item);
@@ -297,7 +291,7 @@ namespace WorldObject {
     inline void StartDraggingObject(RE::TESObjectREFR* ref) {
         using func_t = void(*)(RE::TESObjectREFR*);
         static auto ObjectManipulationOverhaul = GetModuleHandle(L"ObjectManipulationOverhaul");
-        const auto func = reinterpret_cast<func_t>(GetProcAddress(ObjectManipulationOverhaul, "StartDraggingObject"));
+        const auto func = reinterpret_cast<func_t>(GetProcAddress(ObjectManipulationOverhaul, "StartDraggingObject"));  // NOLINT(clang-diagnostic-cast-function-type-strict)
         return func(ref);
     }
 };
@@ -436,7 +430,9 @@ namespace Menu {
 
     bool IsOpen(const RE::BSFixedString& menu_name);
 
-    void OpenMenu(std::string_view menuname);;
+    void OpenMenu(std::string_view menuname);
+
+	bool GetContainerMenuOwner(RE::TESObjectREFRPtr& a_out);
 };
 
 

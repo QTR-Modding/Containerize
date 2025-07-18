@@ -11,4 +11,5 @@ set(sources ${sources}
 	src/Translations.cpp
 	src/Papyrus.cpp
 	src/SkyPrompt.cpp
+	src/Animations.cpp
 )

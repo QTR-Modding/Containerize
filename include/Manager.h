@@ -12,7 +12,6 @@ public clib_util::singleton::ISingleton<Manager>
     RE::TESObjectREFR* player_ref = RE::PlayerCharacter::GetSingleton()->As<RE::TESObjectREFR>();
     //RE::EffectSetting* empty_mgeff = nullptr;
     
-    //  maybe i dont need this by using uniqueID for new forms
     // runtime specific
     std::map<RefID,FormFormID> ChestToFakeContainer; // chest refid -> {real container formid (outerKey), fake container formid (innerKey)}
     RE::TESObjectREFR* current_container = nullptr;
@@ -29,8 +28,8 @@ public clib_util::singleton::ISingleton<Manager>
     std::vector<FormID> external_favs; // runtime specific, FormIDs of fake containers if faved
     std::vector<RefID> handled_external_conts; // runtime specific to prevent unnecessary checks in HandleFakePlacement
     std::map<FormID,std::string> renames;  // runtime specific, custom names for fake containers
-    std::pair<RE::TESBoundObject*, RefID> real_to_sendback = {nullptr,0};  // pff
-    std::pair<RE::TESBoundObject*, RefID> queued_real_to_sendback = {nullptr,0};  // pff
+    std::set<RefID> reals_to_takeback = {};
+    std::set<RefID> queued_chests = {};
     std::string closed_menu;
 	RE::TESObjectREFRPtr containermenu_owner = nullptr;
 
@@ -39,7 +38,7 @@ public clib_util::singleton::ISingleton<Manager>
     mutable std::shared_mutex source_mutex_;
 	mutable std::shared_mutex chest2fake_mutex_;
 
-    void SendReal(RE::TESBoundObject* real_obj, RE::TESObjectREFR* chest);
+    void TakeBackReal(RE::TESBoundObject* real_obj, RE::TESObjectREFR* chest);
 
     std::string GetChestName(const RE::TESObjectREFR* chest) const;
 
@@ -49,6 +48,7 @@ public clib_util::singleton::ISingleton<Manager>
 
     // from container out in the world to linked chest
     [[nodiscard]] RE::TESObjectREFR* GetContainerChest(const RE::TESObjectREFR* a_container) const;
+    [[nodiscard]] RE::TESObjectREFR* GetFakeContainerChest(RE::TESBoundObject* fake_id) const;
 
     [[nodiscard]] uint32_t GetNoChests() const;
 
@@ -66,17 +66,18 @@ public clib_util::singleton::ISingleton<Manager>
 
     void DeRegisterChest(RefID chest_ref);
 
-    void OpenChestFromMenu();
+    void OpenChestFromMenu(RE::TESObjectREFR* a_chest);
 
-    // OK. from real container formid to linked source
     [[nodiscard]] const Source* GetContainerSource(FormID real_id) const;
     [[nodiscard]] Source* GetContainerSource(FormID real_id);
 
-    // returns true only if the item is in the inventory with positive count. removes the item if it is in the inventory with 0 count
+    // returns true only if the item is in the inventory with positive count. removes the item if it is in the inventory with 0 count.
+    // do I need this?
     [[nodiscard]] static bool HasItemPlusCleanUp(RE::TESBoundObject* item, RE::TESObjectREFR* item_owner);
 
     // removes only one unit of the item
-    static RE::ObjectRefHandle RemoveItem(RE::TESObjectREFR* moveFrom, RE::TESObjectREFR* moveTo, RE::TESBoundObject* a_item,
+	template <typename T>
+    static RE::ObjectRefHandle RemoveItem(T* moveFrom, RE::TESObjectREFR* moveTo, RE::TESBoundObject* a_item,
                                           RE::ITEM_REMOVE_REASON reason);
 
     [[nodiscard]] static bool PickUpItem(RE::TESObjectREFR* item, unsigned int max_try = 3);
@@ -120,16 +121,12 @@ public clib_util::singleton::ISingleton<Manager>
 
     void RemoveCarryWeightBoost(FormID item_formid, RE::TESObjectREFR* inventory_owner);
 
-    bool HandleRegistration(RE::TESObjectREFR* a_container);
+    bool HandleRegistration(RE::TESObjectREFR* a_item);
 
     void RenameCallback();
 
-    template <typename T>
-    static void Rename(const std::string& new_name, T item) {
-        logger::trace("Rename");
-        if (!item) logger::warn("Item not found");
-        else item->fullName = new_name;
-    }
+    std::string GetWeightText(RE::TESObjectREFR* a_chest) const;
+    void SetUpAnimation(Animations::AnimDataType a_datatype, FormID a_real_id);
 
 public:
 
@@ -144,16 +141,16 @@ public:
     [[nodiscard]] RefID GetContainerChestID(RefID container_refid) const;
     [[nodiscard]] RefID GetFakeContainerChestID(FormID fake_id) const;
     RE::TESBoundObject* GetFakeBound(RefID chest_id) const;
+    RE::TESBoundObject* GetRealBound(RefID chest_id) const;
     FormID GetFakeID(RefID chest_id) const;
     FormID GetRealID(RefID chest_id) const;
     void OnPickup(RE::TESObjectREFR* picked_up_by, RE::TESObjectREFR * a_object);
 	void HandleDrop(RE::TESObjectREFR* fake_object);
     void UpdateData(RefID chestID, RefID loc_id);
-    void OnLongPressEquip(const RE::TESBoundObject* a_selected_item);
+    void OnLongPressEquip(RE::TESBoundObject* a_fake);
 	void UpdateFakeWV(RE::TESBoundObject* fake_form);
     Count CanBeAdded(const RE::TESBoundObject* a_item, Count a_count, const RE::TESBoundObject* fake_container);
     [[nodiscard]] RE::TESBoundObject* FakeToRealContainer(FormID fake) const;
-
 
     void OnActivateContainer(RE::TESObjectREFR* a_container, int msgbox_action);
 
@@ -170,8 +167,8 @@ public:
 
     void RenameContainer(const std::string& new_name);
 
-    void OnContainerMenuExit();
-    void OnContainerMenuEnter();
+    void OnChestExit(RE::TESObjectREFR* a_chest);
+    void OnChestEnter(RE::TESObjectREFR* a_chest);
 
     [[nodiscard]] bool IsARegistry(RefID registry) const;
 
@@ -184,7 +181,7 @@ public:
     void HandleFormDelete(RefID refid);
 
     // checks if the refid is in the ChestToFakeContainer, i.e. if it is an unownedchest
-    [[nodiscard]] bool IsChest(const RefID chest_refid) const { return ChestToFakeContainer.contains(chest_refid); }
+    [[nodiscard]] bool IsChest(const RefID a_refid) const { return ChestToFakeContainer.contains(a_refid); }
 
     void Reset();
 
@@ -200,8 +197,50 @@ public:
 
     RE::TESBoundObject* GetFakeBound(const RE::TESObjectREFR* a_container) const;
     std::string GetWeightText(const RE::TESObjectREFR* a_container) const;
+    std::string GetWeightText(RE::TESBoundObject* a_fake) const;
     std::string GetValueText(const RE::TESObjectREFR* a_container) const;
+    void SetUpAnimation(const RE::TESBoundObject* a_real);
+    void SetUpAnimation(const RE::TESObjectREFR* a_real);
+    void CloseMenu();
+    RE::TESBoundObject* RegisterFromMenu(RE::InventoryEntryData* a_real_entry, RE::TESObjectREFR* a_owner);
+
+    template <typename T>
+    static void Rename(const std::string& new_name, T item) {
+        logger::trace("Rename");
+        if (!item) logger::warn("Item not found");
+        else item->fullName = new_name;
+    }
 };
+
+template<typename T>
+RE::ObjectRefHandle Manager::RemoveItem(T* moveFrom, RE::TESObjectREFR* moveTo, RE::TESBoundObject* a_item, RE::ITEM_REMOVE_REASON reason)
+{
+    auto ref_handle = RE::ObjectRefHandle();
+
+    if (!moveFrom) {
+        logger::critical("moveFrom is null!");
+        return ref_handle;
+    }
+    if (moveTo && moveFrom->GetFormID() == moveTo->GetFormID()) {
+        logger::info("moveFrom and moveTo are the same!");
+        return ref_handle;
+    }
+
+	const RE::TESObjectREFR::InventoryItemMap inventory = moveFrom->GetInventory();
+	const auto it_item = inventory.find(a_item);
+	if (it_item == inventory.end()) {
+		logger::warn("Item not found in inventory {:x}", a_item ? a_item->GetFormID() : 0);
+		return ref_handle;
+	}
+
+    const auto inv_data = it_item->second.second.get();
+    if (const auto asd = inv_data ? inv_data->extraLists : nullptr; !asd || asd->empty()) {
+        ref_handle = moveFrom->RemoveItem(a_item, 1, reason, nullptr, moveTo);
+    } else {
+        ref_handle = moveFrom->RemoveItem(a_item, 1, reason, asd->front(), moveTo);
+    }
+    return ref_handle;
+}
 
 template <typename T>
 void Manager::UpdateFakeWV(T* fake_form, RE::TESObjectREFR* chest_linked, const float weight_ratio) {
@@ -210,6 +249,7 @@ void Manager::UpdateFakeWV(T* fake_form, RE::TESObjectREFR* chest_linked, const 
     if (!chest_linked || !fake_form) return RaiseMngrErr("Failed to get chest.");
     const auto fake_formid = fake_form->GetFormID();
     auto real_container = FakeToRealContainer(fake_formid);
+    // ReSharper disable once CppDependentTemplateWithoutTemplateKeyword
     fake_form->Copy(real_container->As<T>());
     if (renames.contains(fake_formid)) fake_form->fullName = renames.at(fake_form->GetFormID());
 

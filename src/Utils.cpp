@@ -45,8 +45,9 @@ std::wstring s2ws(const std::string& str)
     return wstrTo;
 }
 
-bool IsPo3Installed()
+bool ModCompatibility::Mods::IsPo3Installed()
 {
+    using namespace ModCompatibility::Mods;
     if (!std::filesystem::exists(po3path)) {
         return false;
     }
@@ -125,55 +126,6 @@ std::string DecodeTypeCode(const std::uint32_t typeCode)
 }
 
 
-bool isValidHexWithLength7or8(const char* input)
-{
-    std::string inputStr(input);
-
-    if (inputStr.substr(0, 2) == "0x") {
-        // Remove "0x" from the beginning of the string
-        inputStr = inputStr.substr(2);
-    }
-
-    const std::regex hexRegex("^[0-9A-Fa-f]{7,8}$");  // Allow 7 to 8 characters
-    const bool isValid = std::regex_match(inputStr, hexRegex);
-    return isValid;
-}
-
-std::string GetEditorID(const FormID a_formid) {
-    if (const auto form = RE::TESForm::LookupByID(a_formid)) return clib_util::editorID::get_editorID(form);
-    return "";
-}
-
-FormID GetFormEditorIDFromString(const std::string& formEditorId)
-{
-    static std::string delimiter = "~";
-	const auto plugin_and_localid = FormReader::split(formEditorId, delimiter);
-	if (plugin_and_localid.size() == 2) {
-		const auto& plugin_name = plugin_and_localid[1];
-		const auto local_id = FormReader::GetFormIDFromString(plugin_and_localid[0]);
-		const auto formid = FormReader::GetForm(plugin_name.c_str(), local_id);
-		if (const auto form = RE::TESForm::LookupByID(formid)) return form->GetFormID();
-	}
-
-    if (isValidHexWithLength7or8(formEditorId.c_str())) {
-        int form_id_;
-        std::stringstream ss;
-        ss << std::hex << formEditorId;
-        ss >> form_id_;
-        if (const auto temp_form = GetFormByID(form_id_, "")) return temp_form->GetFormID();
-        logger::warn("Formid is null for editorid {}", formEditorId);
-        return 0;
-    }
-    if (formEditorId.empty()) return 0;
-    if (!IsPo3Installed()) {
-        logger::error("Po3 is not installed.");
-        MsgBoxesNotifs::Windows::Po3ErrMsg();
-        return 0;
-    }
-    if (const auto temp_form = GetFormByID(0, formEditorId)) return temp_form->GetFormID();
-    return 0;
-}
-
 std::string GetGameLanguage()
 {
 	if (const RE::Setting* languageSetting = RE::GetINISetting("sLanguage:General")) {
@@ -188,55 +140,6 @@ std::string GetGameLanguage()
 		logger::error("Failed to get sLanguage setting.");
 	}
 	return "ENGLISH";
-}
-
-std::string String::trim(const std::string& str) { 
-    // Find the first non-whitespace character from the beginning
-    const size_t start = str.find_first_not_of(" \t\n\r");
-
-    // If the string is all whitespace, return an empty string
-    if (start == std::string::npos) return "";
-
-    // Find the last non-whitespace character from the end
-    const size_t end = str.find_last_not_of(" \t\n\r");
-
-    // Return the substring containing the trimmed characters
-    return str.substr(start, end - start + 1);
-}
-
-std::string String::toLowercase(const std::string& str) {
-    std::string result = str;
-    std::ranges::transform(result, result.begin(),
-                           [](const unsigned char c) { return static_cast<char>(std::tolower(c)); });
-    return result;
-}
-
-std::string String::replaceLineBreaksWithSpace(const std::string& input) {
-    std::string result = input;
-    std::ranges::replace(result, '\n', ' ');
-    return result;
-}
-
-bool String::includesWord(const std::string& input, const std::vector<std::string>& strings) {
-    std::string lowerInput = toLowercase(input);
-    lowerInput = replaceLineBreaksWithSpace(lowerInput);
-    lowerInput = trim(lowerInput);
-    lowerInput = " " + lowerInput + " ";  // Add spaces to the beginning and end of the string
-
-    for (const auto& str : strings) {
-        std::string lowerStr = str;
-        lowerStr = trim(lowerStr);
-        lowerStr = " " + lowerStr + " ";  // Add spaces to the beginning and end of the string
-        std::ranges::transform(lowerStr, lowerStr.begin(),
-                               [](const unsigned char c) { return static_cast<char>(std::tolower(c)); });
-
-        // logger::trace("lowerInput: {} lowerStr: {}", lowerInput, lowerStr);
-
-        if (lowerInput.find(lowerStr) != std::string::npos) {
-            return true;  // The input string includes one of the strings
-        }
-    }
-    return false;  // None of the strings in 'strings' were found in the input string
 }
 
 bool xData::UpdateExtras(RE::TESObjectREFR* copy_from, RE::TESObjectREFR* copy_to) {
@@ -595,7 +498,7 @@ std::int32_t Inventory::GetItemValue(RE::TESBoundObject* item, const RE::TESObje
 bool Inventory::IsQuestItem(const FormID formid, RE::TESObjectREFR* inv_owner)
 {
     const auto inventory = inv_owner->GetInventory();
-    if (const auto item = GetFormByID<RE::TESBoundObject>(formid)) {
+    if (const auto item = FormReader::GetFormByID<RE::TESBoundObject>(formid)) {
         if (const auto it = inventory.find(item); it != inventory.end()) {
             if (it->second.second->IsQuestObject()) return true;
         }
@@ -1005,4 +908,17 @@ void Menu::OpenMenu(const std::string_view menuname) {
     if (const auto queue = RE::UIMessageQueue::GetSingleton()) {
         queue->AddMessage(menuName, RE::UI_MESSAGE_TYPE::kShow, nullptr);
     }
+}
+
+bool Menu::GetContainerMenuOwner(RE::TESObjectREFRPtr& a_out)
+{
+    if (const auto ui = RE::UI::GetSingleton(); ui->IsMenuOpen(RE::ContainerMenu::MENU_NAME)) {
+		return RE::LookupReferenceByHandle(RE::ContainerMenu::GetTargetRefHandle(), a_out);
+    }
+    return false;
+}
+
+void ModCompatibility::MakeChecks()
+{
+    Settings::po3installed = Mods::IsPo3Installed();
 }

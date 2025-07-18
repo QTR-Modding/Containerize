@@ -1,4 +1,5 @@
 #pragma once
+#include "Animations.h"
 #include "Utils.h"
 
 struct FormRefID {
@@ -16,8 +17,8 @@ struct FormIDX {
     bool equipped;     // is equippedB
     bool favorited;    // is favorited
     std::string name;  //(new) name
-    FormIDX() : id(0), equipped(false), favorited(false), name("") {}
-    FormIDX(FormID id, bool value1, bool value2, const std::string& value3);
+    FormIDX() : id(0), equipped(false), favorited(false) {}
+    FormIDX(FormID id, bool value1, bool value2, std::string value3);
 };
 
 struct FormRefIDX {
@@ -25,7 +26,7 @@ struct FormRefIDX {
     RefID innerKey;    // refid of unowned/realoutintheworld/externalcont
 
     FormRefIDX() : innerKey(0) {}
-    FormRefIDX(FormIDX value1, RefID value2) : outerKey(value1), innerKey(value2) {}
+    FormRefIDX(FormIDX value1, const RefID value2) : outerKey(std::move(value1)), innerKey(value2) {}
 
     bool operator<(const FormRefIDX& other) const;
 };
@@ -38,6 +39,7 @@ struct FormFormID {  // used by ChestToFakeContainer
 
 using SourceDataKey = RefID;  // Chest Ref ID
 using SourceDataVal = RefID;  // Container Ref ID if it exists otherwise Chest Ref ID
+using SourceAnimData = std::map<Animations::AnimDataType, Animations::AnimData>;
 
 struct Source {
 
@@ -45,12 +47,13 @@ struct Source {
 
 	float weight_ratio; // 1 - cloud storage, i.e. how much of the weight actually counts in percentage
     std::map<FormID,Count> initial_items;
+	SourceAnimData anim_data;
     float capacity;
-    std::uint32_t formid;
+    FormID formid;
     std::string editorid;
     SourceData data;
 
-    Source(std::uint32_t id, std::string id_str, float capacity, float cs);
+    Source(FormID id, std::string id_str, float capacity, float cs, const SourceAnimData& ad);
 
     [[nodiscard]] std::string_view GetName() const;
 
