@@ -731,7 +731,7 @@ void Manager::Init() {
         const auto form_ = FormReader::GetFormByID(src.formid,src.editorid);
         if (const auto bound_ = src.GetBoundObject(); !form_ || !bound_) {
             init_failed = true;
-            logger::error("Failed to initialize Manager due to missing source: {}, {}", src.formid, src.editorid);
+            logger::error("Failed to initialize Manager due to missing source: {:x}, {}", src.formid, src.editorid);
             break;
         }
         auto formtype_ = RE::FormTypeToString(form_->GetFormType());
@@ -785,7 +785,6 @@ void Manager::Init() {
     const auto data_handler = RE::TESDataHandler::GetSingleton();
     if (!data_handler) return RaiseMngrErr("Data handler is null");
     if (!data_handler->LookupModByName("UIExtensions.esp")) uiextensions_is_present = false;
-
     else {
         uiextensions_is_present = true;
     }
