@@ -125,15 +125,8 @@ public clib_util::singleton::ISingleton<Manager>
 
     void RenameCallback();
 
-    template <typename T>
-    static void Rename(const std::string& new_name, T item) {
-        logger::trace("Rename");
-        if (!item) logger::warn("Item not found");
-        else item->fullName = new_name;
-    }
-
     std::string GetWeightText(RE::TESObjectREFR* a_chest) const;
-    void SetUpAnimation(Animations::AnimDataType a_datatype, RefID a_chestid);
+    void SetUpAnimation(Animations::AnimDataType a_datatype, FormID a_real_id);
 
 public:
 
@@ -206,9 +199,17 @@ public:
     std::string GetWeightText(const RE::TESObjectREFR* a_container) const;
     std::string GetWeightText(RE::TESBoundObject* a_fake) const;
     std::string GetValueText(const RE::TESObjectREFR* a_container) const;
-    void SetUpAnimation(const RE::TESBoundObject* a_fake);
+    void SetUpAnimation(const RE::TESBoundObject* a_real);
     void SetUpAnimation(const RE::TESObjectREFR* a_real);
     void CloseMenu();
+    RE::TESBoundObject* RegisterFromMenu(RE::InventoryEntryData* a_real_entry, RE::TESObjectREFR* a_owner);
+
+    template <typename T>
+    static void Rename(const std::string& new_name, T item) {
+        logger::trace("Rename");
+        if (!item) logger::warn("Item not found");
+        else item->fullName = new_name;
+    }
 };
 
 template<typename T>
@@ -225,7 +226,7 @@ RE::ObjectRefHandle Manager::RemoveItem(T* moveFrom, RE::TESObjectREFR* moveTo, 
         return ref_handle;
     }
 
-	const auto inventory = moveFrom->GetInventory();
+	const RE::TESObjectREFR::InventoryItemMap inventory = moveFrom->GetInventory();
 	const auto it_item = inventory.find(a_item);
 	if (it_item == inventory.end()) {
 		logger::warn("Item not found in inventory {:x}", a_item ? a_item->GetFormID() : 0);
@@ -248,6 +249,7 @@ void Manager::UpdateFakeWV(T* fake_form, RE::TESObjectREFR* chest_linked, const 
     if (!chest_linked || !fake_form) return RaiseMngrErr("Failed to get chest.");
     const auto fake_formid = fake_form->GetFormID();
     auto real_container = FakeToRealContainer(fake_formid);
+    // ReSharper disable once CppDependentTemplateWithoutTemplateKeyword
     fake_form->Copy(real_container->As<T>());
     if (renames.contains(fake_formid)) fake_form->fullName = renames.at(fake_form->GetFormID());
 

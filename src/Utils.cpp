@@ -910,6 +910,14 @@ void Menu::OpenMenu(const std::string_view menuname) {
     }
 }
 
+bool Menu::GetContainerMenuOwner(RE::TESObjectREFRPtr& a_out)
+{
+    if (const auto ui = RE::UI::GetSingleton(); ui->IsMenuOpen(RE::ContainerMenu::MENU_NAME)) {
+		return RE::LookupReferenceByHandle(RE::ContainerMenu::GetTargetRefHandle(), a_out);
+    }
+    return false;
+}
+
 void ModCompatibility::MakeChecks()
 {
     Settings::po3installed = Mods::IsPo3Installed();

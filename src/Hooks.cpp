@@ -9,9 +9,8 @@ void Hooks::Install()
 	MoveItemHooks<RE::PlayerCharacter>::install();
 	MoveItemHooks<RE::TESObjectREFR>::install(false);
 	MoveItemHooks<RE::Character>::install();
-	MenuHook<RE::ContainerMenu>::InstallHook(RE::VTABLE_ContainerMenu[0]);
-	
-  
+
+    MenuHook<RE::ContainerMenu>::InstallHook(RE::VTABLE_ContainerMenu[0]);
 	MenuHook<RE::InventoryMenu>::InstallHook(RE::VTABLE_InventoryMenu[0]);
 
 	auto& trampoline = SKSE::GetTrampoline();
@@ -465,9 +464,15 @@ int64_t Hooks::InventoryHoverHook::thunk(RE::InventoryEntryData* a1)
 			const auto a_formid = a_bound->GetFormID();
 			if (const auto mngr = Manager::GetSingleton();
 				mngr->IsFakeContainer(a_formid)) {
+				SkyPrompt::RegistrationPromptSink::GetSingleton()->Hide();
 	            SkyPrompt::MenuPromptSink::GetSingleton()->Show(a_bound);
 			}
+			else if (mngr->IsRealContainer(a_formid)) {
+				SkyPrompt::MenuPromptSink::GetSingleton()->Hide();
+	            SkyPrompt::RegistrationPromptSink::GetSingleton()->Show(a_bound);
+			}
 			else {
+				SkyPrompt::RegistrationPromptSink::GetSingleton()->Hide();
 				SkyPrompt::MenuPromptSink::GetSingleton()->Hide();
 			}
 		}

@@ -291,7 +291,7 @@ namespace WorldObject {
     inline void StartDraggingObject(RE::TESObjectREFR* ref) {
         using func_t = void(*)(RE::TESObjectREFR*);
         static auto ObjectManipulationOverhaul = GetModuleHandle(L"ObjectManipulationOverhaul");
-        const auto func = reinterpret_cast<func_t>(GetProcAddress(ObjectManipulationOverhaul, "StartDraggingObject"));
+        const auto func = reinterpret_cast<func_t>(GetProcAddress(ObjectManipulationOverhaul, "StartDraggingObject"));  // NOLINT(clang-diagnostic-cast-function-type-strict)
         return func(ref);
     }
 };
@@ -430,7 +430,9 @@ namespace Menu {
 
     bool IsOpen(const RE::BSFixedString& menu_name);
 
-    void OpenMenu(std::string_view menuname);;
+    void OpenMenu(std::string_view menuname);
+
+	bool GetContainerMenuOwner(RE::TESObjectREFRPtr& a_out);
 };
 
 
