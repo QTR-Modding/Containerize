@@ -4,6 +4,13 @@
 
 namespace SkyPrompt {
 
+	namespace Strings {
+	    inline std::string open_bag = "Open";
+        inline std::string rename_bag = "Rename";
+        inline std::string weight = "W: ";
+		inline std::string value = "V: ";
+	};
+
 	inline std::array<std::pair<RE::INPUT_DEVICE, uint32_t>, 2> akatosh_keys = { {
 		    std::make_pair(RE::INPUT_DEVICE::kKeyboard,SkyPromptAPI::kSkyrim),
 	        std::make_pair(RE::INPUT_DEVICE::kGamepad,SkyPromptAPI::kSkyrim)
@@ -12,10 +19,12 @@ namespace SkyPrompt {
     class MyPromptSink final : public SkyPromptAPI::PromptSink,
                                public clib_util::singleton::ISingleton<MyPromptSink>
     {
-	    SkyPromptAPI::Prompt open_prompt{ "Open",0,0, SkyPromptAPI::PromptType::kHold};
-	    SkyPromptAPI::Prompt rename_prompt{ "Rename",1,0, SkyPromptAPI::PromptType::kHold};
+	    SkyPromptAPI::Prompt open_prompt{ Strings::open_bag,0,0, SkyPromptAPI::PromptType::kHold};
+	    SkyPromptAPI::Prompt rename_prompt{ Strings::rename_bag,1,0, SkyPromptAPI::PromptType::kHold};
 
 		std::array<SkyPromptAPI::Prompt, 2> prompts = { open_prompt, rename_prompt };
+
+        static bool SetUpPlayAnimation(const RE::TESObjectREFR* a_real);
 
     public:
         void ProcessEvent(SkyPromptAPI::PromptEvent event) const override;
@@ -47,13 +56,35 @@ namespace SkyPrompt {
 		mutable std::string weight_text;
 
 		mutable SkyPromptAPI::Prompt weight_prompt{ weight_text,2,0, SkyPromptAPI::PromptType::kSinglePress,0, akatosh_keys};
-	    mutable SkyPromptAPI::Prompt open_prompt{ "Open",0,0, SkyPromptAPI::PromptType::kHold};
-		mutable std::array<SkyPromptAPI::Prompt, 2> prompts = { open_prompt, weight_prompt};
+	    mutable SkyPromptAPI::Prompt open_prompt{ Strings::open_bag,0,0, SkyPromptAPI::PromptType::kHold};
+		//mutable SkyPromptAPI::Prompt rename_prompt{ Strings::rename_bag,1,0, SkyPromptAPI::PromptType::kHold};
+		mutable std::array<SkyPromptAPI::Prompt, 2> prompts = { open_prompt,/*rename_prompt,*/ weight_prompt};
+
+        static bool SetUpPlayAnimation(const RE::TESBoundObject* a_fake);
 
     public:
         void ProcessEvent(SkyPromptAPI::PromptEvent event) const override;
 	    std::span<const SkyPromptAPI::Prompt> GetPrompts() const override { return prompts; }
-		void Show(RE::TESBoundObject* a_item) const;
+		void Show(RE::TESBoundObject* a_fake) const;
+		void Hide() const;
+
+        static void OpenBag(RE::TESBoundObject* a_fake, bool is_worn);
+        static void GetContainerMesh(FormID a_realid, FormID model_item);
+    };
+
+	class RegistrationPromptSink final : public SkyPromptAPI::PromptSink,
+                               public clib_util::singleton::ISingleton<RegistrationPromptSink >
+    {
+	    SkyPromptAPI::Prompt open_prompt{ Strings::open_bag,1,0, SkyPromptAPI::PromptType::kHold};
+
+		std::array<SkyPromptAPI::Prompt, 1> prompts = { open_prompt};
+
+		mutable RE::TESObjectREFRPtr containermenu_owner = nullptr;
+
+    public:
+        void ProcessEvent(SkyPromptAPI::PromptEvent event) const override;
+	    std::span<const SkyPromptAPI::Prompt> GetPrompts() const override { return prompts; }
+		void Show(RE::TESBoundObject* a_item);
 		void Hide() const;
     };
 
@@ -82,4 +113,7 @@ namespace SkyPrompt {
 	                                };
 
     bool IsAnyMenuOpen();
+
+	inline std::map<FormID,RE::NiPointer<RE::NiAVObject>> saved_models;
+
 }

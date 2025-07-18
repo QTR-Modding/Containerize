@@ -1,9 +1,142 @@
 #include "Settings.h"
-
 #include "Translations.h"
+#include "CLibUtilsQTR/FormReader.hpp"
+#include "rapidjson/document.h"
+#include "rapidjson/istreamwrapper.h"
+#include "CLibUtilsQTR/PresetHelpers.hpp"
+
+namespace {
+    Source parseSource_(const YAML::Node& config, const Settings::ConfigData& data, FormID formid, std::string editorid)
+    {
+	    using namespace Settings;
+
+        const auto temp_weight_limit = config["weight_limit"] && !config["weight_limit"].IsNull() ? config["weight_limit"].as<float>() : 0.f;
+
+        float cloud_storage = cloud_storage_enabled ? 1.f : 0.f;
+        if (config["cloud_storage"] && !config["cloud_storage"].IsNull()) {
+            try {cloud_storage = std::clamp(config["cloud_storage"].as<float>(), 0.f, 1.f);}
+		    catch (const std::exception&) {
+                try {cloud_storage = config["cloud_storage"].as<bool>() ? 1.f : 0.f;}
+			    catch (const std::exception&) {
+				    logger::warn("Cloud storage value is invalid. Using default value.");
+			    }
+		    }
+        }
+
+	    SourceAnimData anim_data;
+	    {
+	        if (config["anim_data"] && !config["anim_data"].IsNull()) {
+                if (const auto anim_data_str = config["anim_data"].as<std::string>(); data.anim_data.contains(anim_data_str)) {
+                    anim_data = data.anim_data.at(anim_data_str);
+                }
+	        }
+	    }
+
+        logger::trace("FormEditorID: {}, FormID: {}, WeightLimit: {}, CloudStorage: {}", editorid, formid, temp_weight_limit, cloud_storage);
+        Source source(formid, "", temp_weight_limit, cloud_storage, anim_data);
+
+	    // add initial items
+        if (!config["initial_items"] || config["initial_items"].size() == 0) {
+            return source;
+        }
+        for (const auto& itemNode : config["initial_items"]) {
+            auto temp_formeditorid = itemNode["FormEditorID"] && !itemNode["FormEditorID"].IsNull()
+                                               ? itemNode["FormEditorID"].as<std::string>()
+                                               : "";
+            if (!itemNode["count"] || itemNode["count"].IsNull()) {
+                logger::error("Count is null.");
+                continue;
+            }
+            logger::trace("Count");
+            const Count temp_count = itemNode["count"].as<Count>();
+            if (temp_count == 0) {
+                logger::error("Count is 0.");
+                continue;
+            }
+
+            for (const auto id : PresetHelpers::YAML_Helpers::StringToFormIDs(temp_formeditorid)) {
+                if (const auto form = FormReader::GetFormByID(id)) {
+					auto editorid1 = clib_util::editorID::get_editorID(form);
+                    source.AddInitialItem(id, temp_count);
+                }
+			}
+        }
+        return source;
+    }
+
+
+    Animation GetAnimationFromJsonNode(const rapidjson::Value& a_node) {
+	    Animation anim;
+        if (a_node.HasMember("idle")) {
+            if (a_node["idle"].IsString()) {
+			    const auto a_idle = a_node["idle"].GetString();
+			    const auto a_idle_formid = FormReader::GetFormEditorIDFromString(a_idle);
+                if (const auto a_idle_form = RE::TESForm::LookupByID<RE::TESIdleForm>(a_idle_formid)) {
+				    anim.a_idle = a_idle_form;
+                }
+		    }
+		    else if (a_node["idle"].IsUint()) {
+			    const FormID a_idle = a_node["idle"].GetUint();
+                if (const auto a_idle_form = RE::TESForm::LookupByID<RE::TESIdleForm>(a_idle)) {
+				    anim.a_idle = a_idle_form;
+                }
+            }
+	    }
+        if (a_node.HasMember("name")) {
+            if (a_node["name"].IsString()) {
+                anim.anim_name = a_node["name"].GetString();
+            }
+        }
+        if (a_node.HasMember("t_wait")) {
+            if (a_node["t_wait"].IsUint()) {
+                anim.t_wait_ms = a_node["t_wait"].GetUint();
+            }
+        }
+        return anim;
+    }
+
+    Animations::AnimData GetAnimDataFromJsonNode(const rapidjson::Value& a_node) {
+        Animations::AnimData a_data;
+
+        if (a_node.HasMember("open")) {
+            const auto& openNode = a_node["open"];
+            if (openNode.IsArray()) {
+                for (const auto& animNode : openNode.GetArray()) {
+                    a_data.open.push_back(GetAnimationFromJsonNode(animNode));
+                }
+            } else if (openNode.IsObject()) {
+                a_data.open.push_back(GetAnimationFromJsonNode(openNode));
+            }
+        }
+
+        if (a_node.HasMember("close")) {
+            const auto& closeNode = a_node["close"];
+            if (closeNode.IsArray()) {
+                for (const auto& animNode : closeNode.GetArray()) {
+                    a_data.close.push_back(GetAnimationFromJsonNode(animNode));
+                }
+            } else if (closeNode.IsObject()) {
+                a_data.close.push_back(GetAnimationFromJsonNode(closeNode));
+            }
+        }
+
+        // Handle "attach_node"
+        if (a_node.HasMember("attach_node") && a_node["attach_node"].IsString()) {
+            a_data.attach_node = a_node["attach_node"].GetString();
+        }
+
+        return a_data;
+    }
+}
+
+
+bool Settings::AnimationsDelayMenuOpen() {
+    return other_settings.at(Settings::otherstuffKeys.at(6));
+}
 
 std::vector<Source> LoadSources()
 {
+    LoadFormGroups();
     std::vector<Source> sources;
     const auto IniSources = LoadINISources();
     logger::trace("IniSources size: {}", IniSources.size());
@@ -66,66 +199,93 @@ void LoadOtherSettings()
 	}
 }
 
-Source parseSource_(const YAML::Node& config)
-{
-	using namespace Settings;
-
-    const auto temp_weight_limit = config["weight_limit"] && !config["weight_limit"].IsNull() ? config["weight_limit"].as<float>() : 0.f;
-
-    float cloud_storage = cloud_storage_enabled ? 1.f : 0.f;
-    if (config["cloud_storage"] && !config["cloud_storage"].IsNull()) {
-        try {cloud_storage = std::clamp(config["cloud_storage"].as<float>(), 0.f, 1.f);}
-		catch (const std::exception&) {
-            try {cloud_storage = config["cloud_storage"].as<bool>() ? 1.f : 0.f;}
-			catch (const std::exception&) {
-				logger::warn("Cloud storage value is invalid. Using default value.");
-			}
-		}
-    }
-
-    auto temp_formeditorid = config["FormEditorID"] && !config["FormEditorID"].IsNull() ? config["FormEditorID"].as<std::string>() : "";
-    FormID temp_formid = temp_formeditorid.empty() ? 0 : GetFormEditorIDFromString(temp_formeditorid);
-	if (!temp_formid) {
-		logger::error("Formid could not be obtained for form-/editorid: {}", temp_formeditorid);
-        Source source(temp_formid, "", temp_weight_limit, cloud_storage);
-		return source;
+std::vector<Source> parseSources(const YAML::Node& config, const Settings::ConfigData& data) {
+	std::vector<Source> sources;
+    const auto formeditorid = config["FormEditorID"] && !config["FormEditorID"].IsNull() ? config["FormEditorID"].as<std::string>() : "";
+    const auto candidates = PresetHelpers::YAML_Helpers::StringToFormIDs(formeditorid);
+	size_t i = 0;
+	for (const auto formid : candidates) {
+        if (const auto form = FormReader::GetFormByID(formid)) {
+		    const auto editorid = clib_util::editorID::get_editorID(form);
+            sources.push_back(parseSource_(config, data, formid, editorid));
+            break;
+        }
+        ++i;
 	}
-    logger::trace("FormEditorID: {}, FormID: {}, WeightLimit: {}, CloudStorage: {}", temp_formeditorid, temp_formid, temp_weight_limit, cloud_storage);
-    Source source(temp_formid, "", temp_weight_limit, cloud_storage);
+    for (auto k = i + 1; k < candidates.size(); ++k) {
+        const auto formid = candidates[k];
+        if (const auto form = FormReader::GetFormByID(formid)) {
+            const auto editorid = clib_util::editorID::get_editorID(form);
+            Source new_source = sources[0];
+			new_source.formid = formid;
+			new_source.editorid = editorid;
+            sources.push_back(new_source);
+        }
+	}
+    return sources;
+}
 
-    if (!config["initial_items"] || config["initial_items"].size() == 0) {
-        logger::trace("initial_items are empty.");
-        return source;
-    }
-    for (const auto& itemNode : config["initial_items"]) {
-        temp_formeditorid = itemNode["FormEditorID"] && !itemNode["FormEditorID"].IsNull()
-                                           ? itemNode["FormEditorID"].as<std::string>()
-                                           : "";
+std::unordered_map<std::string, SourceAnimData> LoadAnimationData()
+{
+    const auto folder_path = std::format("Data/SKSE/Plugins/{}", mod_name) + "/animData";
+	std::unordered_map<std::string, SourceAnimData> anim_data;
 
-        temp_formid = temp_formeditorid.empty() ? 0 : GetFormEditorIDFromString(temp_formeditorid);
-        if (!temp_formid) {
-            logger::error("Formid could not be obtained for form-/editorid: {}", temp_formeditorid);
-            continue;
-        }
-        if (!itemNode["count"] || itemNode["count"].IsNull()) {
-            logger::error("Count is null.");
-            continue;
-        }
-        logger::trace("Count");
-        const Count temp_count = itemNode["count"].as<Count>();
-        if (temp_count == 0) {
-            logger::error("Count is 0.");
-            continue;
-        }
-        source.AddInitialItem(temp_formid, temp_count);
-    }
-    return source;
+	if (!std::filesystem::exists(folder_path)) {
+	    logger::warn("Animation data folder does not exist: {}", folder_path);
+	    return anim_data;
+	}
+
+	logger::info("Loading animation data from: {}", folder_path);
+	for (const auto& entry : std::filesystem::directory_iterator(folder_path)) {
+	    if (entry.is_regular_file() && entry.path().extension() == ".json") {
+	        std::ifstream file(entry.path());
+	        if (!file.is_open()) {
+	            logger::error("Failed to open file: {}", entry.path().string());
+	            continue;
+	        }
+	        rapidjson::IStreamWrapper isw(file);
+	        rapidjson::Document doc;
+	        doc.ParseStream(isw);
+	        if (doc.HasParseError() || !doc.IsObject()) {
+	            logger::error("Failed to parse JSON in file: {}", entry.path().string());
+	            continue;
+	        }
+#undef GetObject
+	        for (const auto& member : doc.GetObject()) {
+	            const std::string anim_data_name = member.name.GetString();
+	            if (!member.value.IsObject()) continue;
+
+	            SourceAnimData data_map;
+	            const auto& value = member.value;
+                if (value.HasMember("menu") && value["menu"].IsObject()) {
+                    data_map[Animations::AnimDataType::kInventory] = GetAnimDataFromJsonNode(value["menu"].GetObject());
+				}
+                if (value.HasMember("world") && value["world"].IsObject()) {
+					data_map[Animations::AnimDataType::kDrop] = GetAnimDataFromJsonNode(value["world"].GetObject());
+                }
+
+	            anim_data[anim_data_name] = data_map;
+	        }
+	    }
+	}
+	return anim_data;
+}
+
+void LoadFormGroups()
+{
+    const auto folder_path = std::format("Data/SKSE/Plugins/{}", mod_name) + "/formGroups";
+    PresetHelpers::TXT_Helpers::GatherForms(folder_path);
 }
 
 std::vector<Source> LoadYAMLSources()
 {
     logger::info("Loading yaml settings: Sources");
+
+    Settings::ConfigData data;
+	data.anim_data = LoadAnimationData();
+
     std::vector<Source> sources;
+    std::set<FormID> source_formids;
     const auto folder_path = std::format("Data/SKSE/Plugins/{}", mod_name) + "/presets";
     std::filesystem::create_directories(folder_path);
     logger::trace("Custom path: {}", folder_path);
@@ -135,19 +295,22 @@ std::vector<Source> LoadYAMLSources()
             YAML::Node config = YAML::LoadFile(filename);
 
             if (!config["containers"]) {
-                logger::trace("OwnerLists not found in {}", filename);
                 continue;
             }
 
             for (const auto& node : config["containers"]) {
                 // we have list of owners at each node or a scalar owner
                 try {
-                    const auto source = parseSource_(node);
-                    if (!source.IsHealthy()) {
-                        logger::error("LoadYAMLSources: File {} has invalid source: {}, {}", filename, source.formid, source.editorid);
-					    continue;
-				    }
-                    sources.push_back(source);
+                    for (const auto& source : parseSources(node,data)) {
+                        if (!source.IsHealthy()) {
+                            logger::error("LoadYAMLSources: File {} has invalid source: {}, {}", filename, source.formid, source.editorid);
+					        continue;
+				        }
+                        if (!source_formids.contains(source.formid)) {
+                            source_formids.insert(source.formid);
+                            sources.push_back(source);
+                        }
+                    }
                 }
 				catch (const std::exception& e) {
 					logger::error("Error parsing source: {}", e.what());
@@ -232,16 +395,16 @@ std::vector<Source> LoadINISources()
         std::string id_str = std::string(val1);
 
         // if both formid is valid hex, use it
-        if (isValidHexWithLength7or8(val1)) {
+        if (FormReader::isValidHexWithLength7or8(val1)) {
             logger::info("Formid {} is valid hex", val1);
-            sources.emplace_back(id, "", std::stof(val2), cloud_storage_enabled);
+            sources.emplace_back(id, "", std::stof(val2), cloud_storage_enabled, SourceAnimData());
         }
         else if (!po3installed) {
             logger::error("No formid AND powerofthree's Tweaks is not installed.", val1);
             MsgBoxesNotifs::Windows::Po3ErrMsg();
             return sources;
         } 
-        else sources.emplace_back(0, id_str, std::stof(std::string(val2)), cloud_storage_enabled);
+        else sources.emplace_back(0, id_str, std::stof(std::string(val2)), cloud_storage_enabled, SourceAnimData());
 
         logger::trace("Source {} has a value of {}", it->pItem, val1);
         ini.SetValue(InISections[0], it->pItem, val1);

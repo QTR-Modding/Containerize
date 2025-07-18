@@ -35,7 +35,7 @@ namespace Settings {
         };
 
 
-    constexpr size_t otherstuffSize = 6;
+    constexpr size_t otherstuffSize = 8;
     const std::array<std::string, otherstuffSize> os_comments =
 		{";Set to false to suppress the 'INI changed between saves' message.",
 		"; Set to true to remove the initial carry weight bonuses on your container items.",
@@ -43,11 +43,13 @@ namespace Settings {
         "; Set to true to sell your container to vendors together with the items inside it.",
         "; Set to true to make your containers weigh nothing by default.",
         "; Set to true to make use of Object Manipulation Overhaul upon dropping containers.",
+		"; Set to true to delay the opening of the container menu until the animations are finished.",
+        "; Set to true to play animations only if the Containerized item is equipped."
 		};
    
     constexpr std::array<const char*, otherstuffSize> otherstuffKeys = 
-    {"INI_changed_msg", "RemoveCarryBoosts","ReturnToInitialMenu", "BatchSell", "CloudStorage", "ObjectManipulationOverhaul"};
-    constexpr std::array<bool, otherstuffSize> otherstuffVals = {true, true, true, true, false, false};
+    {"INI_changed_msg", "RemoveCarryBoosts","ReturnToInitialMenu", "BatchSell", "CloudStorage", "ObjectManipulationOverhaul", "AnimationsDelayMenuOpen","PlayAnimationsOnlyIfEquipped"};
+    constexpr std::array<bool, otherstuffSize> otherstuffVals = {true, true, true, true, false, false, false, false};
 
     inline bool cloud_storage_enabled = otherstuffVals[4];
 
@@ -67,11 +69,18 @@ namespace Settings {
     inline bool problems_in_INI_sources = false;
     inline bool duplicate_sources = false;
 
+    struct ConfigData {
+		std::unordered_map<std::string,SourceAnimData> anim_data;
+    };
+
+    bool AnimationsDelayMenuOpen();
 };
 
 std::vector<Source> LoadSources();
 void LoadOtherSettings();
-Source parseSource_(const YAML::Node& config);
+std::vector<Source> parseSources(const YAML::Node& config, const Settings::ConfigData& data);
+std::unordered_map<std::string,SourceAnimData> LoadAnimationData();
+void LoadFormGroups();
 std::vector<Source> LoadYAMLSources();
 std::vector<Source> LoadINISources();
 void LoadTranslations();

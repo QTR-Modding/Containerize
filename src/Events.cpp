@@ -21,6 +21,12 @@ void EventSink::RemovePrompts()
     SkyPromptAPI::RemovePrompt(SkyPrompt::MyPromptSink2::GetSingleton(), SkyPrompt::g_clientID);
 }
 
+void EventSink::RemoveMenuPrompts()
+{
+    SkyPrompt::MenuPromptSink::GetSingleton()->Hide();
+	SkyPrompt::RegistrationPromptSink::GetSingleton()->Hide();
+}
+
 void EventSink::Reset() {
 	furniture = nullptr;
 	furniture_entered.store(false);
@@ -106,6 +112,9 @@ RE::BSEventNotifyControl EventSink::ProcessEvent(const RE::MenuOpenCloseEvent* a
 	if (a_event->opening) {
 	    RemovePrompts();
 	}
+    else {
+        RemoveMenuPrompts();
+    }
 
 	return RE::BSEventNotifyControl::kContinue;
 }

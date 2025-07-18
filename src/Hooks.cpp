@@ -9,12 +9,13 @@ void Hooks::Install()
 	MoveItemHooks<RE::PlayerCharacter>::install();
 	MoveItemHooks<RE::TESObjectREFR>::install(false);
 	MoveItemHooks<RE::Character>::install();
-	MenuHook<RE::ContainerMenu>::InstallHook(RE::VTABLE_ContainerMenu[0]);
+
+    MenuHook<RE::ContainerMenu>::InstallHook(RE::VTABLE_ContainerMenu[0]);
 	MenuHook<RE::InventoryMenu>::InstallHook(RE::VTABLE_InventoryMenu[0]);
 
 	auto& trampoline = SKSE::GetTrampoline();
     constexpr size_t size_per_hook = 14;
-	trampoline.create(size_per_hook*3);
+	trampoline.create(size_per_hook*5);
 
 	const REL::Relocation<std::uintptr_t> target4{REL::RelocationID(67315, 68617)};
     InputHook::func = trampoline.write_call<5>(target4.address() + 0x7B, InputHook::thunk);
@@ -24,6 +25,13 @@ void Hooks::Install()
 
 	const REL::Relocation<std::uintptr_t> function{REL::RelocationID(51019, 51897)};
     InventoryHoverHook::originalFunction = trampoline.write_call<5>(function.address() + REL::Relocate(0x114, 0x22c), InventoryHoverHook::thunk);
+
+	REL::Relocation<std::uintptr_t> target{REL::RelocationID(42420, 43576),
+                                                   REL::Relocate(0x22A, 0x21F)};  // AnimationObjects::Load
+    AnimObjectHook::_LoadAnimObject = trampoline.write_call<5>(target.address(), AnimObjectHook::thunk);
+
+	const REL::Relocation<std::uintptr_t> target2{REL::RelocationID(75461, 77246)}; // BSGraphics::Renderer::End
+    DrawHook::func = trampoline.write_call<5>(target2.address() + 0x9, DrawHook::thunk);
 }
 void Hooks::InstallUseOrTakeHooks()
 {
@@ -63,25 +71,20 @@ bool Hooks::HandleEquip(RE::InputEvent* event)
     return false;
 }
 
-RE::TESBoundObject* Hooks::GetSelectedItemInMenu()
+RE::InventoryEntryData* Hooks::GetSelectedEntryInMenu()
 {
-#undef GetObject
     if (const auto ui = RE::UI::GetSingleton()) {
 	    if (const auto menu_c = ui->GetMenu<RE::ContainerMenu>()) {
 		    if (const auto a_itemList = menu_c->GetRuntimeData().itemList) {
 		        if (const auto item = a_itemList->GetSelectedItem()) {
-				    if (const auto a_data = item->data.objDesc) {
-				        return a_data->GetObject();
-				    }
+					return item->data.objDesc;
 		        }
 		    }
 	    }
 	    else if (const auto menu_i = ui->GetMenu<RE::InventoryMenu>()) {
 		    if (const auto a_itemList = menu_i->GetRuntimeData().itemList) {
 		        if (const auto item = a_itemList->GetSelectedItem()) {
-				    if (const auto a_data = item->data.objDesc) {
-				        return a_data->GetObject();
-				    }
+                    return item->data.objDesc;
 		        }
 		    }
 	    }
@@ -92,16 +95,23 @@ RE::TESBoundObject* Hooks::GetSelectedItemInMenu()
                 const std::int32_t selected_index = static_cast<std::int32_t>(selectedIndex.GetNumber());
 			    const auto& items = runtime_data.favorites;
 			    if (selected_index >= 0 && static_cast<uint32_t>(selected_index) < items.size()) {
-			        if (const auto item = items[selected_index].item) {
-				        if (const auto bound = skyrim_cast<RE::TESBoundObject*>(item)) {
-						    return bound;
-				        }
-			        }
+					return items[selected_index].entryData;
 			    }
 		    }
 	    }
     }
     return nullptr;
+}
+
+RE::TESBoundObject* Hooks::GetSelectedItemInMenu()
+{
+#undef GetObject
+	if (auto selected_entry = GetSelectedEntryInMenu()) {
+		if (const auto selected_object = selected_entry->GetObject()) {
+			return selected_object;
+		}
+	}
+	return nullptr;
 }
 
 
@@ -339,6 +349,114 @@ void Hooks::MenuHook<MenuType>::InstallHook(const REL::VariantID& varID)
     _ProcessMessage = vTable.write_vfunc(0x4, &MenuHook<MenuType>::ProcessMessage_Hook);
 }
 
+namespace {
+
+	// yoinked po3's code
+    template <class T, class U>
+    auto adjust_pointer(U* a_ptr, std::ptrdiff_t a_adjust) noexcept {
+        auto addr = a_ptr ? reinterpret_cast<std::uintptr_t>(a_ptr) + a_adjust : 0;
+        if constexpr (std::is_const_v<U> && std::is_volatile_v<U>) {
+            return reinterpret_cast<std::add_cv_t<T>*>(addr);
+        } else if constexpr (std::is_const_v<U>) {
+            return reinterpret_cast<std::add_const_t<T>*>(addr);
+        } else if constexpr (std::is_volatile_v<U>) {
+            return reinterpret_cast<std::add_volatile_t<T>*>(addr);
+        } else {
+            return reinterpret_cast<T*>(addr);  // NOLINT(performance-no-int-to-ptr)
+        }
+    }
+
+    RE::NiNode* GetAttachNode(RE::NiAVObject* animObjectMesh) {
+        auto* root = animObjectMesh->AsFadeNode();
+        RE::NiNode* defaultAttachNode = nullptr;
+        if (root) {
+            if (auto* attachNode = root->GetObjectByName(Hooks::attach_node)) {
+                defaultAttachNode = attachNode->AsNode();
+            }
+        }
+        return defaultAttachNode;
+    }
+
+    std::vector<RE::BSGeometry*> GetAllGeometries(RE::NiAVObject* root) {
+        std::vector<RE::BSGeometry*> geometries;
+        RE::BSVisit::TraverseScenegraphGeometries(root, [&geometries](RE::BSGeometry* geom) -> RE::BSVisit::BSVisitControl {
+            if (geom && geom->AsGeometry()) {
+                geometries.emplace_back(geom);
+            }
+
+            return RE::BSVisit::BSVisitControl::kContinue;
+        });
+        return geometries;
+    }
+
+    RE::NiAVObject* Clone(RE::NiAVObject* original) {
+        typedef RE::NiAVObject* (*func_t)(RE::NiAVObject* avObj);
+        REL::Relocation<func_t> func{RELOCATION_ID(68835, 70187)};
+        return func(original);
+    }
+
+    RE::NiAVObject* GetContainerMesh(RE::NiAVObject* original, RE::NiAVObject* ContainerMesh) {
+        if (ContainerMesh == nullptr) {
+            return nullptr;
+        }
+
+        auto* node = GetAttachNode(original);
+	    if (!node) {
+		    logger::warn("Failed to get attach node for anim object mesh");
+		    return nullptr;
+	    }
+
+        auto geometries = GetAllGeometries(ContainerMesh);
+
+        for (auto* geom : geometries) {
+            if (!geom) {
+                continue;
+            }
+
+            auto* clone = Clone(geom);
+
+            node->AttachChild(clone, true);
+        }
+        return original->AsFadeNode();
+    }
+}
+
+
+void Hooks::AnimObjectHook::OnIsWorn(RE::TESBoundObject* object_to_equip)
+{
+    if (object_to_equip->GetFormType() == RE::FormType::Armor) {
+        RE::PlayerCharacter* player = RE::PlayerCharacter::GetSingleton();
+        RE::TESObjectARMO* armor = object_to_equip->As<RE::TESObjectARMO>();
+        RE::TESRace* race = player->GetRace();
+        RE::TESObjectARMA* armorAddon = armor->GetArmorAddon(race);
+        char addonString[MAX_PATH]{'\0'};
+        armorAddon->GetNodeName(addonString, player, armor,-1.0f);
+		if (const auto a_node = player->GetNodeByName(addonString)) {
+		    objectNode.reset(a_node);
+		}
+		else {
+			logger::error("Failed to get node by name: {}", addonString);
+		}
+    }
+}
+
+RE::NiAVObject* Hooks::AnimObjectHook::thunk(RE::TESModel* a_model, RE::BIPED_OBJECT a_bipedObj,
+                                               RE::TESObjectREFR* a_actor, RE::BSTSmartPointer<RE::BipedAnim>& a_biped,
+                                               RE::NiAVObject* a_root) {
+
+    RE::NiAVObject* output = _LoadAnimObject(a_model, a_bipedObj, a_actor, a_biped, a_root);
+    if (const auto animObject = adjust_pointer<RE::TESObjectANIO>(a_model->GetAsModelTextureSwap(), -0x20);
+        animObject) { 
+		if (container_meshes.contains(container_mesh)) {
+            if (auto* containerMesh = GetContainerMesh(output,container_meshes.at(container_mesh).get())) {
+                output = containerMesh;
+            }
+		}
+    }
+
+    return output;
+}
+
 int64_t Hooks::InventoryHoverHook::thunk(RE::InventoryEntryData* a1)
 {
 	if (is_open.load()) {
@@ -346,9 +464,15 @@ int64_t Hooks::InventoryHoverHook::thunk(RE::InventoryEntryData* a1)
 			const auto a_formid = a_bound->GetFormID();
 			if (const auto mngr = Manager::GetSingleton();
 				mngr->IsFakeContainer(a_formid)) {
+				SkyPrompt::RegistrationPromptSink::GetSingleton()->Hide();
 	            SkyPrompt::MenuPromptSink::GetSingleton()->Show(a_bound);
 			}
+			else if (mngr->IsRealContainer(a_formid)) {
+				SkyPrompt::MenuPromptSink::GetSingleton()->Hide();
+	            SkyPrompt::RegistrationPromptSink::GetSingleton()->Show(a_bound);
+			}
 			else {
+				SkyPrompt::RegistrationPromptSink::GetSingleton()->Hide();
 				SkyPrompt::MenuPromptSink::GetSingleton()->Hide();
 			}
 		}
@@ -356,3 +480,40 @@ int64_t Hooks::InventoryHoverHook::thunk(RE::InventoryEntryData* a1)
 	return originalFunction(a1);
 }
 
+namespace {
+	bool IsGameFrozen() {
+        if (const auto main = RE::Main::GetSingleton()) {
+            if (main->freezeTime) return true;
+            if (!main->gameActive) return true;
+        }
+	    else return true;
+	    if (RE::UI::GetSingleton()->GameIsPaused()) return true;
+	    return false;
+    }
+
+	bool IsGameWindowInFocus() {
+        const HWND foregroundWindow = GetForegroundWindow();
+        if (!foregroundWindow) {
+            return false;
+        }
+
+        DWORD foregroundProcessId;
+        GetWindowThreadProcessId(foregroundWindow, &foregroundProcessId);
+
+        const DWORD currentProcessId = GetCurrentProcessId();
+        return foregroundProcessId == currentProcessId;
+    }
+    
+}
+
+void Hooks::DrawHook::thunk(std::uint32_t a_timer)
+{
+	func(a_timer);
+
+    if (IsGameFrozen() || !IsGameWindowInFocus()) {
+        Animations::MyAnimator::GetSingleton()->Pause();
+    }
+	else {
+        Animations::MyAnimator::GetSingleton()->Resume();
+    }
+}

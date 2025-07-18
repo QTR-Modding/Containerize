@@ -12,4 +12,5 @@ set(headers ${headers}
 	include/Translations.h
 	include/Papyrus.h
 	include/SkyPrompt.h
+	include/Animations.h
 )

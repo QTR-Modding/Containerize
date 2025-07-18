@@ -31,6 +31,7 @@ public:
 		RE::BSTEventSource<RE::MenuOpenCloseEvent>* a_eventSource) override;
 
     static void RemovePrompts();
+    static void RemoveMenuPrompts();
 
 	void Install();
 };

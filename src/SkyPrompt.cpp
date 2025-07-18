@@ -2,6 +2,7 @@
 #include "Events.h"
 #include "Hooks.h"
 #include "Manager.h"
+#include "CLibUtilsQTR/Tasker.hpp"
 
 using namespace SkyPrompt;
 
@@ -15,11 +16,21 @@ void MyPromptSink::ProcessEvent(const SkyPromptAPI::PromptEvent event) const
 	if (const auto crosshairref = RE::CrosshairPickData::GetSingleton()->target) {
         if (const auto prompt_eventid = event.prompt.eventID; 
 			prompt_eventid == 0) {
-		    M->OnActivateContainer(crosshairref.get().get(), 0);
+
+            if (SetUpPlayAnimation(crosshairref.get().get())) {
+				const auto duration = Animations::MyAnimator::GetSingleton()->GetOpenDuration();
+                clib_utilsQTR::Tasker::GetSingleton()->PushTask([crosshairref] {
+		            Manager::GetSingleton()->OnActivateContainer(crosshairref.get().get(), 0);
+                },static_cast<int>(duration));
+			}
+	        else {
+		       M->OnActivateContainer(crosshairref.get().get(), 0);
+			}
+
 	    }
 	    else if (prompt_eventid == 1) {
-		    //logger::info("Prompt event: Rename");
-		    M->OnActivateContainer(crosshairref.get().get(),2);
+			const auto a_ref = crosshairref.get().get();
+		    M->OnActivateContainer(a_ref,2);
 	    }
 	    else {
 		    logger::warn("Prompt event: Unrecognized prompt.");
@@ -42,8 +53,8 @@ void MyPromptSink2::Start(const RE::TESObjectREFR* a_ref) {
 		return;
 	}
 
-	weight_text.append("W: ").append(a_weight_text);
-	value_text.append("V: ").append(a_value_text);
+	weight_text.append(Strings::weight).append(a_weight_text);
+	value_text.append(Strings::value).append(a_value_text);
 
 	weight_prompt.text = weight_text;
 	value_prompt.text = value_text;
@@ -61,34 +72,89 @@ bool SkyPrompt::IsAnyMenuOpen() {
 	return false;
 }
 
-void SkyPrompt::MenuPromptSink::ProcessEvent(const SkyPromptAPI::PromptEvent event) const
-{
-	if (event.type) {
-		return;
-	}
-	if (const auto a_item = Hooks::GetSelectedItemInMenu()) {
-	    Manager::GetSingleton()->OnLongPressEquip(a_item);
+void MenuPromptSink::GetContainerMesh(FormID a_realid, FormID model_item) {
+	if (!Hooks::container_meshes.contains(a_realid)) {
+        for (const auto& loaded_models = RE::Inventory3DManager::GetSingleton()->GetRuntimeData().loadedModels; 
+			auto& a_loaded_model : loaded_models) {
+			if (a_loaded_model.modelObj->GetFormID() == model_item) {
+                Hooks::container_meshes[a_realid] = a_loaded_model.spModel;
+				break;
+			}
+		}
 	}
 }
 
-void SkyPrompt::MenuPromptSink::Show(RE::TESBoundObject* a_item) const {
+bool SkyPrompt::MenuPromptSink::SetUpPlayAnimation(const RE::TESBoundObject* a_fake) {
+	const auto a_real = Manager::GetSingleton()->FakeToRealContainer(a_fake->GetFormID());
+    Hooks::container_mesh = a_real->GetFormID();
+    Manager::GetSingleton()->SetUpAnimation(a_real);
+
+    bool opening_bag = false;
+    if (ModCompatibility::Mods::souls_unpaused_installed || 
+        Settings::AnimationsDelayMenuOpen() && !Animations::MyAnimator::GetSingleton()->isRunning()) {
+        Animations::MyAnimator::GetSingleton()->OpenBag();
+	    opening_bag = true;
+    }
+
+    if (opening_bag && Settings::AnimationsDelayMenuOpen()) {
+	    return true;
+    }
+	return false;
+}
+
+bool SkyPrompt::MyPromptSink::SetUpPlayAnimation(const RE::TESObjectREFR* a_real) {
+    Manager::GetSingleton()->SetUpAnimation(a_real);
+    bool opening_bag = false;
+    if (ModCompatibility::Mods::souls_unpaused_installed || 
+        Settings::AnimationsDelayMenuOpen() && !Animations::MyAnimator::GetSingleton()->isRunning()) {
+        Animations::MyAnimator::GetSingleton()->OpenBag();
+	    opening_bag = true;
+    }
+
+    if (opening_bag && Settings::AnimationsDelayMenuOpen()) {
+	    return true;
+    }
+	return false;
+}
+
+void SkyPrompt::MenuPromptSink::ProcessEvent(const SkyPromptAPI::PromptEvent event) const
+{
+#undef GetObject
+	if (event.type) {
+		return;
+	}
+	EventSink::RemoveMenuPrompts();
+	if (const auto a_entry = Hooks::GetSelectedEntryInMenu()) {
+		if (const auto a_fake = a_entry->GetObject()) {
+			// TODO
+	        /*if (event.prompt.eventID == 1) {
+	            return;
+	        }*/
+	        OpenBag(a_fake, a_entry->IsWorn());
+		}
+	}
+	
+}
+
+void SkyPrompt::MenuPromptSink::Show(RE::TESBoundObject* a_fake) const {
 
     weight_text.clear();
 
 	if (const auto a_ref = RE::Inventory3DManager::GetSingleton()->tempRef) {
 		const auto refid = a_ref->GetFormID();
 		open_prompt.refid = refid;
+		//rename_prompt.refid = refid;
 		weight_prompt.refid = refid;
 
-		const auto a_weight_text = Manager::GetSingleton()->GetWeightText(a_item);
-		weight_text.append("W: ").append(a_weight_text);
+		const auto a_weight_text = Manager::GetSingleton()->GetWeightText(a_fake);
+		weight_text.append(Strings::weight).append(a_weight_text);
 		weight_prompt.text = weight_text;
 	}
 	else {
 		open_prompt.refid = 0;
 		weight_prompt.refid = 0;
 	}
-	prompts = { open_prompt,weight_prompt};
+	prompts = { open_prompt,/*rename_prompt,*/weight_prompt};
 
 	if (!SkyPromptAPI::SendPrompt(this,g_clientID)) {
 	}
@@ -96,4 +162,71 @@ void SkyPrompt::MenuPromptSink::Show(RE::TESBoundObject* a_item) const {
 
 void SkyPrompt::MenuPromptSink::Hide() const {
 	SkyPromptAPI::RemovePrompt(this,g_clientID);
+}
+
+void MenuPromptSink::OpenBag(RE::TESBoundObject* a_fake, const bool is_worn) {
+
+	const auto a_real = Manager::GetSingleton()->FakeToRealContainer(a_fake->GetFormID());
+    GetContainerMesh(a_real->GetFormID(), a_fake->GetFormID());
+
+    if (is_worn) {
+        Hooks::AnimObjectHook::OnIsWorn(a_fake);
+    }
+
+    Manager::GetSingleton()->CloseMenu();
+
+    const bool should_play_anim = !other_settings.at(Settings::otherstuffKeys.at(7)) || is_worn;
+
+    if (should_play_anim && SetUpPlayAnimation(a_fake)) {
+        const auto duration = Animations::MyAnimator::GetSingleton()->GetOpenDuration();
+        clib_utilsQTR::Tasker::GetSingleton()->PushTask([a_fake] {
+	        Manager::GetSingleton()->OnLongPressEquip(a_fake);
+        },static_cast<int>(duration));
+    }
+    else {
+        Manager::GetSingleton()->OnLongPressEquip(a_fake);
+    }
+}
+
+void SkyPrompt::RegistrationPromptSink::ProcessEvent(const SkyPromptAPI::PromptEvent event) const
+{
+	if (event.type) {
+		return;
+	}
+
+	EventSink::RemoveMenuPrompts();
+
+	if (const auto a_entry = Hooks::GetSelectedEntryInMenu()) {
+		const bool is_worn = a_entry->IsWorn();
+		const auto real_id = a_entry->GetObject()->GetFormID();
+		MenuPromptSink::GetContainerMesh(real_id,real_id);
+		if (!Menu::GetContainerMenuOwner(containermenu_owner)) {
+		    containermenu_owner.reset();
+		}
+		if (const auto a_fake = Manager::GetSingleton()->RegisterFromMenu(a_entry, containermenu_owner.get())) {
+			if (is_worn) {
+				RE::ActorEquipManager::GetSingleton()->EquipObject(RE::PlayerCharacter::GetSingleton(),a_fake);
+			}
+			MenuPromptSink::OpenBag(a_fake,is_worn);
+		}
+	}
+}
+
+void RegistrationPromptSink::Show([[maybe_unused]] RE::TESBoundObject* a_item) {
+	if (const auto a_ref = RE::Inventory3DManager::GetSingleton()->tempRef) {
+		const auto refid = a_ref->GetFormID();
+		open_prompt.refid = refid;
+	}
+	else {
+		open_prompt.refid = 0;
+	}
+	prompts = { open_prompt};
+
+	if (!SkyPromptAPI::SendPrompt(this,g_clientID)) {
+	}
+}
+
+void RegistrationPromptSink::Hide() const {
+	SkyPromptAPI::RemovePrompt(this,g_clientID);
+	containermenu_owner.reset();
 }
