@@ -53,7 +53,7 @@ struct Source {
     std::string editorid;
     SourceData data;
 
-    Source(FormID id, std::string id_str, float capacity, float cs, const SourceAnimData& ad);
+    Source(FormID id, std::string id_str, float capacity, float cs, SourceAnimData ad);
 
     [[nodiscard]] std::string_view GetName() const;
 

@@ -130,7 +130,7 @@ public clib_util::singleton::ISingleton<Manager>
 
 public:
 
-    std::set<FormID> doppelgangers;
+    std::set<FormID> doppelgangers; // CC content
 	std::atomic<bool> isUninstalled = false;
 
     const char* GetType() override { return "Manager"; }

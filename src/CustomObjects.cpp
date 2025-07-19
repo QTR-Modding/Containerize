@@ -18,8 +18,8 @@ bool FormFormID::operator<(const FormFormID& other) const {
     return outerKey < other.outerKey || (outerKey == other.outerKey && innerKey < other.innerKey);
 }
 
-Source::Source(const std::uint32_t id, std::string id_str, const float capacity, const float cs, const SourceAnimData& ad):
-    weight_ratio(1 - cs), anim_data(ad), capacity(capacity), formid(id), editorid(std::move(id_str)) {
+Source::Source(const std::uint32_t id, std::string id_str, const float capacity, const float cs, SourceAnimData ad):
+    weight_ratio(1 - cs), anim_data(std::move(ad)), capacity(capacity), formid(id), editorid(std::move(id_str)) {
     if (!formid) {
         if (const auto form = RE::TESForm::LookupByEditorID(editorid)) formid = form->GetFormID();
         else logger::info("Could not find formid for editorid {}", editorid);
@@ -52,9 +52,9 @@ bool Source::IsHealthy() const
 	if (const auto* form = FormReader::GetFormByID(formid, editorid); !form) return false;
 	if (capacity < 0.f) return false;
 	if (weight_ratio < 0.f || weight_ratio > 1.f) return false;
-	for (const auto& [formid_, count] : initial_items) {
-		if (count <= 0) return false;
-		if (!FormReader::GetFormByID(formid_)) return false;
-	}
-    return true;
+
+    return std::ranges::all_of(initial_items, [](const auto& pair) {
+        const auto& [a_formid, a_count] = pair;
+        return a_count > 0 && FormReader::GetFormByID(a_formid);
+    });
 }

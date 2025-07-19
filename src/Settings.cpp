@@ -6,7 +6,7 @@
 #include "CLibUtilsQTR/PresetHelpers.hpp"
 
 namespace {
-    Source parseSource_(const YAML::Node& config, const Settings::ConfigData& data, FormID formid, std::string editorid)
+    Source parseSource_(const YAML::Node& config, const Settings::ConfigData& data, const FormID formid, const std::string& editorid)
     {
 	    using namespace Settings;
 
@@ -33,34 +33,31 @@ namespace {
 	    }
 
         logger::trace("FormEditorID: {}, FormID: {}, WeightLimit: {}, CloudStorage: {}", editorid, formid, temp_weight_limit, cloud_storage);
-        Source source(formid, "", temp_weight_limit, cloud_storage, anim_data);
+        Source source(formid, editorid, temp_weight_limit, cloud_storage, anim_data);
 
 	    // add initial items
-        if (!config["initial_items"] || config["initial_items"].size() == 0) {
-            return source;
-        }
-        for (const auto& itemNode : config["initial_items"]) {
-            auto temp_formeditorid = itemNode["FormEditorID"] && !itemNode["FormEditorID"].IsNull()
-                                               ? itemNode["FormEditorID"].as<std::string>()
-                                               : "";
-            if (!itemNode["count"] || itemNode["count"].IsNull()) {
-                logger::error("Count is null.");
-                continue;
-            }
-            logger::trace("Count");
-            const Count temp_count = itemNode["count"].as<Count>();
-            if (temp_count == 0) {
-                logger::error("Count is 0.");
-                continue;
-            }
-
-            for (const auto id : PresetHelpers::YAML_Helpers::StringToFormIDs(temp_formeditorid)) {
-                if (const auto form = FormReader::GetFormByID(id)) {
-					auto editorid1 = clib_util::editorID::get_editorID(form);
-                    source.AddInitialItem(id, temp_count);
+        if (config["initial_items"] && config["initial_items"].size() > 0) {
+            for (const auto& itemNode : config["initial_items"]) {
+                auto temp_formeditorid = itemNode["FormEditorID"] && !itemNode["FormEditorID"].IsNull()
+                                                   ? itemNode["FormEditorID"].as<std::string>()
+                                                   : "";
+                if (!itemNode["count"] || itemNode["count"].IsNull()) {
+                    logger::error("Count is null.");
+                    continue;
                 }
-			}
+                logger::trace("Count");
+                const Count temp_count = itemNode["count"].as<Count>();
+                if (temp_count == 0) {
+                    logger::error("Count is 0.");
+                    continue;
+                }
+
+                for (const auto id : PresetHelpers::YAML_Helpers::StringToFormIDs(temp_formeditorid)) {
+                    source.AddInitialItem(id, temp_count);
+			    }
+            }
         }
+
         return source;
     }
 
@@ -180,7 +177,6 @@ std::vector<Source> LoadSources()
 void LoadOtherSettings()
 {
     using namespace Settings;
-    logger::info("Loading ini settings: OtherStuff");
 
     std::unordered_map<std::string, bool> others;
 
@@ -195,7 +191,6 @@ void LoadOtherSettings()
 		const auto key = otherstuffKeys[i];
         const bool val = ini.GetBoolValue(InISections[2], key);
         other_settings[key] = val;
-        logger::info("{}: {}", key, val);
 	}
 }
 
@@ -235,7 +230,6 @@ std::unordered_map<std::string, SourceAnimData> LoadAnimationData()
 	    return anim_data;
 	}
 
-	logger::info("Loading animation data from: {}", folder_path);
 	for (const auto& entry : std::filesystem::directory_iterator(folder_path)) {
 	    if (entry.is_regular_file() && entry.path().extension() == ".json") {
 	        std::ifstream file(entry.path());
@@ -279,8 +273,6 @@ void LoadFormGroups()
 
 std::vector<Source> LoadYAMLSources()
 {
-    logger::info("Loading yaml settings: Sources");
-
     Settings::ConfigData data;
 	data.anim_data = LoadAnimationData();
 
@@ -326,8 +318,6 @@ std::vector<Source> LoadINISources()
 {
 	using namespace Settings;
 
-    logger::info("Loading ini settings: Sources");
-
     std::vector<Source> sources;
 
     CSimpleIniA ini;
@@ -339,13 +329,10 @@ std::vector<Source> LoadINISources()
 
     // Create Sections with defaults if they don't exist
     for (int i = 0; i < 2; ++i) {
-        logger::info("Checking section {}", InISections[i]);
         if (!ini.SectionExists(InISections[i])) {
             logger::info("Section {} does not exist. Creating it.", InISections[i]);
             ini.SetValue(InISections[i], nullptr, nullptr);
-            logger::info("Setting default keys for section {}", InISections[i]);
             ini.SetValue(InISections[i], InIDefaultKeys[i], InIDefaultVals[i], section_comments[i].c_str());
-            logger::info("Default values set for section {}", InISections[i]);
         }
     }
 
@@ -357,7 +344,6 @@ std::vector<Source> LoadINISources()
 
     ini.GetAllKeys(InISections[2], otherkeys);
     auto numOthers = otherkeys.size();
-    logger::info("otherkeys size {}", numOthers);
 
     if (numOthers == 0 || numOthers != otherstuffKeys.size()) {
         logger::warn(
@@ -373,14 +359,12 @@ std::vector<Source> LoadINISources()
     // Sections: Containers, Capacities
     ini.GetAllKeys(InISections[0], source_names);
     auto numSources = source_names.size();
-    logger::info("source_names size {}", numSources);
 
     sources.reserve(numSources);
 
     cloud_storage_enabled = ini.GetBoolValue(InISections[2], otherstuffKeys[4]);
 
     for (CSimpleIniA::TNamesDepend::const_iterator it = source_names.begin(); it != source_names.end(); ++it) {
-        logger::info("source name {}", it->pItem);
         const char* val1 = ini.GetValue(InISections[0], it->pItem);
         const char* val2 = ini.GetValue(InISections[1], it->pItem);
         if (!val1 || !val2 || !std::strlen(val1) || !std::strlen(val2)) {
@@ -388,15 +372,12 @@ std::vector<Source> LoadINISources()
 			problems_in_INI_sources |= true;
             continue;
         }
-        logger::info("Source {} has a value of {}", it->pItem, val1);
-        logger::info("We have valid entries for container: {} and capacity: {}", val1, val2);
         // back to container_id and capacity
         uint32_t id = static_cast<uint32_t>(std::strtoul(val1, nullptr, 16));
         std::string id_str = std::string(val1);
 
         // if both formid is valid hex, use it
         if (FormReader::isValidHexWithLength7or8(val1)) {
-            logger::info("Formid {} is valid hex", val1);
             sources.emplace_back(id, "", std::stof(val2), cloud_storage_enabled, SourceAnimData());
         }
         else if (!po3installed) {
@@ -409,7 +390,6 @@ std::vector<Source> LoadINISources()
         logger::trace("Source {} has a value of {}", it->pItem, val1);
         ini.SetValue(InISections[0], it->pItem, val1);
         ini.SetValue(InISections[1], it->pItem, val2);
-        logger::info("Loaded container: {} with capacity: {}", val1, std::stof(val2));
     }
 
     ini.SaveFile(path);
