@@ -61,16 +61,23 @@ void Manager::CloseMenu() {
 RE::TESBoundObject* Manager::RegisterFromMenu(RE::InventoryEntryData* a_real_entry, RE::TESObjectREFR* a_owner)
 {
 #undef GetObject
+	a_owner = a_owner ? a_owner : player_ref;
+
 	const auto a_real = a_real_entry ? a_real_entry->GetObject() : nullptr;
     if (!a_real) {
 		logger::error("RegisterFromMenu: a_real is null");
 		return nullptr;
     }
+
     // get the source corresponding to the container that we are activating
     if (const auto src = GetContainerSource(a_real->GetFormID())) {
         // ReSharper disable once CppInitializedValueIsAlwaysRewritten
         RE::TESBoundObject* fake_bound = nullptr;
         const auto ChestObjRef = FindNotMatchedChest(); // Not registered. lets find a chest to register it to
+        if (!ChestObjRef) {
+            logger::error("Failed to find a chest to register the container to.");
+            return nullptr;
+		}
         const auto ChestRefID = ChestObjRef->GetFormID();
         if (std::unique_lock lock(source_mutex_); !src->data.insert({ChestRefID, player_refid}).second) {
 			return nullptr;
@@ -92,10 +99,13 @@ RE::TESBoundObject* Manager::RegisterFromMenu(RE::InventoryEntryData* a_real_ent
 			fake_bound = a_fake_bound;
         }
 
-		a_owner = a_owner ? a_owner : player_ref;
 
 		const auto xlist = a_real_entry->extraLists && !a_real_entry->extraLists->empty() ? a_real_entry->extraLists->front() : nullptr;
         a_owner->RemoveItem(a_real,1,RE::ITEM_REMOVE_REASON::kStoreInContainer,xlist,ChestObjRef);
+        if (!Inventory::HasItem(a_real,ChestObjRef)) {
+            RaiseMngrErr("Failed to move real to its chest at registration!");
+			return nullptr;
+        }
 
         if (const auto initial_items_map = src->initial_items; !initial_items_map.empty()) {
             SKSE::GetTaskInterface()->AddTask([ChestRefID, initial_items_map] {
@@ -244,14 +254,27 @@ void Manager::UpdateData(const RefID chestID, const RefID loc_id)
     }
 }
 
-void Manager::OnLongPressEquip(RE::TESBoundObject* a_fake)
+void Manager::OnLongPressEquip(RE::TESBoundObject* a_fake, const int delay)
 {
 	auto chest = GetFakeContainerChest(a_fake);
-    SKSE::GetTaskInterface()->AddUITask(
-        [this,chest] {
-                OpenChestFromMenu(chest);
-            }
-    );
+    queued_chests.insert(chest->GetFormID());
+
+    if (delay > 0) {
+	    clib_utilsQTR::Tasker::GetSingleton()->PushTask([this,chest] {
+	                SKSE::GetTaskInterface()->AddUITask(
+                        [this,chest] {
+                                OpenChestFromMenu(chest);
+                            }
+                    );
+                },delay);
+	}
+	else {
+		SKSE::GetTaskInterface()->AddUITask(
+            [this,chest] {
+                    OpenChestFromMenu(chest);
+                }
+        );
+	}
 }
 
 bool Manager::ActivateChest(RE::TESObjectREFR* chest) const {
@@ -844,7 +867,7 @@ bool Manager::IsRealContainer(const FormID formid) const {
 	return std::ranges::any_of(sources, [formid](const Source& src) { return src.formid == formid; });
 }
 
-void Manager::OnActivateContainer(RE::TESObjectREFR* a_container, const int msgbox_action) {
+void Manager::OnActivateContainer(RE::TESObjectREFR* a_container, const int msgbox_action, const int a_delay) {
 
     if (!HandleRegistration(a_container)) return;
         
@@ -856,11 +879,18 @@ void Manager::OnActivateContainer(RE::TESObjectREFR* a_container, const int msgb
     else if (const auto chest = GetContainerChest(current_container); !chest) {
         return RaiseMngrErr("OnActivateContainer: Chest not found");
     }
-    else if (const auto real_bound = RE::TESForm::LookupByID<RE::TESBoundObject>(ChestToFakeContainer.at(chest->GetFormID()).outerKey)) {
-        RemoveItem(chest, unownedChestOG, real_bound, RE::ITEM_REMOVE_REASON::kStoreInContainer);
-        return MsgBoxCallback(msgbox_action);
+
+    if (msgbox_action == 0) {
+        queued_chests.insert(GetContainerChest(current_container)->GetFormID());
     }
-	return RaiseMngrErr("OnActivateContainer: Real bound not found");
+
+    if (a_delay > 0) {
+        clib_utilsQTR::Tasker::GetSingleton()->PushTask([this,msgbox_action] {
+            Gateway(msgbox_action);
+        },a_delay);
+    } else {
+        return Gateway(msgbox_action);
+    }
 }
 
 void Manager::HandleFakePlacement(RE::TESObjectREFR* external_cont) {
@@ -929,15 +959,14 @@ void Manager::RenameContainer(const std::string& new_name) {
         logger::trace("Renaming current container.");
         xData::AddTextDisplayData(&current_container->extraList, new_name);
     }
-
-    MsgBoxCallback(3);
 }
 
 void Manager::OnChestExit(RE::TESObjectREFR* a_chest) {
 
-    Animations::MyAnimator::GetSingleton()->CloseBag();
-
 	const auto chest_id = a_chest->GetFormID();
+
+    const bool next_menu_is_chest = containermenu_owner && IsChest(containermenu_owner->GetFormID());
+
     if (reals_to_takeback.contains(chest_id)) {
 
         reals_to_takeback.erase(chest_id);
@@ -947,7 +976,7 @@ void Manager::OnChestExit(RE::TESObjectREFR* a_chest) {
         const auto fake_bound = GetFakeBound(chest_id);
 		fake_bound->formFlags = real_bound->formFlags;
 
-        if (other_settings.at(Settings::otherstuffKeys[2])) {
+        if (other_settings.at(Settings::otherstuffKeys[2]) && queued_chests.empty()) {
             if (closed_menu == RE::ContainerMenu::MENU_NAME) {
                 if (containermenu_owner) {
                     SKSE::GetTaskInterface()->AddUITask(
@@ -975,11 +1004,16 @@ void Manager::OnChestExit(RE::TESObjectREFR* a_chest) {
 
 		UpdateFakeWV(fake_bound);
     }
+
+    if (!next_menu_is_chest){
+        Animations::MyAnimator::GetSingleton()->CloseBag();
+    }
 }
 
 void Manager::OnChestEnter(RE::TESObjectREFR* a_chest)
 {
 	const RefID chest_id = a_chest->GetFormID();
+    queued_chests.erase(chest_id);
     const auto real_bound = RE::TESForm::LookupByID<RE::TESBoundObject>(GetRealID(chest_id));
 	reals_to_takeback.insert(chest_id);
 	const auto unownedChestOG = RE::TESForm::LookupByID<RE::TESObjectREFR>(UnownedStuff::unownedChestOGRefID);
@@ -1258,37 +1292,16 @@ bool Manager::HandleRegistration(RE::TESObjectREFR* a_item) {
 
 }
 
-void Manager::MsgBoxCallback(const int result) {
+void Manager::Gateway(const int result) {
 
-    if (result != 0 && result != 1 && result != 2 && result != 3) return;
+    if (result != 0 && result != 1) {
+        logger::error("Unexpected callback integer!");
+        return;
+    }
 
-    // More
-    if (result == 2) {
-        // straight to rename:
+    if (result) {
         RenameCallback();
 		return;
-    }
-
-    if (result == 3 || result == 1){
-        const auto chest = GetContainerChest(current_container);
-        if (!chest) return RaiseMngrErr("MsgBoxCallback Chest not found");
-        TakeBackReal(current_container->GetBaseObject(), chest);
-        // erase real_formid from vector reals_to_takeback
-        reals_to_takeback.clear();
-
-    }
-
-    // Close
-    if (result == 3) {
-		current_container = nullptr;
-        return;
-    }
-        
-    // Take (unused)
-    if (result == 1) {
-        RE::PlayerCharacter::GetSingleton()->PickUpObject(current_container,1);
-        current_container = nullptr;
-        return;
     }
 
 	// Opening container (0)
@@ -1296,23 +1309,18 @@ void Manager::MsgBoxCallback(const int result) {
     // Activate the unowned chest
     if (const auto chest = GetContainerChest(current_container)) {
 		const auto chest_refid = chest->GetFormID();
-        SetUpAnimation(current_container);
         if (ActivateChest(chest)) {
             reals_to_takeback.insert(chest_refid);
 		}
-		else {
-			logger::critical("Failed to activate chest.");
-			MsgBoxCallback(3);
-        }
     }
     else {
 		logger::critical("Chest not found.");
     }
 }
 
-void Manager::RenameCallback() {
+void Manager::RenameCallback() const {
 
-    if (!ModCompatibility::Mods::ui_extensions_installed) return MsgBoxCallback(3);
+    if (!ModCompatibility::Mods::ui_extensions_installed) return;
     const char* menuID = "UITextEntryMenu";
     const char* property_name = "text";
     const char* container_name =
@@ -1329,17 +1337,14 @@ void Manager::RenameCallback() {
             RE::BSTSmartPointer<RE::BSScript::IStackCallbackFunctor> callback(new Papyrus::RenameCallbackFunctor());
 			if (!vm->DispatchStaticCall("UIExtensions", "OpenMenu", args, callback)) {
 				logger::error("Failed to call UIExtensions OpenMenu.");
-				MsgBoxCallback(3);
 			}
 		}
 		else {
 			logger::error("Failed to get SkyrimVM.");
-			MsgBoxCallback(3);
 		}
 	}
 	else {
 		logger::error("Failed to call UIExtensions functions.");
-		MsgBoxCallback(3);
 	}
 }
 

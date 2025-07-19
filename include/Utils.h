@@ -452,6 +452,8 @@ namespace Menu {
     void OpenMenu(std::string_view menuname);
 
 	bool GetContainerMenuOwner(RE::TESObjectREFRPtr& a_out);
+
+    RE::RefHandle GetOwnerInContainerMenu(RE::FormID a_itemid);
 };
 
 

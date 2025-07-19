@@ -2,7 +2,6 @@
 #include "Events.h"
 #include "Hooks.h"
 #include "Manager.h"
-#include "CLibUtilsQTR/Tasker.hpp"
 
 using namespace SkyPrompt;
 
@@ -12,25 +11,19 @@ void MyPromptSink::ProcessEvent(const SkyPromptAPI::PromptEvent event) const
 		return;
 	}
 	EventSink::RemovePrompts();
-	const auto M = Manager::GetSingleton();
+
+    const auto M = Manager::GetSingleton();
+
 	if (const auto crosshairref = RE::CrosshairPickData::GetSingleton()->target) {
         if (const auto prompt_eventid = event.prompt.eventID; 
 			prompt_eventid == 0) {
 
-            if (SetUpPlayAnimation(crosshairref.get().get())) {
-				const auto duration = Animations::MyAnimator::GetSingleton()->GetOpenDuration();
-                clib_utilsQTR::Tasker::GetSingleton()->PushTask([crosshairref] {
-		            Manager::GetSingleton()->OnActivateContainer(crosshairref.get().get(), 0);
-                },static_cast<int>(duration));
-			}
-	        else {
-		       M->OnActivateContainer(crosshairref.get().get(), 0);
-			}
-
+			const auto duration = Animations::SetUpPlayAnimation(crosshairref.get().get(),true);
+		    Manager::GetSingleton()->OnActivateContainer(crosshairref.get().get(), 0, duration);
 	    }
 	    else if (prompt_eventid == 1) {
 			const auto a_ref = crosshairref.get().get();
-		    M->OnActivateContainer(a_ref,2);
+		    M->OnActivateContainer(a_ref,1);
 	    }
 	    else {
 		    logger::warn("Prompt event: Unrecognized prompt.");
@@ -72,7 +65,7 @@ bool SkyPrompt::IsAnyMenuOpen() {
 	return false;
 }
 
-void MenuPromptSink::GetContainerMesh(FormID a_realid, FormID model_item) {
+void MenuPromptSink::GetContainerMesh(const FormID a_realid, const FormID model_item) {
 	if (!Hooks::container_meshes.contains(a_realid)) {
         for (const auto& loaded_models = RE::Inventory3DManager::GetSingleton()->GetRuntimeData().loadedModels; 
 			auto& a_loaded_model : loaded_models) {
@@ -82,39 +75,6 @@ void MenuPromptSink::GetContainerMesh(FormID a_realid, FormID model_item) {
 			}
 		}
 	}
-}
-
-bool SkyPrompt::MenuPromptSink::SetUpPlayAnimation(const RE::TESBoundObject* a_fake) {
-	const auto a_real = Manager::GetSingleton()->FakeToRealContainer(a_fake->GetFormID());
-    Hooks::container_mesh = a_real->GetFormID();
-    Manager::GetSingleton()->SetUpAnimation(a_real);
-
-    bool opening_bag = false;
-    if (ModCompatibility::Mods::souls_unpaused_installed || 
-        Settings::AnimationsDelayMenuOpen() && !Animations::MyAnimator::GetSingleton()->isRunning()) {
-        Animations::MyAnimator::GetSingleton()->OpenBag();
-	    opening_bag = true;
-    }
-
-    if (opening_bag && Settings::AnimationsDelayMenuOpen()) {
-	    return true;
-    }
-	return false;
-}
-
-bool SkyPrompt::MyPromptSink::SetUpPlayAnimation(const RE::TESObjectREFR* a_real) {
-    Manager::GetSingleton()->SetUpAnimation(a_real);
-    bool opening_bag = false;
-    if (ModCompatibility::Mods::souls_unpaused_installed || 
-        Settings::AnimationsDelayMenuOpen() && !Animations::MyAnimator::GetSingleton()->isRunning()) {
-        Animations::MyAnimator::GetSingleton()->OpenBag();
-	    opening_bag = true;
-    }
-
-    if (opening_bag && Settings::AnimationsDelayMenuOpen()) {
-	    return true;
-    }
-	return false;
 }
 
 void SkyPrompt::MenuPromptSink::ProcessEvent(const SkyPromptAPI::PromptEvent event) const
@@ -130,7 +90,7 @@ void SkyPrompt::MenuPromptSink::ProcessEvent(const SkyPromptAPI::PromptEvent eve
 	        /*if (event.prompt.eventID == 1) {
 	            return;
 	        }*/
-	        OpenBag(a_fake, a_entry->IsWorn());
+	        OpenBag(a_fake, RE::UI::GetSingleton()->IsMenuOpen(RE::InventoryMenu::MENU_NAME) && a_entry->IsWorn());
 		}
 	}
 	
@@ -166,29 +126,20 @@ void SkyPrompt::MenuPromptSink::Hide() const {
 
 void MenuPromptSink::OpenBag(RE::TESBoundObject* a_fake, const bool is_worn) {
 
-	const auto a_real = Manager::GetSingleton()->FakeToRealContainer(a_fake->GetFormID());
+	using namespace ModCompatibility::Mods;
+
+	const auto manager = Manager::GetSingleton();
+
+	const auto a_real = manager->FakeToRealContainer(a_fake->GetFormID());
     GetContainerMesh(a_real->GetFormID(), a_fake->GetFormID());
 
     if (is_worn) {
         Hooks::AnimObjectHook::OnIsWorn(a_fake);
     }
+	
+	manager->CloseMenu();
 
-    Manager::GetSingleton()->CloseMenu();
-
-	auto player_cam = RE::PlayerCamera::GetSingleton();
-    const bool should_play_anim = (player_cam->IsInThirdPerson() || player_cam->IsInFirstPerson() &&
-                                   ModCompatibility::Mods::improved_cam_path_installed) && !other_settings.at(
-                                      Settings::otherstuffKeys.at(7)) || is_worn;
-
-    if (should_play_anim && SetUpPlayAnimation(a_fake)) {
-        const auto duration = Animations::MyAnimator::GetSingleton()->GetOpenDuration();
-        clib_utilsQTR::Tasker::GetSingleton()->PushTask([a_fake] {
-	        Manager::GetSingleton()->OnLongPressEquip(a_fake);
-        },static_cast<int>(duration));
-    }
-    else {
-        Manager::GetSingleton()->OnLongPressEquip(a_fake);
-    }
+	Manager::GetSingleton()->OnLongPressEquip(a_fake,Animations::SetUpPlayAnimation(a_real,is_worn));
 }
 
 void SkyPrompt::RegistrationPromptSink::ProcessEvent(const SkyPromptAPI::PromptEvent event) const
@@ -200,13 +151,16 @@ void SkyPrompt::RegistrationPromptSink::ProcessEvent(const SkyPromptAPI::PromptE
 	EventSink::RemoveMenuPrompts();
 
 	if (const auto a_entry = Hooks::GetSelectedEntryInMenu()) {
-		const bool is_worn = a_entry->IsWorn();
+		const bool is_in_inventory_menu = RE::UI::GetSingleton()->IsMenuOpen(RE::InventoryMenu::MENU_NAME);
+		const bool is_worn = is_in_inventory_menu && a_entry->IsWorn();
 		const auto real_id = a_entry->GetObject()->GetFormID();
 		MenuPromptSink::GetContainerMesh(real_id,real_id);
-		if (!Menu::GetContainerMenuOwner(containermenu_owner)) {
-		    containermenu_owner.reset();
+		auto owner_handle = Menu::GetOwnerInContainerMenu(real_id);
+		RE::TESObjectREFRPtr a_owner;
+		if (is_in_inventory_menu || !RE::LookupReferenceByHandle(owner_handle,a_owner)) {
+		    a_owner.reset();
 		}
-		if (const auto a_fake = Manager::GetSingleton()->RegisterFromMenu(a_entry, containermenu_owner.get())) {
+		if (const auto a_fake = Manager::GetSingleton()->RegisterFromMenu(a_entry, a_owner.get())) {
 			if (is_worn) {
 				RE::ActorEquipManager::GetSingleton()->EquipObject(RE::PlayerCharacter::GetSingleton(),a_fake);
 			}

@@ -24,7 +24,6 @@ namespace SkyPrompt {
 
 		std::array<SkyPromptAPI::Prompt, 2> prompts = { open_prompt, rename_prompt };
 
-        static bool SetUpPlayAnimation(const RE::TESObjectREFR* a_real);
 
     public:
         void ProcessEvent(SkyPromptAPI::PromptEvent event) const override;
@@ -60,9 +59,8 @@ namespace SkyPrompt {
 		//mutable SkyPromptAPI::Prompt rename_prompt{ Strings::rename_bag,1,0, SkyPromptAPI::PromptType::kHold};
 		mutable std::array<SkyPromptAPI::Prompt, 2> prompts = { open_prompt,/*rename_prompt,*/ weight_prompt};
 
-        static bool SetUpPlayAnimation(const RE::TESBoundObject* a_fake);
-
     public:
+
         void ProcessEvent(SkyPromptAPI::PromptEvent event) const override;
 	    std::span<const SkyPromptAPI::Prompt> GetPrompts() const override { return prompts; }
 		void Show(RE::TESBoundObject* a_fake) const;

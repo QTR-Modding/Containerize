@@ -918,6 +918,25 @@ bool Menu::GetContainerMenuOwner(RE::TESObjectREFRPtr& a_out)
     return false;
 }
 
+RE::RefHandle Menu::GetOwnerInContainerMenu(const RE::FormID a_itemid) {
+#undef GetObject
+	const auto ui = RE::UI::GetSingleton();
+    if (const auto container_menu = ui->GetMenu<RE::ContainerMenu>()) {
+        if (const auto itemlist = container_menu->GetRuntimeData().itemList) {
+            for (const auto& a_item : itemlist->items) {
+                if (a_item) {
+                    const auto& a_data = a_item->data;
+                    if (a_data.objDesc && a_data.objDesc->GetObject()->GetFormID() == a_itemid) {
+                        return a_data.owner;
+                    }
+                }
+            }
+        }
+    }
+
+    return {};
+}
+
 void ModCompatibility::MakeChecks()
 {
     Settings::po3installed = Mods::IsPo3Installed();

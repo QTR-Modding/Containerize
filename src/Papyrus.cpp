@@ -27,10 +27,8 @@ void Papyrus::ConversationCallbackFunctor::operator()(const RE::BSScript::Variab
         logger::trace("Result rename: {}", rename);
         if (!rename.empty()) {
             Manager::GetSingleton()->RenameContainer(rename);
-            return;
         }
     }
-    Manager::GetSingleton()->MsgBoxCallback(3);
 }
 
 void Papyrus::RenameCallbackFunctor::OnRename() {
@@ -41,10 +39,6 @@ void Papyrus::RenameCallbackFunctor::OnRename() {
         RE::BSTSmartPointer<RE::BSScript::IStackCallbackFunctor> callback(new ConversationCallbackFunctor());
         const auto args = RE::MakeFunctionArguments(std::move(menuID));
         if (!vm->DispatchStaticCall("UIExtensions", "GetMenuResultString", args, callback)) {
-            Manager::GetSingleton()->MsgBoxCallback(3);
         }
-    }
-    else {
-        Manager::GetSingleton()->MsgBoxCallback(3);
     }
 }

@@ -23,6 +23,7 @@ public clib_util::singleton::ISingleton<Manager>
     std::vector<RefID> handled_external_conts; // runtime specific to prevent unnecessary checks in HandleFakePlacement
     std::map<FormID,std::string> renames;  // runtime specific, custom names for fake containers
     std::set<RefID> reals_to_takeback = {};
+    std::set<RefID> queued_chests = {}; // allows opening chest within another chest instead of reopening the original menu
     std::string closed_menu;
 	RE::TESObjectREFRPtr containermenu_owner = nullptr;
 
@@ -114,7 +115,7 @@ public clib_util::singleton::ISingleton<Manager>
 
     bool HandleRegistration(RE::TESObjectREFR* a_item);
 
-    void RenameCallback();
+    void RenameCallback() const;
 
     std::string GetWeightText(RE::TESObjectREFR* a_chest) const;
     void SetUpAnimation(Animations::AnimDataType a_datatype, FormID a_real_id);
@@ -127,7 +128,7 @@ public:
     const char* GetType() override { return "Manager"; }
     void Init();
 
-    void MsgBoxCallback(int result);
+    void Gateway(int result);
 
     [[nodiscard]] RefID GetContainerChestID(RefID container_refid) const;
     [[nodiscard]] RefID GetFakeContainerChestID(FormID fake_id) const;
@@ -138,12 +139,12 @@ public:
     void OnPickup(RE::TESObjectREFR* picked_up_by, RE::TESObjectREFR * a_object);
 	void HandleDrop(RE::TESObjectREFR* fake_object);
     void UpdateData(RefID chestID, RefID loc_id);
-    void OnLongPressEquip(RE::TESBoundObject* a_fake);
+    void OnLongPressEquip(RE::TESBoundObject* a_fake, int delay=0);
 	void UpdateFakeWV(RE::TESBoundObject* fake_form);
     Count CanBeAdded(const RE::TESBoundObject* a_item, Count a_count, const RE::TESBoundObject* fake_container);
     [[nodiscard]] RE::TESBoundObject* FakeToRealContainer(FormID fake) const;
 
-    void OnActivateContainer(RE::TESObjectREFR* a_container, int msgbox_action);
+    void OnActivateContainer(RE::TESObjectREFR* a_container, int msgbox_action, int a_delay=0);
 
     // places fake objects in external containers after load game
     void HandleFakePlacement(RE::TESObjectREFR* external_cont);
@@ -194,6 +195,8 @@ public:
     void SetUpAnimation(const RE::TESObjectREFR* a_real);
     void CloseMenu();
     RE::TESBoundObject* RegisterFromMenu(RE::InventoryEntryData* a_real_entry, RE::TESObjectREFR* a_owner);
+    bool IsInChestMenu() const {return !reals_to_takeback.empty();}
+    bool IsChestMenuQueued() const {return !queued_chests.empty();}
 
     template <typename T>
     static void Rename(const std::string& new_name, T item) {
@@ -220,7 +223,7 @@ RE::ObjectRefHandle Manager::RemoveItem(T* moveFrom, RE::TESObjectREFR* moveTo, 
 	const RE::TESObjectREFR::InventoryItemMap inventory = moveFrom->GetInventory();
 	const auto it_item = inventory.find(a_item);
 	if (it_item == inventory.end()) {
-		logger::warn("Item not found in inventory {:x}", a_item ? a_item->GetFormID() : 0);
+		logger::warn("Item {:x} not found in inventory {:x}", a_item ? a_item->GetFormID() : 0, moveFrom->GetFormID());
 		return ref_handle;
 	}
 

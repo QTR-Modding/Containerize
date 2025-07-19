@@ -435,7 +435,7 @@ void Hooks::AnimObjectHook::OnIsWorn(RE::TESBoundObject* object_to_equip)
 		    objectNode.reset(a_node);
 		}
 		else {
-			logger::error("Failed to get node by name: {}", addonString);
+			logger::warn("Failed to get node by name: {}", addonString);
 		}
     }
 }

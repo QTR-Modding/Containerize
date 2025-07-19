@@ -11,7 +11,10 @@ namespace Animations
 	{
         RE::BSEventNotifyControl ProcessEvent(const RE::BSAnimationGraphEvent* a_event,
                                               RE::BSTEventSource<RE::BSAnimationGraphEvent>*) override {
-			if (open_anim.empty() || close_anim.empty()) {
+			if (!HasAnim()) {
+				if (const auto a_actor = a_event->holder->As<RE::Actor>()) {
+					RemoveSink(a_actor);
+				}
 				return RE::BSEventNotifyControl::kContinue;
 			}
 			if (!a_event || !a_event->holder->IsPlayerRef()) {
@@ -26,10 +29,11 @@ namespace Animations
 				}
 				if (playing_close) {
 				    Hooks::objectNode.reset();
-					if (const auto a_actor = a_event->holder->As<RE::Actor>()) {
-						a_actor->RemoveAnimationGraphEventSink(this);
-					}
 					Reset();
+				}
+
+				if (const auto a_actor = a_event->holder->As<RE::Actor>()) {
+					RemoveSink(a_actor);
 				}
 
 				opened = !opened;
@@ -46,6 +50,12 @@ namespace Animations
 		bool opened = false; // only for animations with anim object
 		std::vector<Animation> open_anim;
 		std::vector<Animation> close_anim;
+
+		void RemoveSink(const RE::Actor* a_actor) {a_actor->RemoveAnimationGraphEventSink(this);}
+
+		bool HasAnim() const {
+			return !open_anim.empty() && !close_anim.empty();
+		}
 
 	public:
 
@@ -71,6 +81,15 @@ namespace Animations
 		    }
 			return res;
         }
+
+		unsigned int GetCloseDuration() const {
+			unsigned int res = 0;
+			for (const auto& anim : close_anim) {
+				res += anim.t_wait_ms;
+			}
+			return res;
+		}
+
 	};
 
 	enum AnimDataType : uint8_t {
@@ -84,4 +103,7 @@ namespace Animations
 		std::string attach_node;
 	};
 
+	template <typename T>
+    // ReSharper disable once CppFunctionIsNotImplemented
+    int SetUpPlayAnimation(T* a_real, bool is_worn);
 }

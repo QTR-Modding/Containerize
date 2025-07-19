@@ -49,7 +49,10 @@ RE::BSEventNotifyControl EventSink::ProcessEvent(const SKSE::CrosshairRefEvent* 
 
     const auto M = Manager::GetSingleton();
 
-    if (M->IsRealContainer(a_event->crosshairRef.get())) {
+    if (M->IsChestMenuQueued() || M->IsInChestMenu()) {
+        RemovePrompts();
+    }
+    else if (M->IsRealContainer(a_event->crosshairRef.get())) {
 		SendPrompts(a_event->crosshairRef.get());
     }
     else {
