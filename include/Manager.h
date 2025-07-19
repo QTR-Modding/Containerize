@@ -8,7 +8,6 @@ public clib_util::singleton::ISingleton<Manager>
 {
     // private variables
 
-    bool uiextensions_is_present = false;
     RE::TESObjectREFR* player_ref = RE::PlayerCharacter::GetSingleton()->As<RE::TESObjectREFR>();
     //RE::EffectSetting* empty_mgeff = nullptr;
     
@@ -16,24 +15,16 @@ public clib_util::singleton::ISingleton<Manager>
     std::map<RefID,FormFormID> ChestToFakeContainer; // chest refid -> {real container formid (outerKey), fake container formid (innerKey)}
     RE::TESObjectREFR* current_container = nullptr;
 
-    // unowned stuff
-    const RefID unownedChestOGRefID = 0x000EA29A;
-    const RefID unownedChestFormID = 0x000EA299;
+	// unowned stuff
     RE::TESObjectCELL* unownedCell = nullptr;
     RE::TESObjectCONT* unownedChest = nullptr;
-    //RE::TESObjectCELL* unownedCell = RE::TESForm::LookupByID<RE::TESObjectCELL>(0x000FE47B);  // cwquartermastercontainers
-    //RE::TESObjectCONT* unownedChest = RE::TESForm::LookupByID<RE::TESObjectCONT>(0x000A0DB5); // playerhousechestnew
-    const RE::NiPoint3 unownedChestPos = {1986.f, 1780.f, 6784.f};
     
     std::vector<FormID> external_favs; // runtime specific, FormIDs of fake containers if faved
     std::vector<RefID> handled_external_conts; // runtime specific to prevent unnecessary checks in HandleFakePlacement
     std::map<FormID,std::string> renames;  // runtime specific, custom names for fake containers
     std::set<RefID> reals_to_takeback = {};
-    std::set<RefID> queued_chests = {};
     std::string closed_menu;
 	RE::TESObjectREFRPtr containermenu_owner = nullptr;
-
-    std::set<FormID> doppelgangers_local = {0x832,0x833,0x834,0x835,0x836,0x837,0x838,0x839,0x83a,0x83b};
 
     mutable std::shared_mutex source_mutex_;
 	mutable std::shared_mutex chest2fake_mutex_;
@@ -130,7 +121,7 @@ public clib_util::singleton::ISingleton<Manager>
 
 public:
 
-    std::set<FormID> doppelgangers; // CC content
+    
 	std::atomic<bool> isUninstalled = false;
 
     const char* GetType() override { return "Manager"; }
@@ -250,7 +241,7 @@ void Manager::UpdateFakeWV(T* fake_form, RE::TESObjectREFR* chest_linked, const 
     const auto fake_formid = fake_form->GetFormID();
     auto real_container = FakeToRealContainer(fake_formid);
     // ReSharper disable once CppDependentTemplateWithoutTemplateKeyword
-    fake_form->Copy(real_container->As<T>());
+    fake_form->Copy(real_container->As<T>());  // NOLINT(clang-diagnostic-warning)
     if (renames.contains(fake_formid)) fake_form->fullName = renames.at(fake_form->GetFormID());
 
     FunctionsSkyrim::FormTraits<T>::SetWeight(fake_form, weight_ratio*chest_linked->GetWeightInContainer() + (1-weight_ratio) * real_container->GetWeight()); // dont change (1-weight_ratio)

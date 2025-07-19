@@ -175,7 +175,10 @@ void MenuPromptSink::OpenBag(RE::TESBoundObject* a_fake, const bool is_worn) {
 
     Manager::GetSingleton()->CloseMenu();
 
-    const bool should_play_anim = !other_settings.at(Settings::otherstuffKeys.at(7)) || is_worn;
+	auto player_cam = RE::PlayerCamera::GetSingleton();
+    const bool should_play_anim = (player_cam->IsInThirdPerson() || player_cam->IsInFirstPerson() &&
+                                   ModCompatibility::Mods::improved_cam_path_installed) && !other_settings.at(
+                                      Settings::otherstuffKeys.at(7)) || is_worn;
 
     if (should_play_anim && SetUpPlayAnimation(a_fake)) {
         const auto duration = Animations::MyAnimator::GetSingleton()->GetOpenDuration();

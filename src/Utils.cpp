@@ -922,3 +922,16 @@ void ModCompatibility::MakeChecks()
 {
     Settings::po3installed = Mods::IsPo3Installed();
 }
+
+void ModCompatibility::Load()
+{
+    if (const auto data_handler = RE::TESDataHandler::GetSingleton()) {
+		Mods::ui_extensions_installed = data_handler->LookupModByName("UIExtensions.esp") != nullptr;
+
+        for (const auto local_id : Mods::doppelgangers_local) {
+		    if (const auto a_form = data_handler->LookupForm(local_id, Mods::doppelgangers_path)) {
+                Mods::doppelgangers.insert(a_form->GetFormID());
+		    }
+	    }
+    }
+}

@@ -7,7 +7,7 @@
 #include "CLibUtilsQTR/Tasker.hpp"
 
 void Manager::TakeBackReal(RE::TESBoundObject* real_obj, RE::TESObjectREFR* chest) {
-    const auto unownedChestOG = RE::TESForm::LookupByID<RE::TESObjectREFR>(unownedChestOGRefID);
+    const auto unownedChestOG = RE::TESForm::LookupByID<RE::TESObjectREFR>(UnownedStuff::unownedChestOGRefID);
     if (!unownedChestOG) return RaiseMngrErr("MsgBoxCallback unownedChestOG is null");
     if (real_obj && !Inventory::HasItem(real_obj, unownedChestOG)){
         return RaiseMngrErr("Real container not found in unownedChestOG");
@@ -247,7 +247,6 @@ void Manager::UpdateData(const RefID chestID, const RefID loc_id)
 void Manager::OnLongPressEquip(RE::TESBoundObject* a_fake)
 {
 	auto chest = GetFakeContainerChest(a_fake);
-    queued_chests.insert(chest->GetFormID());
     SKSE::GetTaskInterface()->AddUITask(
         [this,chest] {
                 OpenChestFromMenu(chest);
@@ -308,7 +307,7 @@ void Manager::OnConsume(const FormID fake_formid, RE::TESObjectREFR* consumed_by
 			std::shared_lock lock(source_mutex_);
 			if (const auto src = GetContainerSource(real_id)) {
 				if (src->data.at(chest_id) != consumed_by->GetFormID()) {
-                    if (!doppelgangers.contains(consumed_by->GetBaseObject()->GetFormID())) {
+                    if (!ModCompatibility::Mods::doppelgangers.contains(consumed_by->GetBaseObject()->GetFormID())) {
 						logger::error("Fake object is not supposed to be found in consumed_by {:x} {:x}.",consumed_by->GetFormID(),consumed_by->GetBaseObject()->GetFormID());
 					}
                     return;
@@ -425,9 +424,9 @@ RE::TESObjectREFR* Manager::AddChest(const uint32_t chest_no) const {
     const int total_chests_x = (1 - (total_chests % 3)) * (-2);
     const int total_chests_y = ((total_chests - 1) / 3) % 9;
     const int total_chests_z = (total_chests - 1) / 27;
-    const float Pos3_x = unownedChestPos.x + static_cast<float>(100 * total_chests_x);
-    const float Pos3_y = unownedChestPos.y + static_cast<float>(50 * total_chests_y);
-    const float Pos3_z = unownedChestPos.z + static_cast<float>(50 * total_chests_z);
+    const float Pos3_x = UnownedStuff::unownedChestPos.x + static_cast<float>(100 * total_chests_x);
+    const float Pos3_y = UnownedStuff::unownedChestPos.y + static_cast<float>(50 * total_chests_y);
+    const float Pos3_z = UnownedStuff::unownedChestPos.z + static_cast<float>(50 * total_chests_z);
     const RE::NiPoint3 Pos3 = {Pos3_x, Pos3_y, Pos3_z};
     return MakeChest(Pos3);
 }
@@ -439,7 +438,7 @@ RE::TESObjectREFR* Manager::FindNotMatchedChest() const {
     RE::BSSpinLockGuard locker(runtimeData.spinLock);
     for (const auto& ref : runtimeData.references) {
         if (!ref) continue;
-        if (ref->GetFormID() == unownedChestOGRefID) continue;
+        if (ref->GetFormID() == UnownedStuff::unownedChestOGRefID) continue;
 		if (ref->GetBaseObject()->GetFormID() != unownedChest->GetFormID()) continue;
         const size_t n_items = ref->GetInventory().size();
         bool contains_key = false;
@@ -661,8 +660,8 @@ void Manager::Uninstall() {
 	    RE::BSSpinLockGuard locker(unownedCell->GetRuntimeData().spinLock);
         for (auto& unownedRuntimeData = unownedCell->GetRuntimeData(); const auto& ref : unownedRuntimeData.references) {
             if (!ref) continue;
-            if (ref->GetFormID() == unownedChestOGRefID) continue;
-            if (ref->GetBaseObject()->GetFormID() != unownedChestFormID) continue;
+            if (ref->GetFormID() == UnownedStuff::unownedChestOGRefID) continue;
+            if (ref->GetBaseObject()->GetFormID() != UnownedStuff::unownedChestFormID) continue;
             if (ref->IsDisabled() && ref->IsDeleted()) continue;
             logger::info("Removing items from chest with refid {}", ref->GetFormID());
             RemoveAllItemsFromChest(ref.get(), player_ref);
@@ -755,7 +754,7 @@ void Manager::Init() {
     }
 
     const auto unownedChestOG = RE::TESForm::LookupByID<RE::TESObjectREFR>(0x000EA29A);
-    unownedChest = RE::TESForm::LookupByID<RE::TESObjectCONT>(unownedChestFormID);
+    unownedChest = RE::TESForm::LookupByID<RE::TESObjectCONT>(UnownedStuff::unownedChestFormID);
     unownedCell = RE::TESForm::LookupByID<RE::TESObjectCELL>(0x000EA28B);
     if (!unownedChestOG || unownedChestOG->GetBaseObject()->GetFormID() != unownedChest->GetFormID() ||
         !unownedCell ||
@@ -781,21 +780,6 @@ void Manager::Init() {
                 empty_mgeff->data.flags.set(RE::EffectSetting::EffectSettingData::Flag::kNoDuration);
             }*/
     //}
-
-    const auto data_handler = RE::TESDataHandler::GetSingleton();
-    if (!data_handler) return RaiseMngrErr("Data handler is null");
-    if (!data_handler->LookupModByName("UIExtensions.esp")) uiextensions_is_present = false;
-    else {
-        uiextensions_is_present = true;
-    }
-
-    // doppelganger ccbgssse018-shadowrend.esl
-
-    for (const auto local_id : doppelgangers_local) {
-		if (const auto a_form = data_handler->LookupForm(local_id, "ccbgssse018-shadowrend.esl")) {
-			doppelgangers.insert(a_form->GetFormID());
-		}
-	}
 
     logger::info("Manager initialized.");
 }
@@ -865,7 +849,7 @@ void Manager::OnActivateContainer(RE::TESObjectREFR* a_container, const int msgb
     if (!HandleRegistration(a_container)) return;
         
     // store it temporarily in unownedChestOG
-    if (const auto unownedChestOG = RE::TESForm::LookupByID<RE::TESObjectREFR>(unownedChestOGRefID);
+    if (const auto unownedChestOG = RE::TESForm::LookupByID<RE::TESObjectREFR>(UnownedStuff::unownedChestOGRefID);
         !unownedChestOG) {
         return RaiseMngrErr("OnActivateContainer: unownedChestOG is null");
     }
@@ -963,7 +947,7 @@ void Manager::OnChestExit(RE::TESObjectREFR* a_chest) {
         const auto fake_bound = GetFakeBound(chest_id);
 		fake_bound->formFlags = real_bound->formFlags;
 
-        if (other_settings.at(Settings::otherstuffKeys[2]) && queued_chests.empty()) {
+        if (other_settings.at(Settings::otherstuffKeys[2])) {
             if (closed_menu == RE::ContainerMenu::MENU_NAME) {
                 if (containermenu_owner) {
                     SKSE::GetTaskInterface()->AddUITask(
@@ -991,23 +975,14 @@ void Manager::OnChestExit(RE::TESObjectREFR* a_chest) {
 
 		UpdateFakeWV(fake_bound);
     }
-
-	const auto ui = RE::UI::GetSingleton();
-    if (!ui->IsMenuOpen(RE::ContainerMenu::MENU_NAME) &&
-        !ui->IsMenuOpen(RE::InventoryMenu::MENU_NAME) &&
-        !ui->IsMenuOpen(RE::FavoritesMenu::MENU_NAME)) {
-        queued_chests.clear();
-        Hooks::container_meshes.clear();
-    }
 }
 
 void Manager::OnChestEnter(RE::TESObjectREFR* a_chest)
 {
 	const RefID chest_id = a_chest->GetFormID();
-    queued_chests.erase(chest_id);
     const auto real_bound = RE::TESForm::LookupByID<RE::TESBoundObject>(GetRealID(chest_id));
 	reals_to_takeback.insert(chest_id);
-	const auto unownedChestOG = RE::TESForm::LookupByID<RE::TESObjectREFR>(unownedChestOGRefID);
+	const auto unownedChestOG = RE::TESForm::LookupByID<RE::TESObjectREFR>(UnownedStuff::unownedChestOGRefID);
 	RemoveItem(a_chest, unownedChestOG, real_bound, RE::ITEM_REMOVE_REASON::kStoreInContainer);
 	const auto fake_bound = GetFakeBound(chest_id);
 	fake_bound->formFlags = 13;
@@ -1337,7 +1312,7 @@ void Manager::MsgBoxCallback(const int result) {
 
 void Manager::RenameCallback() {
 
-    if (!uiextensions_is_present) return MsgBoxCallback(3);
+    if (!ModCompatibility::Mods::ui_extensions_installed) return MsgBoxCallback(3);
     const char* menuID = "UITextEntryMenu";
     const char* property_name = "text";
     const char* container_name =

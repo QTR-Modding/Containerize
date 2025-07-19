@@ -25,12 +25,31 @@ namespace ModCompatibility {
 
         constexpr auto souls_unpaused_path = "Data/SKSE/Plugins/SkyrimSoulsRE.dll";
 		const auto souls_unpaused_installed = IsModInstalled(souls_unpaused_path);
+
+        constexpr auto improved_cam_path = "Data/SKSE/Plugins/ImprovedCameraSE.dll";
+		const auto improved_cam_path_installed = IsModInstalled(improved_cam_path);
+
+        constexpr auto ui_extensions_path = "UIExtensions.esp";
+		inline bool ui_extensions_installed = false;
+
+        // CC content
+        constexpr auto doppelgangers_path = "ccbgssse018-shadowrend.esl";
+        inline const std::set<FormID> doppelgangers_local = {0x832,0x833,0x834,0x835,0x836,0x837,0x838,0x839,0x83a,0x83b};
+        inline std::set<FormID> doppelgangers;
     }
 
     void MakeChecks();
+    void Load();
 }
 
-
+namespace UnownedStuff {
+    // unowned stuff
+    constexpr RefID unownedChestOGRefID = 0x000EA29A;
+    constexpr RefID unownedChestFormID = 0x000EA299;
+    //RE::TESObjectCELL* unownedCell = RE::TESForm::LookupByID<RE::TESObjectCELL>(0x000FE47B);  // cwquartermastercontainers
+    //RE::TESObjectCONT* unownedChest = RE::TESForm::LookupByID<RE::TESObjectCONT>(0x000A0DB5); // playerhousechestnew
+    constexpr RE::NiPoint3 unownedChestPos = {1986.f, 1780.f, 6784.f};
+}
 
 
 inline std::string no_src_msgbox = std::format(
