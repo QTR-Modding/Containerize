@@ -89,7 +89,6 @@ public clib_util::singleton::ISingleton<Manager>
 
     void HandleFormDelete_(RefID chest_refid);
 
-
     std::vector<Source> sources;
 
     void RaiseMngrErr(const std::string& err_msg_ = "Error");
@@ -124,7 +123,6 @@ public clib_util::singleton::ISingleton<Manager>
 
 public:
 
-    
 	std::atomic<bool> isUninstalled = false;
 
     const char* GetType() override { return "Manager"; }

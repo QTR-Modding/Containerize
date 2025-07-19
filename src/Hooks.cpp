@@ -56,6 +56,7 @@ bool Hooks::HandleEquip(RE::InputEvent* event)
 				    return false;
 			    }
 				if (button_event->HeldDuration()>0.25f) {
+					Manager::GetSingleton()->CloseMenu();
 					Manager::GetSingleton()->OnLongPressEquip(selected_item);
 				}
 				else if (button_event->IsUp()) {
