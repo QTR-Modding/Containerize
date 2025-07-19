@@ -122,6 +122,9 @@ namespace Math {
 
 namespace FunctionsSkyrim {
 
+    int32_t GetEnchantmentCostOverride(const RE::EnchantmentItem* enchantment);
+	int32_t GetItemValue(RE::TESBoundObject* item, const RE::ExtraDataList* a_xlist=nullptr);
+
     template <typename T>
     struct FormTraits {
         static float GetWeight(T* form) {
@@ -285,7 +288,7 @@ namespace Inventory {
 
     bool IsFavorited(RE::TESBoundObject* item, RE::TESObjectREFR* inventory_owner);
 
-    void EquipItem(const RE::TESBoundObject* item, bool unequip = false);
+    void EquipItem(RE::TESBoundObject* item, bool unequip = false);
 
     inline void EquipItem(const FormID formid, const bool unequip = false) {
 	    EquipItem(FormReader::GetFormByID<RE::TESBoundObject>(formid), unequip);

@@ -34,7 +34,7 @@ void MyPromptSink::ProcessEvent(const SkyPromptAPI::PromptEvent event) const
 	}
 }
 
-void MyPromptSink2::Start(const RE::TESObjectREFR* a_ref) {
+void MyPromptSink2::Start(RE::TESObjectREFR* a_ref) {
 	weight_text.clear();
 	value_text.clear();
 

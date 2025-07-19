@@ -117,8 +117,10 @@ public clib_util::singleton::ISingleton<Manager>
 
     void RenameCallback() const;
 
-    std::string GetWeightText(RE::TESObjectREFR* a_chest) const;
+    std::string GetWeightText_(RE::TESObjectREFR* a_chest);
     void SetUpAnimation(Animations::AnimDataType a_datatype, FormID a_real_id);
+
+    static std::string GetWeightText(float weight, float capacity);
 
 public:
 
@@ -188,9 +190,9 @@ public:
     void Uninstall();
 
     RE::TESBoundObject* GetFakeBound(const RE::TESObjectREFR* a_container) const;
-    std::string GetWeightText(const RE::TESObjectREFR* a_container) const;
-    std::string GetWeightText(RE::TESBoundObject* a_fake) const;
-    std::string GetValueText(const RE::TESObjectREFR* a_container) const;
+    std::string GetWeightText(RE::TESObjectREFR* a_container);
+    std::string GetWeightText(RE::TESBoundObject* a_item);
+    std::string GetValueText(RE::TESObjectREFR* a_container);
     void SetUpAnimation(const RE::TESBoundObject* a_real);
     void SetUpAnimation(const RE::TESObjectREFR* a_real);
     void CloseMenu();

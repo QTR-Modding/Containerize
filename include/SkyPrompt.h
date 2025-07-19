@@ -46,7 +46,7 @@ namespace SkyPrompt {
     public:
         void ProcessEvent(SkyPromptAPI::PromptEvent) const override {}
 	    std::span<const SkyPromptAPI::Prompt> GetPrompts() const override { return prompts; }
-		void Start(const RE::TESObjectREFR* a_ref);
+		void Start(RE::TESObjectREFR* a_ref);
     };
 
 	class MenuPromptSink final : public SkyPromptAPI::PromptSink,

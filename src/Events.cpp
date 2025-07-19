@@ -1,7 +1,7 @@
 #include "Events.h"
 #include "SkyPrompt.h"
 
-void EventSink::SendPrompts(const RE::TESObjectREFR* a_container) {
+void EventSink::SendPrompts(RE::TESObjectREFR* a_container) {
     if (SkyPrompt::IsAnyMenuOpen()) {
         return;
     }

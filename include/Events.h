@@ -11,7 +11,7 @@ class EventSink final : public clib_util::singleton::ISingleton<EventSink>,
 
     RE::NiPointer<RE::TESObjectREFR> furniture;
 
-    static void SendPrompts(const RE::TESObjectREFR* a_container);
+    static void SendPrompts(RE::TESObjectREFR* a_container);
 
 public:
 

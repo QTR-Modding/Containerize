@@ -142,6 +142,32 @@ std::string GetGameLanguage()
 	return "ENGLISH";
 }
 
+int32_t FunctionsSkyrim::GetEnchantmentCostOverride(const RE::EnchantmentItem* enchantment) {
+	int32_t extra_costs = 0;
+    auto temp_costoverride = enchantment->data.costOverride;
+    if (temp_costoverride < 0) temp_costoverride = static_cast<int32_t>(enchantment->CalculateTotalGoldValue());
+    if (temp_costoverride < 0)
+        temp_costoverride =
+            static_cast<int32_t>(enchantment->CalculateTotalGoldValue(RE::PlayerCharacter::GetSingleton()));
+    if (temp_costoverride > 0) {
+        extra_costs += temp_costoverride;
+    }
+
+	return extra_costs;
+}
+
+int32_t FunctionsSkyrim::GetItemValue(RE::TESBoundObject* item, const RE::ExtraDataList* a_xlist) {
+    int32_t value = 0;
+    if (const auto val_form = item->As<RE::TESValueForm>()) {
+		value += val_form->value;
+    }
+    if (const auto ench_form = item->As<RE::TESEnchantableForm>()) {
+		value += FunctionsSkyrim::GetEnchantmentCostOverride(ench_form->formEnchanting);
+    }
+    value += xData::GetXDataCostOverride(a_xlist);
+    return value;
+}
+
 bool xData::UpdateExtras(RE::TESObjectREFR* copy_from, RE::TESObjectREFR* copy_to) {
     if (!copy_from || !copy_to) {
         logger::error("copy_from or copy_to is null");
@@ -446,16 +472,7 @@ int32_t xData::GetXDataCostOverride(const RE::ExtraDataList* xList) {
     if (!xList) return 0;
     int32_t extra_costs = 0;
     if (const auto xench = xList->GetByType<RE::ExtraEnchantment>()) {
-        const auto ench = xench->enchantment;
-        auto temp_costoverride = ench->data.costOverride;
-        if (temp_costoverride < 0) temp_costoverride = static_cast<int32_t>(ench->CalculateTotalGoldValue());
-        if (temp_costoverride < 0)
-            temp_costoverride =
-                static_cast<int32_t>(ench->CalculateTotalGoldValue(RE::PlayerCharacter::GetSingleton()));
-        if (temp_costoverride > 0) {
-            logger::trace("CostOverride: {}", temp_costoverride);
-            extra_costs += temp_costoverride;
-        }
+        extra_costs += FunctionsSkyrim::GetEnchantmentCostOverride(xench->enchantment);
     }
     return extra_costs;
 }
@@ -590,7 +607,7 @@ bool Inventory::IsFavorited(RE::TESBoundObject* item, RE::TESObjectREFR* invento
     return false;
 }
 
-void Inventory::EquipItem(const RE::TESBoundObject* item, const bool unequip)
+void Inventory::EquipItem(RE::TESBoundObject* item, const bool unequip)
 {
     logger::trace("EquipItem");
 

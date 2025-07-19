@@ -15,26 +15,36 @@ void Manager::TakeBackReal(RE::TESBoundObject* real_obj, RE::TESObjectREFR* ches
     unownedChestOG->RemoveItem(real_obj,1,RE::ITEM_REMOVE_REASON::kStoreInContainer,nullptr,chest);
 }
 
-std::string Manager::GetWeightText(const RE::TESObjectREFR* a_container) const
+std::string Manager::GetWeightText(RE::TESObjectREFR* a_container)
 {
     if (const auto chest = GetContainerChest(a_container)) {
-        return GetWeightText(chest);
+        return GetWeightText_(chest);
+    }
+    if (const auto src = GetContainerSource(a_container->GetBaseObject()->GetFormID())) {
+        return GetWeightText(0.f,src->capacity);
     }
 	return "";
 }
 
-std::string Manager::GetWeightText(RE::TESBoundObject* a_fake) const
+std::string Manager::GetWeightText(RE::TESBoundObject* a_item)
 {
-    if (const auto chest = GetFakeContainerChest(a_fake)) {
-        return GetWeightText(chest);
+    if (const auto chest = GetFakeContainerChest(a_item)) {
+        return GetWeightText_(chest);
+    }
+    if (const auto src = GetContainerSource(a_item->GetFormID())) {
+        return GetWeightText(0.f,src->capacity);
     }
 	return "";
 }
 
-std::string Manager::GetValueText(const RE::TESObjectREFR* a_container) const {
-    if (const auto chest = GetContainerChest(a_container)) {
-        return std::to_string(GetChestValue(chest));
+std::string Manager::GetValueText(RE::TESObjectREFR* a_container) {
+	RE::TESBoundObject* a_bound = a_container->GetBaseObject();
+    if (const auto fake = GetFakeBound(a_container)) {
+        return std::to_string(fake->GetGoldValue());
     }
+    if (const auto src = GetContainerSource(a_bound->GetFormID())) {
+        return std::to_string(FunctionsSkyrim::GetItemValue(a_bound,&a_container->extraList));
+	}
     return "";
 }
 
@@ -1307,14 +1317,11 @@ void Manager::Gateway(const int result) {
 	// Opening container (0)
 
     // Activate the unowned chest
-    if (const auto chest = GetContainerChest(current_container)) {
-		const auto chest_refid = chest->GetFormID();
-        if (ActivateChest(chest)) {
-            reals_to_takeback.insert(chest_refid);
-		}
-    }
-    else {
-		logger::critical("Chest not found.");
+    if (const auto chest = GetContainerChest(current_container); !chest || !ActivateChest(chest)) {
+        reals_to_takeback.clear();
+        queued_chests.clear();
+        Animations::MyAnimator::GetSingleton()->CloseBag();
+		logger::warn("Chest not found.");
     }
 }
 
@@ -1348,17 +1355,13 @@ void Manager::RenameCallback() const {
 	}
 }
 
-std::string Manager::GetWeightText(RE::TESObjectREFR* a_chest) const {
+std::string Manager::GetWeightText_(RE::TESObjectREFR* a_chest) {
     const auto chest_id = a_chest->GetFormID();
     if (const auto a_real_id = GetRealID(chest_id)) {
         const auto real = RE::TESForm::LookupByID<RE::TESBoundObject>(a_real_id);
         if (const auto src = GetContainerSource(a_real_id); src && src->capacity>0) {
             const auto a_weight = std::max(0.f, a_chest->GetWeightInContainer()-real->GetWeight());
-            std::ostringstream stream1;
-            stream1 << std::fixed << std::setprecision(2) << a_weight*src->weight_ratio;
-            std::ostringstream stream2;
-            stream2 << std::fixed << std::setprecision(2) << src->capacity;
-            return fmt::format("{}/{}", stream1.str(), stream2.str());
+			return GetWeightText(a_weight * src->weight_ratio, src->capacity);
         }
     }
 	return "";
@@ -1376,6 +1379,15 @@ void Manager::SetUpAnimation(const Animations::AnimDataType a_datatype, const Fo
         animator->SetOpenAnim(open);
 		animator->SetCloseAnim(close);
 	}
+}
+
+std::string Manager::GetWeightText(const float weight, const float capacity)
+{
+    std::ostringstream stream1;
+    stream1 << std::fixed << std::setprecision(2) << weight;
+    std::ostringstream stream2;
+    stream2 << std::fixed << std::setprecision(2) << capacity;
+    return fmt::format("{}/{}", stream1.str(), stream2.str());
 }
 
 bool Manager::PickUpItem(RE::TESObjectREFR* item, const unsigned int max_try) {
