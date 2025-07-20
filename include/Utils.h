@@ -162,7 +162,7 @@ namespace FunctionsSkyrim {
             // For example, if TESAmmo had a SetWeight method, you would call it here
         }
 
-        static int GetValue(RE::TESAmmo* form) {
+        static int GetValue(const RE::TESAmmo* form) {
 			return form->value;
 		}
         static void SetValue(RE::TESAmmo* form, const int value) {
@@ -172,7 +172,7 @@ namespace FunctionsSkyrim {
 
     template <>
     struct FormTraits<RE::AlchemyItem> {
-        static float GetWeight(RE::AlchemyItem* form) { 
+        static float GetWeight(const RE::AlchemyItem* form) { 
             return form->weight;
         }
 
@@ -180,7 +180,7 @@ namespace FunctionsSkyrim {
             form->weight = weight;
         }
 
-        static int GetValue(RE::AlchemyItem* form) {
+        static int GetValue(const RE::AlchemyItem* form) {
         	return form->GetGoldValue();
         }
         static void SetValue(RE::AlchemyItem* form, const int value) { 
@@ -195,12 +195,12 @@ namespace MsgBoxesNotifs {
 
     // https://github.com/SkyrimScripting/MessageBox/blob/ac0ea32af02766582209e784689eb0dd7d731d57/include/SkyrimScripting/MessageBox.h#L9
     class SkyrimMessageBox {
-        class MessageBoxResultCallback : public RE::IMessageBoxCallback {
+        class MessageBoxResultCallback final : public RE::IMessageBoxCallback {
             std::function<void(unsigned int)> _callback;
 
         public:
             ~MessageBoxResultCallback() override = default;
-            explicit MessageBoxResultCallback(std::function<void(unsigned int)> callback) : _callback(callback) {}
+            explicit MessageBoxResultCallback(const std::function<void(unsigned int)>& callback) : _callback(callback) {}
             void Run(RE::IMessageBoxCallback::Message message) override {
                 _callback(static_cast<unsigned int>(message));
             }
