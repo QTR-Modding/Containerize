@@ -112,12 +112,8 @@ RE::BSEventNotifyControl EventSink::ProcessEvent(const RE::TESFormDeleteEvent* a
 RE::BSEventNotifyControl EventSink::ProcessEvent(const RE::MenuOpenCloseEvent* a_event, RE::BSTEventSource<RE::MenuOpenCloseEvent>*)
 {
 	if (!a_event) return RE::BSEventNotifyControl::kContinue;
-	if (a_event->opening) {
-	    RemovePrompts();
-	}
-    else {
-        RemoveMenuPrompts();
-    }
+    RemoveMenuPrompts();
+	RemovePrompts();
 
 	return RE::BSEventNotifyControl::kContinue;
 }

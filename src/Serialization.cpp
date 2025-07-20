@@ -169,7 +169,7 @@ bool Serialization::DFSaveLoadData::Load(SKSE::SerializationInterface* serializa
         std::uint32_t formid = 0;
         logger::trace("ReadRecordData:{}", serializationInterface->ReadRecordData(formid));
         if (!serializationInterface->ResolveFormID(formid, formid)) {
-            logger::error("Failed to resolve form ID, 0x{:X}.", formid);
+            logger::error("Failed to resolve form ID, 0x{:x}.", formid);
             continue;
         }
 
@@ -179,7 +179,7 @@ bool Serialization::DFSaveLoadData::Load(SKSE::SerializationInterface* serializa
             return false;
         }
 
-        logger::trace("Formid:{}", formid);
+        logger::trace("Formid:{:x}", formid);
         logger::trace("Editorid:{}", editorid);
 
         DFSaveDataLHS lhs({formid, editorid});
@@ -193,14 +193,14 @@ bool Serialization::DFSaveLoadData::Load(SKSE::SerializationInterface* serializa
             DFSaveData rhs_;
             logger::trace("ReadRecordData: {}", serializationInterface->ReadRecordData(rhs_));
             logger::trace(
-                "rhs_ content: dyn_formid: {}, customid_bool: {},"
+                "rhs_ content: dyn_formid: {:x}, customid_bool: {},"
                 "customid: {}, acteff_elapsed: {}",
                 rhs_.dyn_formid, rhs_.custom_id.first, rhs_.custom_id.second, rhs_.acteff_elapsed);
             rhs.push_back(rhs_);
         }
 
         m_Data[lhs] = rhs;
-        logger::info("Loaded data for formid {}, editorid {}", formid, editorid);
+        logger::info("Loaded data for formid {:x}, editorid {}", formid, editorid);
     }
 
     return true;

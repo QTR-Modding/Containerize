@@ -21,24 +21,23 @@ Papyrus::ObjectPtr Papyrus::GetObjectPtr(const RE::TESForm* a_form, const char* 
 
 void Papyrus::ConversationCallbackFunctor::operator()(const RE::BSScript::Variable a_result) {
     if (a_result.IsNoneObject()) {
-        logger::trace("Result: None");
-    } else if (a_result.IsString()) {
+        logger::warn("Result: None");
+    }
+    else if (a_result.IsString()) {
         rename = a_result.GetString();
-        logger::trace("Result rename: {}", rename);
         if (!rename.empty()) {
-            Manager::GetSingleton()->RenameContainer(rename);
+            Manager::GetSingleton()->RenameContainer(rename,fake);
         }
+    }
+    else {
+        logger::info("a_result type {}", a_result.GetType().TypeAsString().c_str());
     }
 }
 
 void Papyrus::RenameCallbackFunctor::OnRename() {
-    logger::trace("Rename menu closed.");
-    const auto skyrimVM = RE::SkyrimVM::GetSingleton();
-    if (const auto vm = skyrimVM ? skyrimVM->impl : nullptr) {
-        const char* menuID = "UITextEntryMenu";
-        RE::BSTSmartPointer<RE::BSScript::IStackCallbackFunctor> callback(new ConversationCallbackFunctor());
-        const auto args = RE::MakeFunctionArguments(std::move(menuID));
-        if (!vm->DispatchStaticCall("UIExtensions", "GetMenuResultString", args, callback)) {
-        }
+    const auto smart = RE::make_smart<ConversationCallbackFunctor>(fake);
+    if (!CallFunction("UIExtensions","GetMenuResultString",smart.get(),"UITextEntryMenu")) {
+		logger::error("Failed to get menu result string from UIExtensions.");
     }
+    
 }

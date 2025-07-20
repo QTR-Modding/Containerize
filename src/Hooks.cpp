@@ -403,7 +403,6 @@ namespace {
 
         auto* node = GetAttachNode(original);
 	    if (!node) {
-		    logger::warn("Failed to get attach node for anim object mesh");
 		    return nullptr;
 	    }
 
