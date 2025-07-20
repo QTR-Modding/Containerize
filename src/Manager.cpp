@@ -1459,7 +1459,7 @@ bool Manager::MoveObject(RE::TESObjectREFR* ref, RE::TESObjectREFR* move2contain
 	const auto player = RE::PlayerCharacter::GetSingleton();
 	const auto ref_bound = ref->GetObjectReference();
     const auto item_count = player->GetItemCount(ref_bound);
-	player->PickUpObject(ref, 1);
+	player->PickUpObject(ref, 1,false,false);
     if (player->GetItemCount(ref_bound) != item_count+1) {
         logger::error("Item not found in inventory");
         return false;
