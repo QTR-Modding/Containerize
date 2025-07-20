@@ -54,10 +54,10 @@ namespace SkyPrompt {
     {
 		mutable std::string weight_text;
 
-		mutable SkyPromptAPI::Prompt weight_prompt{ weight_text,2,0, SkyPromptAPI::PromptType::kSinglePress,0, akatosh_keys};
 	    mutable SkyPromptAPI::Prompt open_prompt{ Strings::open_bag,0,0, SkyPromptAPI::PromptType::kHold};
-		//mutable SkyPromptAPI::Prompt rename_prompt{ Strings::rename_bag,1,0, SkyPromptAPI::PromptType::kHold};
-		mutable std::array<SkyPromptAPI::Prompt, 2> prompts = { open_prompt,/*rename_prompt,*/ weight_prompt};
+		mutable SkyPromptAPI::Prompt rename_prompt{ Strings::rename_bag,1,0, SkyPromptAPI::PromptType::kHold};
+		mutable SkyPromptAPI::Prompt weight_prompt{ weight_text,2,0, SkyPromptAPI::PromptType::kSinglePress,0, akatosh_keys};
+		mutable std::array<SkyPromptAPI::Prompt, 3> prompts = { open_prompt,rename_prompt, weight_prompt};
 
     public:
 
@@ -73,16 +73,19 @@ namespace SkyPrompt {
 	class RegistrationPromptSink final : public SkyPromptAPI::PromptSink,
                                public clib_util::singleton::ISingleton<RegistrationPromptSink >
     {
-	    SkyPromptAPI::Prompt open_prompt{ Strings::open_bag,1,0, SkyPromptAPI::PromptType::kHold};
+		mutable std::string weight_text;
 
-		std::array<SkyPromptAPI::Prompt, 1> prompts = { open_prompt};
+	    mutable SkyPromptAPI::Prompt open_prompt{ Strings::open_bag,3,0, SkyPromptAPI::PromptType::kHold};
+		mutable SkyPromptAPI::Prompt rename_prompt{ Strings::rename_bag,4,0, SkyPromptAPI::PromptType::kHold};
+		mutable SkyPromptAPI::Prompt weight_prompt{ weight_text,5,0, SkyPromptAPI::PromptType::kSinglePress,0, akatosh_keys};
+		mutable std::array<SkyPromptAPI::Prompt, 3> prompts = { open_prompt,rename_prompt, weight_prompt};
 
 		mutable RE::TESObjectREFRPtr containermenu_owner = nullptr;
 
     public:
         void ProcessEvent(SkyPromptAPI::PromptEvent event) const override;
 	    std::span<const SkyPromptAPI::Prompt> GetPrompts() const override { return prompts; }
-		void Show(RE::TESBoundObject* a_item);
+		void Show(const RE::TESBoundObject* a_item) const;
 		void Hide() const;
     };
 

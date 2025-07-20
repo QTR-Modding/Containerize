@@ -13,7 +13,6 @@ public clib_util::singleton::ISingleton<Manager>
     
     // runtime specific
     std::map<RefID,FormFormID> ChestToFakeContainer; // chest refid -> {real container formid (outerKey), fake container formid (innerKey)}
-    RE::TESObjectREFR* current_container = nullptr;
 
 	// unowned stuff
     RE::TESObjectCELL* unownedCell = nullptr;
@@ -40,7 +39,8 @@ public clib_util::singleton::ISingleton<Manager>
 
     // from container out in the world to linked chest
     [[nodiscard]] RE::TESObjectREFR* GetContainerChest(const RE::TESObjectREFR* a_container) const;
-    [[nodiscard]] RE::TESObjectREFR* GetFakeContainerChest(RE::TESBoundObject* fake_id) const;
+    [[nodiscard]] RE::TESObjectREFR* GetFakeContainerChest(const RE::TESBoundObject* a_fake) const;
+    [[nodiscard]] RE::TESObjectREFR* GetContainerLocation(FormID a_fake_id) const;
 
     [[nodiscard]] uint32_t GetNoChests() const;
 
@@ -114,8 +114,6 @@ public clib_util::singleton::ISingleton<Manager>
 
     bool HandleRegistration(RE::TESObjectREFR* a_item);
 
-    void RenameCallback() const;
-
     std::string GetWeightText_(RE::TESObjectREFR* a_chest);
     void SetUpAnimation(Animations::AnimDataType a_datatype, FormID a_real_id);
 
@@ -128,7 +126,7 @@ public:
     const char* GetType() override { return "Manager"; }
     void Init();
 
-    void Gateway(int result);
+    void Gateway(int result, const RE::ObjectRefHandle& a_current_container);
 
     [[nodiscard]] RefID GetContainerChestID(RefID container_refid) const;
     [[nodiscard]] RefID GetFakeContainerChestID(FormID fake_id) const;
@@ -157,7 +155,7 @@ public:
     // Checks if ref has formid in the sources
     [[nodiscard]] bool IsRealContainer(const RE::TESObjectREFR* ref) const;
 
-    void RenameContainer(const std::string& new_name);
+    void RenameContainer(const std::string& new_name, RE::TESBoundObject* a_fake);
 
     void OnChestExit(RE::TESObjectREFR* a_chest);
     void OnChestEnter(RE::TESObjectREFR* a_chest);
@@ -189,7 +187,7 @@ public:
 
     RE::TESBoundObject* GetFakeBound(const RE::TESObjectREFR* a_container) const;
     std::string GetWeightText(RE::TESObjectREFR* a_container);
-    std::string GetWeightText(RE::TESBoundObject* a_item);
+    std::string GetWeightText(const RE::TESBoundObject* fake_or_real);
     std::string GetValueText(RE::TESObjectREFR* a_container);
     void SetUpAnimation(const RE::TESBoundObject* a_real);
     void SetUpAnimation(const RE::TESObjectREFR* a_real);
@@ -197,10 +195,10 @@ public:
     RE::TESBoundObject* RegisterFromMenu(RE::InventoryEntryData* a_real_entry, RE::TESObjectREFR* a_owner);
     bool IsInChestMenu() const {return !reals_to_takeback.empty();}
     bool IsChestMenuQueued() const {return !queued_chests.empty();}
+    static void RenameCallback(RE::TESBoundObject* a_fake);
 
     template <typename T>
     static void Rename(const std::string& new_name, T item) {
-        logger::trace("Rename");
         if (!item) logger::warn("Item not found");
         else item->fullName = new_name;
     }

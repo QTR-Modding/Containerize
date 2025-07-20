@@ -86,10 +86,10 @@ void SkyPrompt::MenuPromptSink::ProcessEvent(const SkyPromptAPI::PromptEvent eve
 	EventSink::RemoveMenuPrompts();
 	if (const auto a_entry = Hooks::GetSelectedEntryInMenu()) {
 		if (const auto a_fake = a_entry->GetObject()) {
-			// TODO
-	        /*if (event.prompt.eventID == 1) {
+	        if (event.prompt.eventID == 1) {
+				Manager::RenameCallback(a_fake);
 	            return;
-	        }*/
+	        }
 	        OpenBag(a_fake, RE::UI::GetSingleton()->IsMenuOpen(RE::InventoryMenu::MENU_NAME) && a_entry->IsWorn());
 		}
 	}
@@ -103,7 +103,7 @@ void SkyPrompt::MenuPromptSink::Show(RE::TESBoundObject* a_fake) const {
 	if (const auto a_ref = RE::Inventory3DManager::GetSingleton()->tempRef) {
 		const auto refid = a_ref->GetFormID();
 		open_prompt.refid = refid;
-		//rename_prompt.refid = refid;
+		rename_prompt.refid = refid;
 		weight_prompt.refid = refid;
 
 		const auto a_weight_text = Manager::GetSingleton()->GetWeightText(a_fake);
@@ -112,9 +112,10 @@ void SkyPrompt::MenuPromptSink::Show(RE::TESBoundObject* a_fake) const {
 	}
 	else {
 		open_prompt.refid = 0;
+		rename_prompt.refid = 0;
 		weight_prompt.refid = 0;
 	}
-	prompts = { open_prompt,/*rename_prompt,*/weight_prompt};
+	prompts = { open_prompt,rename_prompt,weight_prompt};
 
 	if (!SkyPromptAPI::SendPrompt(this,g_clientID)) {
 	}
@@ -164,20 +165,46 @@ void SkyPrompt::RegistrationPromptSink::ProcessEvent(const SkyPromptAPI::PromptE
 			if (is_worn) {
 				RE::ActorEquipManager::GetSingleton()->EquipObject(RE::PlayerCharacter::GetSingleton(),a_fake);
 			}
+
+			if (const auto ui = RE::UI::GetSingleton(); 
+                ui->IsMenuOpen(RE::InventoryMenu::MENU_NAME) || ui->IsMenuOpen(RE::ContainerMenu::MENU_NAME)) {
+                RE::SendUIMessage::SendInventoryUpdateMessage(RE::PlayerCharacter::GetSingleton(),nullptr);
+				if (a_owner) {
+                    RE::SendUIMessage::SendInventoryUpdateMessage(a_owner.get(),nullptr);
+				}
+            }
+
+			if (event.prompt.eventID == 4) {
+				Manager::RenameCallback(a_fake);
+	            return;
+	        }
 			MenuPromptSink::OpenBag(a_fake,is_worn);
 		}
 	}
 }
 
-void RegistrationPromptSink::Show([[maybe_unused]] RE::TESBoundObject* a_item) {
+void RegistrationPromptSink::Show(const RE::TESBoundObject* a_item) const {
+
+    weight_text.clear();
+
+
 	if (const auto a_ref = RE::Inventory3DManager::GetSingleton()->tempRef) {
 		const auto refid = a_ref->GetFormID();
 		open_prompt.refid = refid;
+		rename_prompt.refid = refid;
+		weight_prompt.refid = refid;
+
+		const auto a_weight_text = Manager::GetSingleton()->GetWeightText(a_item);
+		weight_text.append(Strings::weight).append(a_weight_text);
+		weight_prompt.text = weight_text;
 	}
 	else {
 		open_prompt.refid = 0;
+		rename_prompt.refid = 0;
+		weight_prompt.refid = 0;
 	}
-	prompts = { open_prompt};
+
+    prompts = { open_prompt,rename_prompt,weight_prompt};
 
 	if (!SkyPromptAPI::SendPrompt(this,g_clientID)) {
 	}
