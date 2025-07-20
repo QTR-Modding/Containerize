@@ -879,7 +879,7 @@ void MsgBoxesNotifs::SkyrimMessageBox::Show(const std::string& bodyText, const s
     const auto* factoryManager = RE::MessageDataFactoryManager::GetSingleton();
     const auto* uiStringHolder = RE::InterfaceStrings::GetSingleton();
     auto* factory = factoryManager->GetCreator<RE::MessageBoxData>(
-        uiStringHolder->messageBoxData);  // "MessageBoxData" <--- can we just use this string?
+        uiStringHolder->messageBoxData);
     auto* messagebox = factory->Create();
     const RE::BSTSmartPointer<RE::IMessageBoxCallback> messageCallback = RE::make_smart<MessageBoxResultCallback>(callback);
     messagebox->callback = messageCallback;
