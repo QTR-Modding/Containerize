@@ -253,9 +253,10 @@ void Manager::UpdateFakeWV(T* fake_form, RE::TESObjectREFR* chest_linked, const 
     int x_0 = real_container->GetGoldValue();
     const int target_value = Inventory::GetValueInContainer(chest_linked);
 
+	int32_t extracost = 0;
     if (other_settings[Settings::otherstuffKeys[3]]) {
 		if (auto temp_entry = chest_inventory.find(real_container); temp_entry != chest_inventory.end()) {
-			const auto extracost = Inventory::EntryHasXDataList(temp_entry->second.second.get()) ? xData::GetXDataCostOverride(temp_entry->second.second->extraLists->front()) : 0;
+			extracost = Inventory::EntryHasXDataList(temp_entry->second.second.get()) ? xData::GetXDataCostOverride(temp_entry->second.second->extraLists->front()) : 0;
 			x_0 = target_value - extracost;
 		}
     }
@@ -263,11 +264,13 @@ void Manager::UpdateFakeWV(T* fake_form, RE::TESObjectREFR* chest_linked, const 
 
     FunctionsSkyrim::FormTraits<T>::SetValue(fake_form, x_0);
         
-    if (!Inventory::HasItem(fake_form, player_ref) || x_0 == 0) return;
+ //   bool player_has_item = Inventory::HasItem(fake_form, player_ref);
+	//RE::TESObjectREFR* container_location = GetContainerLocation(fake_form->GetFormID());
+ //   if (!player_has_item && !container_location) return;
 
     const auto fake_bound = RE::TESForm::LookupByID<RE::TESBoundObject>(fake_form->GetFormID());
     if (!fake_bound) return RaiseMngrErr("Fake bound is null");
-    const int f_0 = Inventory::GetItemValue(fake_bound, player_ref->GetInventory());
+    const int f_0 = fake_bound->GetGoldValue() + extracost; // player_has_item ? Inventory::GetItemValue(fake_bound, player_ref->GetInventory()) : container_location->GetGoldValue();
     int f_search = f_0;
 
     // do binary search to find the correct value up to a tolerance
@@ -282,7 +285,8 @@ void Manager::UpdateFakeWV(T* fake_form, RE::TESObjectREFR* chest_linked, const 
 
     while (static_cast<float>(std::abs(f_search - target_value)) > tolerance_val && curr_iter > 0) {
         FunctionsSkyrim::FormTraits<T>::SetValue(fake_form, x_search);
-		f_search = Inventory::GetItemValue(fake_bound, player_ref->GetInventory());
+		logger::trace("Setting fake value to: {}", x_search);
+		f_search = fake_bound->GetGoldValue() + extracost; //player_has_item ? Inventory::GetItemValue(fake_bound, player_ref->GetInventory()) : container_location->GetGoldValue();
 
         logger::trace("x_search: {}, f_search: {}", x_search, f_search);
 
@@ -300,7 +304,7 @@ void Manager::UpdateFakeWV(T* fake_form, RE::TESObjectREFR* chest_linked, const 
         logger::warn("Max iterations reached.");
         if (std::abs(f_search - target_value) > std::abs(f_0 - target_value)){
             logger::warn("Could not find a better value for fake form");
-            return FunctionsSkyrim::FormTraits<T>::SetValue(fake_form, x_0);
+            FunctionsSkyrim::FormTraits<T>::SetValue(fake_form, x_0);
         }
     }
 }

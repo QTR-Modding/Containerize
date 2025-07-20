@@ -84,6 +84,9 @@ class DynamicFormTracker final : public DFSaveLoadData {
 
         auto ammoNewForm = fake->As<RE::TESAmmo>();
 
+		auto armorNewForm = fake->As<RE::TESObjectARMO>();
+		auto armorBaseForm = base->As<RE::TESObjectARMO>();
+
         if (weaponNewForm && weaponBaseForm) {
             weaponNewForm->firstPersonModelObject = weaponBaseForm->firstPersonModelObject;
 
@@ -126,16 +129,17 @@ class DynamicFormTracker final : public DFSaveLoadData {
 
             bookNewForm->itemCardDescription = bookBaseForm->itemCardDescription;
 
-        } else if (ammoBaseForm && ammoNewForm) {
+        }
+        else if (ammoBaseForm && ammoNewForm) {
             ammoNewForm->GetRuntimeData().data.damage = ammoBaseForm->GetRuntimeData().data.damage;
 
             ammoNewForm->GetRuntimeData().data.flags = ammoBaseForm->GetRuntimeData().data.flags;
 
             ammoNewForm->GetRuntimeData().data.projectile = ammoBaseForm->GetRuntimeData().data.projectile;
         }
-        /*else {
-            new_form->Copy(baseForm);
-        }*/
+        else if (armorBaseForm && armorNewForm) {
+            armorNewForm->Copy(armorBaseForm);
+		}
 
         copyComponent<RE::TESDescription>(base, fake);
 
@@ -169,6 +173,12 @@ class DynamicFormTracker final : public DFSaveLoadData {
 
         copyComponent<RE::TESBipedModelForm>(base, fake);
 
+        copyComponent<RE::BGSBipedObjectForm>(base, fake);
+
+        copyComponent<RE::TESRaceForm>(base, fake);
+
+        copyComponent<RE::BGSPickupPutdownSounds>(base, fake);
+
         if (setFormID != 0) fake->SetFormID(setFormID, false);
     }
 
@@ -195,7 +205,7 @@ class DynamicFormTracker final : public DFSaveLoadData {
 
         RE::TESForm* new_form = factory->Create();
 
-        // new_form = baseForm->CreateDuplicateForm(true, (void*)new_form)->As<T>();
+        //new_form = baseForm->CreateDuplicateForm(false, nullptr);
 
         if (!new_form) {
             logger::error("Failed to create new form.");

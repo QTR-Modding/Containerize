@@ -162,7 +162,9 @@ int32_t FunctionsSkyrim::GetItemValue(RE::TESBoundObject* item, const RE::ExtraD
 		value += val_form->value;
     }
     if (const auto ench_form = item->As<RE::TESEnchantableForm>()) {
-		value += FunctionsSkyrim::GetEnchantmentCostOverride(ench_form->formEnchanting);
+        if (const auto ench = ench_form->formEnchanting) {
+		    value += FunctionsSkyrim::GetEnchantmentCostOverride(ench);
+        }
     }
     value += xData::GetXDataCostOverride(a_xlist);
     return value;
@@ -185,23 +187,23 @@ bool xData::UpdateExtras(RE::ExtraDataList* copy_from, RE::ExtraDataList* copy_t
     // Enchantment
     if (copy_from->HasType(RE::ExtraDataType::kEnchantment)) {
         logger::trace("Enchantment found");
-        const auto enchantment =
-            skyrim_cast<RE::ExtraEnchantment*>(copy_from->GetByType(RE::ExtraDataType::kEnchantment));
-        if (enchantment) {
-            RE::ExtraEnchantment* enchantment_fake = RE::BSExtraData::Create<RE::ExtraEnchantment>();
-            // log the associated actor value
-            logger::trace("Associated actor value: {}", enchantment->enchantment->GetAssociatedSkill());
-            Copy::CopyEnchantment(enchantment, enchantment_fake);
-            copy_to->Add(enchantment_fake);
+        if (const auto enchantment = copy_from->GetByType<RE::ExtraEnchantment>()) {
+            if (RE::ExtraEnchantment* enchantment_fake = RE::BSExtraData::Create<RE::ExtraEnchantment>()) {
+                // log the associated actor value
+                logger::trace("Associated actor value: {}", enchantment->enchantment->GetAssociatedSkill());
+                Copy::CopyEnchantment(enchantment, enchantment_fake);
+                copy_to->Add(enchantment_fake);
+            } else return false;
         } else return false;
     }
     // Health
     if (copy_from->HasType(RE::ExtraDataType::kHealth)) {
         logger::trace("Health found");
-        if (const auto health = skyrim_cast<RE::ExtraHealth*>(copy_from->GetByType(RE::ExtraDataType::kHealth))) {
-            RE::ExtraHealth* health_fake = RE::BSExtraData::Create<RE::ExtraHealth>();
-            Copy::CopyHealth(health, health_fake);
-            copy_to->Add(health_fake);
+        if (const auto health = copy_from->GetByType<RE::ExtraHealth>()) {
+            if (RE::ExtraHealth* health_fake = RE::BSExtraData::Create<RE::ExtraHealth>()) {
+                Copy::CopyHealth(health, health_fake);
+                copy_to->Add(health_fake);
+            } else return false;
         } else return false;
     }
     // Rank
@@ -472,7 +474,9 @@ int32_t xData::GetXDataCostOverride(const RE::ExtraDataList* xList) {
     if (!xList) return 0;
     int32_t extra_costs = 0;
     if (const auto xench = xList->GetByType<RE::ExtraEnchantment>()) {
-        extra_costs += FunctionsSkyrim::GetEnchantmentCostOverride(xench->enchantment);
+        if (const auto ench = xench->enchantment) {
+            extra_costs += FunctionsSkyrim::GetEnchantmentCostOverride(ench);
+		}
     }
     return extra_costs;
 }

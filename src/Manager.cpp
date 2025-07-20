@@ -38,12 +38,13 @@ std::string Manager::GetWeightText(const RE::TESBoundObject* fake_or_real)
 }
 
 std::string Manager::GetValueText(RE::TESObjectREFR* a_container) {
-	RE::TESBoundObject* a_bound = a_container->GetBaseObject();
+	RE::TESBoundObject* a_real = a_container->GetBaseObject();
     if (const auto fake = GetFakeBound(a_container)) {
-        return std::to_string(fake->GetGoldValue());
+        const auto extra_cost = xData::GetXDataCostOverride(&a_container->extraList);
+        return std::to_string(fake->GetGoldValue() + extra_cost);
     }
-    if ([[maybe_unused]] const auto src = GetContainerSource(a_bound->GetFormID())) {
-        return std::to_string(FunctionsSkyrim::GetItemValue(a_bound,&a_container->extraList));
+    if ([[maybe_unused]] const auto src = GetContainerSource(a_real->GetFormID())) {
+        return std::to_string(FunctionsSkyrim::GetItemValue(a_real,&a_container->extraList));
 	}
     return "";
 }
@@ -112,7 +113,9 @@ RE::TESBoundObject* Manager::RegisterFromMenu(RE::InventoryEntryData* a_real_ent
 
 		const auto xlist = a_real_entry->extraLists && !a_real_entry->extraLists->empty() ? a_real_entry->extraLists->front() : nullptr;
         a_owner->RemoveItem(a_real,1,RE::ITEM_REMOVE_REASON::kStoreInContainer,xlist,ChestObjRef);
-        if (!Inventory::HasItem(a_real,ChestObjRef)) {
+		auto chest_inv = ChestObjRef->GetInventory();
+		const auto real_it = chest_inv.find(a_real);
+        if (real_it == chest_inv.end()) {
             RaiseMngrErr("Failed to move real to its chest at registration!");
 			return nullptr;
         }
@@ -131,7 +134,21 @@ RE::TESBoundObject* Manager::RegisterFromMenu(RE::InventoryEntryData* a_real_ent
             });
         }
 
-        a_owner->AddObjectToContainer(fake_bound,nullptr,1,nullptr);
+        const auto fake_ref = WorldObject::DropObjectIntoTheWorld(fake_bound);
+		if (const auto real_xList = real_it->second.second && real_it->second.second->extraLists && !real_it->second.second->extraLists->empty() ? real_it->second.second->extraLists->front() : nullptr) {
+            if (!xData::UpdateExtras(real_xList,&fake_ref->extraList)) {
+				logger::error("Failed to update extras for fake object.");
+            }
+		}
+        if (!MoveObject(fake_ref,a_owner)) {
+			logger::critical("Failed to move fake object into the world.");
+        }
+
+        //a_owner->AddObjectToContainer(fake_bound,nullptr,1,nullptr);
+        /*if (!UpdateExtrasInInventory(ChestObjRef,a_real->GetFormID(),a_owner,fake_bound->GetFormID())) {
+			logger::warn("Failed to update extras in inventory for chest {:x} and real container {:x}", ChestObjRef->GetFormID(), a_real->GetFormID());
+        }*/
+
 	    return fake_bound;
     }
 
@@ -324,6 +341,7 @@ void Manager::HandleCraftingExit() {
                 logger::error("Failed to update extras in player's inventory.");
                 return;
             }
+			logger::info("Updated extras in player's inventory for fake item {}.", fake_bound->GetName());
         }
     }
 }
@@ -1797,11 +1815,6 @@ void Manager::ReceiveData() {
                 logger::trace("Favoriting fake container with formid {:x}", fake_formid);
                 Inventory::FavoriteItem((*it)->object,player_ref);
             }
-			if (const auto src = GetContainerSource(ChestToFakeContainer[fakecontainerchestid].outerKey)) {
-				if (const auto fakecontainer_chest = RE::TESForm::LookupByID<RE::TESObjectREFR>(fakecontainerchestid)) {
-                    UpdateFakeWV((*it)->object,fakecontainer_chest,src->weight_ratio);
-				}
-			}
         }
     }
 
@@ -1811,6 +1824,12 @@ void Manager::ReceiveData() {
             DFT->Reserve(source.formid,editorid ,dyn_formid);
 			logger::trace("Reserving formid {:x} for source formid {:x} and editorid {}", dyn_formid, source.formid, source.editorid);
         }
+        for (const auto& chest_refid : source.data | std::views::keys) {
+			auto fake_formid = ChestToFakeContainer[chest_refid].innerKey;
+			auto fake_bound = RE::TESForm::LookupByID<RE::TESBoundObject>(fake_formid);
+			auto chest_ref = RE::TESForm::LookupByID<RE::TESObjectREFR>(chest_refid);
+            UpdateFakeWV(fake_bound,chest_ref,source.weight_ratio);
+		}
     }
     // need to get rid of the dynamic forms which are unused
     logger::trace("Deleting unused fake forms from bank.");
