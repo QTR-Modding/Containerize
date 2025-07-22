@@ -1158,7 +1158,9 @@ void Manager::qTRICK_(const SourceDataKey chest_ref, const SourceDataVal cont_re
                 const auto it2 = std::ranges::find_if(*entry_list, [fake_formid](const auto& entry) {
                     return entry && entry->object && entry->object->GetFormID() == fake_formid;
 				    });
-                Inventory::FavoriteItem(*it2, inventory_changes);
+                if (it2 != entry_list->end() && !(*it2)->IsFavorited()) {
+                    Inventory::FavoriteItem(*it2, inventory_changes);
+				}
             }
         }
     }
