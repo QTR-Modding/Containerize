@@ -1821,7 +1821,7 @@ void Manager::ReceiveData() {
                 logger::trace("Equipping fake container with formid {:x}", fake_formid);
                 Inventory::EquipItem(*it);
             }
-            if (is_faved_x && !!(*it)->IsFavorited()) {
+            if (is_faved_x && !(*it)->IsFavorited()) {
                 logger::trace("Favoriting fake container with formid {:x}", fake_formid);
                 Inventory::FavoriteItem(*it,inventory_changes);
             }
