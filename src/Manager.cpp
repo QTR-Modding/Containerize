@@ -1805,27 +1805,27 @@ void Manager::ReceiveData() {
     const auto inventory_changes = player_ref->GetInventoryChanges();
     const auto entries = inventory_changes->entryList;
     for (auto it = entries->begin(); it != entries->end(); ++it){
-        if (!(*it)) {
+        if (const auto a_entry = *it; !a_entry) {
             logger::error("Entry is null. Fave-equip failed.");
-            continue;
         } 
-        if (!(*it)->object) {
+        else if (const auto a_bound = a_entry->object; !a_bound) {
             logger::error("Object is null. Fave-equip failed.");
-            continue;
         }
-        if (auto fake_formid = (*it)->object->GetFormID(); IsFakeContainer(fake_formid)) {
+        else if (auto fake_formid = a_bound->GetFormID(); IsFakeContainer(fake_formid)) {
 			const auto fakecontainerchestid = GetFakeContainerChestID(fake_formid);
             const auto [is_equipped_x,is_faved_x ] = chest_equipped_fav[fakecontainerchestid];
-            if ((*it)->IsWorn()) {
-                Inventory::EquipItem(*it,true);
+            if (a_entry->IsWorn()) {
+                RE::ActorEquipManager::GetSingleton()->UnequipObject(
+                    RE::PlayerCharacter::GetSingleton(), a_bound, a_entry->extraLists->front(), 1,
+                    nullptr, false, false, false, false);
             }
             if (is_equipped_x) {
                 logger::trace("Equipping fake container with formid {:x}", fake_formid);
-                Inventory::EquipItem(*it);
+                Inventory::EquipItem(a_entry);
             }
-            if (is_faved_x && !(*it)->IsFavorited()) {
+            if (is_faved_x && !a_entry->IsFavorited()) {
                 logger::trace("Favoriting fake container with formid {:x}", fake_formid);
-                Inventory::FavoriteItem(*it,inventory_changes);
+                Inventory::FavoriteItem(a_entry,inventory_changes);
             }
         }
     }
@@ -1837,9 +1837,9 @@ void Manager::ReceiveData() {
 			logger::trace("Reserving formid {:x} for source formid {:x} and editorid {}", dyn_formid, source.formid, source.editorid);
         }
         for (const auto& chest_refid : source.data | std::views::keys) {
-			auto fake_formid = ChestToFakeContainer[chest_refid].innerKey;
-			auto fake_bound = RE::TESForm::LookupByID<RE::TESBoundObject>(fake_formid);
-			auto chest_ref = RE::TESForm::LookupByID<RE::TESObjectREFR>(chest_refid);
+			const auto fake_formid = ChestToFakeContainer[chest_refid].innerKey;
+			const auto fake_bound = RE::TESForm::LookupByID<RE::TESBoundObject>(fake_formid);
+			const auto chest_ref = RE::TESForm::LookupByID<RE::TESObjectREFR>(chest_refid);
             UpdateFakeWV(fake_bound,chest_ref,source.weight_ratio);
 		}
     }

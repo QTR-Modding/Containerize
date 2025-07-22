@@ -593,7 +593,7 @@ namespace {
         );*/
         RE::ActorEquipManager::GetSingleton()->EquipObject(
                 a_actor, a_item, a_xlist, 1,
-                nullptr, false, false, false, false);
+                nullptr, true, false, false, false);
     }
 
     void UnequipItem_(RE::Actor* a_actor, RE::TESBoundObject* a_item, RE::ExtraDataList* a_xlist) {
@@ -602,7 +602,7 @@ namespace {
         );*/
         RE::ActorEquipManager::GetSingleton()->UnequipObject(
                 a_actor, a_item, a_xlist, 1,
-                nullptr, false, false, false, false);
+                nullptr, true, false, false, false);
     }
 }
 
