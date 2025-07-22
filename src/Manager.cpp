@@ -1153,7 +1153,14 @@ void Manager::qTRICK_(const SourceDataKey chest_ref, const SourceDataVal cont_re
     logger::trace("Fave");
     if (const auto it = std::ranges::find(external_favs, fake_formid); it != external_favs.end()) {
         logger::trace("Faving");
-        Inventory::FavoriteItem(RE::TESForm::LookupByID<RE::TESBoundObject>(fake_formid), to_inv);
+        if (const auto inventory_changes = to_inv->GetInventoryChanges()) {
+            if (const auto entry_list = inventory_changes->entryList) {
+                const auto it2 = std::ranges::find_if(*entry_list, [fake_formid](const auto& entry) {
+                    return entry && entry->object && entry->object->GetFormID() == fake_formid;
+				    });
+                Inventory::FavoriteItem(*it2, inventory_changes);
+            }
+        }
     }
     // Remove carry weight boost if it has
     if (other_settings[Settings::otherstuffKeys[1]]) RemoveCarryWeightBoost(fake_formid, to_inv);
@@ -1807,13 +1814,16 @@ void Manager::ReceiveData() {
         if (auto fake_formid = (*it)->object->GetFormID(); IsFakeContainer(fake_formid)) {
 			const auto fakecontainerchestid = GetFakeContainerChestID(fake_formid);
             const auto [is_equipped_x,is_faved_x ] = chest_equipped_fav[fakecontainerchestid];
+            if ((*it)->IsWorn()) {
+                Inventory::EquipItem(*it,true);
+            }
             if (is_equipped_x) {
                 logger::trace("Equipping fake container with formid {:x}", fake_formid);
-                Inventory::EquipItem((*it)->object);
+                Inventory::EquipItem(*it);
             }
-            if (is_faved_x) {
+            if (is_faved_x && !!(*it)->IsFavorited()) {
                 logger::trace("Favoriting fake container with formid {:x}", fake_formid);
-                Inventory::FavoriteItem((*it)->object,player_ref);
+                Inventory::FavoriteItem(*it,inventory_changes);
             }
         }
     }

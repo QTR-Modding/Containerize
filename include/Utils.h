@@ -284,15 +284,11 @@ namespace Inventory {
 
     int GetValueInContainer(RE::TESObjectREFR* container);
 
-    void FavoriteItem(const RE::TESBoundObject* item, RE::TESObjectREFR* inventory_owner);
+    void FavoriteItem(RE::InventoryEntryData* entry_data, RE::InventoryChanges* inventory_changes);
 
     bool IsFavorited(RE::TESBoundObject* item, RE::TESObjectREFR* inventory_owner);
 
-    void EquipItem(RE::TESBoundObject* item, bool unequip = false);
-
-    inline void EquipItem(const FormID formid, const bool unequip = false) {
-	    EquipItem(FormReader::GetFormByID<RE::TESBoundObject>(formid), unequip);
-    }
+    void EquipItem(RE::InventoryEntryData* entry_data, bool unequip = false);
 
     [[nodiscard]] bool IsEquipped(RE::TESBoundObject* item);
 

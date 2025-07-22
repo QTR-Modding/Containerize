@@ -553,44 +553,19 @@ int Inventory::GetValueInContainer(RE::TESObjectREFR* container) {
     return total_value;
 }
 
-void Inventory::FavoriteItem(const RE::TESBoundObject* item, RE::TESObjectREFR* inventory_owner)
-{
-    if (!item) return;
-    if (!inventory_owner) return;
-    const auto inventory_changes = inventory_owner->GetInventoryChanges();
-    const auto entries = inventory_changes->entryList;
-    for (auto it = entries->begin(); it != entries->end(); ++it) {
-        if (!(*it)) {
-			logger::error("Item entry is null");
-			continue;
-		}
-        const auto object = (*it)->object;
-        if (!object) {
-			logger::error("Object is null");
-			continue;
-		}
-        const auto formid = object->GetFormID();
-        if (!formid) logger::critical("Formid is null");
-        if (formid == item->GetFormID()) {
-            logger::trace("Favoriting item: {}", item->GetName());
-            const auto xLists = (*it)->extraLists;
-            bool no_extra_ = false;
-            if (!xLists || xLists->empty()) {
-				logger::trace("No extraLists");
-                no_extra_ = true;
-			}
-            logger::trace("asdasd");
-            if (no_extra_) {
-                logger::trace("No extraLists");
-                //inventory_changes->SetFavorite((*it), nullptr);
-            } else if (xLists->front()) {
-                logger::trace("ExtraLists found");
-                inventory_changes->SetFavorite((*it), xLists->front());
-            }
-            return;
-        }
+void Inventory::FavoriteItem(RE::InventoryEntryData* entry_data, RE::InventoryChanges* inventory_changes) {
+    const auto xLists = entry_data->extraLists;
+    bool no_extra_ = false;
+    if (!xLists || xLists->empty()) {
+		logger::trace("No extraLists");
+        no_extra_ = true;
+	}
+    if (no_extra_) {
+        logger::trace("No extraLists");
+        //inventory_changes->SetFavorite((*it), nullptr);
+    } else if (xLists->front()) {
+        inventory_changes->SetFavorite(entry_data, xLists->front());
     }
-    logger::error("Item not found in inventory");
 }
 
 bool Inventory::IsFavorited(RE::TESBoundObject* item, RE::TESObjectREFR* inventory_owner)
@@ -611,48 +586,40 @@ bool Inventory::IsFavorited(RE::TESBoundObject* item, RE::TESObjectREFR* invento
     return false;
 }
 
-void Inventory::EquipItem(RE::TESBoundObject* item, const bool unequip)
-{
-    logger::trace("EquipItem");
-
-    if (!item) {
-        logger::error("Item is null");
-        return;
-    }
-    const auto player_ref = RE::PlayerCharacter::GetSingleton();
-    const auto inventory_changes = player_ref->GetInventoryChanges();
-    const auto entries = inventory_changes->entryList;
-    for (auto it = entries->begin(); it != entries->end(); ++it) {
-        if (const auto formid = (*it)->object->GetFormID(); formid == item->GetFormID()) {
-            if (!(*it) || !(*it)->extraLists) {
-				logger::error("Item extraLists is null");
-				return;
-			}
-            if (unequip) {
-                if ((*it)->extraLists->empty()) {
-                    RE::ActorEquipManager::GetSingleton()->UnequipObject(
-                        player_ref, (*it)->object, nullptr, 1,
-                        (const RE::BGSEquipSlot*)nullptr, true, false, false);
-                } else if ((*it)->extraLists->front()) {
-                    RE::ActorEquipManager::GetSingleton()->UnequipObject(
-                        player_ref, (*it)->object, (*it)->extraLists->front(), 1,
-                        (const RE::BGSEquipSlot*)nullptr, true, false, false);
-                }
-            }
-            else {
-                if ((*it)->extraLists->empty()) {
-                    RE::ActorEquipManager::GetSingleton()->EquipObject(
-                        player_ref, (*it)->object, nullptr, 1,
-                        (const RE::BGSEquipSlot*)nullptr, true, false, false, false);
-                } else if ((*it)->extraLists->front()) {
-                    RE::ActorEquipManager::GetSingleton()->EquipObject(
-                        player_ref, (*it)->object, (*it)->extraLists->front(), 1,
-                        (const RE::BGSEquipSlot*)nullptr, true, false, false, false);
-                }
-            }
-            return;
+namespace {
+    void EquipItem_(RE::Actor* a_actor, RE::TESBoundObject* a_item, RE::ExtraDataList* a_xlist) {
+        /*SKSE::GetTaskInterface()->AddTask([a_actor,a_item,a_xlist] {
         }
+        );*/
+        RE::ActorEquipManager::GetSingleton()->EquipObject(
+                a_actor, a_item, a_xlist, 1,
+                nullptr, false, false, false, false);
     }
+
+    void UnequipItem_(RE::Actor* a_actor, RE::TESBoundObject* a_item, RE::ExtraDataList* a_xlist) {
+        /*SKSE::GetTaskInterface()->AddTask([a_actor,a_item,a_xlist] {
+        }
+        );*/
+        RE::ActorEquipManager::GetSingleton()->UnequipObject(
+                a_actor, a_item, a_xlist, 1,
+                nullptr, false, false, false, false);
+    }
+}
+
+void Inventory::EquipItem(RE::InventoryEntryData* entry_data, bool unequip)
+{
+	const auto xLists = entry_data->extraLists;
+    if (!entry_data || !xLists) {
+	    logger::error("Item extraLists is null");
+	    return;
+    }
+
+	const auto player_ref = RE::PlayerCharacter::GetSingleton();
+	const auto a_bound = entry_data->object;
+	const auto a_func_ptr = unequip ? &UnequipItem_ : &EquipItem_;
+	const auto a_list = xLists->empty() ? nullptr : xLists->front();
+
+	a_func_ptr(player_ref, a_bound, a_list);
 }
 
 bool Inventory::IsEquipped(RE::TESBoundObject* item)
