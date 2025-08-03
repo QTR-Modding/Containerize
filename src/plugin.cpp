@@ -10,7 +10,7 @@ void OnMessage(SKSE::MessagingInterface::Message* message) {
         if (SkyPrompt::g_clientID == 0) {
             SkyPrompt::g_clientID = SkyPromptAPI::RequestClientID();
         }
-        if (SkyPrompt::g_clientID>0) {
+        if (SkyPrompt::g_clientID > 0) {
             Manager::GetSingleton()->Init();
 	        LoadTranslations();
             UI::Register();
