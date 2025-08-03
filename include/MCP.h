@@ -25,13 +25,12 @@ namespace UI {
 
     inline ImGuiTableFlags table_flags = ImGuiTableFlags_Resizable | ImGuiTableFlags_SizingFixedFit | ImGuiTableFlags_SizingStretchProp | ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg;
 
-	inline Manager* M;
     void __stdcall RenderStatus();
     void __stdcall RenderSettings();
     void __stdcall RenderSources();
     void __stdcall RenderInspect();
     void __stdcall RenderLog();
-    void Register(Manager* manager);
+    void Register();
 
     //inline std::map<RefID, FormID> current_containers;
     inline std::map<FormID,std::pair<std::string,int>> dynamic_forms;

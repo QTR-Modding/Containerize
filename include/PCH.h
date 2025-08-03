@@ -7,7 +7,7 @@
 namespace logger = SKSE::log;
 using namespace std::literals;
 
-constexpr uint32_t player_refid = 20;
+constexpr uint32_t player_refid = 0x14;
 
 using FormID = RE::FormID;
 using RefID = RE::FormID;

@@ -1,15 +1,21 @@
 #include "Hooks.h"
+#include "Manager.h"
+#include "SkyPrompt.h"
+#include "CLibUtilsQTR/Tasker.hpp"
+#include "SkyPrompt/API.hpp"
 
 void Hooks::Install()
 {
 	MoveItemHooks<RE::PlayerCharacter>::install();
 	MoveItemHooks<RE::TESObjectREFR>::install(false);
 	MoveItemHooks<RE::Character>::install();
-	MenuHook<RE::ContainerMenu>::InstallHook(RE::VTABLE_ContainerMenu[0]);
+
+    MenuHook<RE::ContainerMenu>::InstallHook(RE::VTABLE_ContainerMenu[0]);
+	MenuHook<RE::InventoryMenu>::InstallHook(RE::VTABLE_InventoryMenu[0]);
 
 	auto& trampoline = SKSE::GetTrampoline();
     constexpr size_t size_per_hook = 14;
-	trampoline.create(size_per_hook*2);
+	trampoline.create(size_per_hook*5);
 
 	const REL::Relocation<std::uintptr_t> target4{REL::RelocationID(67315, 68617)};
     InputHook::func = trampoline.write_call<5>(target4.address() + 0x7B, InputHook::thunk);
@@ -17,30 +23,32 @@ void Hooks::Install()
 	const REL::Relocation<std::uintptr_t> add_item_functor_hook{ RELOCATION_ID(55946, 56490) };
 	add_item_functor_ = trampoline.write_call<5>(add_item_functor_hook.address() + 0x15D, add_item_functor);
 
+	const REL::Relocation<std::uintptr_t> function{REL::RelocationID(51019, 51897)};
+    InventoryHoverHook::originalFunction = trampoline.write_call<5>(function.address() + REL::Relocate(0x114, 0x22c), InventoryHoverHook::thunk);
+
+	REL::Relocation<std::uintptr_t> target{REL::RelocationID(42420, 43576),
+                                                   REL::Relocate(0x22A, 0x21F)};  // AnimationObjects::Load
+    AnimObjectHook::_LoadAnimObject = trampoline.write_call<5>(target.address(), AnimObjectHook::thunk);
+
+	const REL::Relocation<std::uintptr_t> target2{REL::RelocationID(75461, 77246)}; // BSGraphics::Renderer::End
+    DrawHook::func = trampoline.write_call<5>(target2.address() + 0x9, DrawHook::thunk);
+}
+void Hooks::InstallUseOrTakeHooks()
+{
+	ActivateHook<RE::TESObjectARMO>::install();
+	ActivateHook<RE::TESObjectWEAP>::install();
+	ActivateHook<RE::ScrollItem>::install();
+	ActivateHook<RE::AlchemyItem>::install();
+	ActivateHook<RE::IngredientItem>::install();
 }
 bool Hooks::HandleEquip(RE::InputEvent* event)
 {
-#undef GetObject
-	const auto ui = RE::UI::GetSingleton();
-	if (!ui->IsMenuOpen(RE::ContainerMenu::MENU_NAME) &&
-		!ui->IsMenuOpen(RE::InventoryMenu::MENU_NAME)&&
-		!ui->IsMenuOpen(RE::FavoritesMenu::MENU_NAME)) {
-		equip_was_pressed.store(false);
-		return false;
-	}
-
 	const auto user_events = RE::UserEvents::GetSingleton();
     if (const auto button_event = event->AsButtonEvent()) {
-		//logger::info("HandleEquip event. {}",button_event->userEvent);
 		if (const auto user_event = button_event->userEvent;
-			user_event == user_events->accept ||
-			user_event == user_events->leftEquip ||
-			user_event == user_events->rightEquip
-			) 
-		{
+			user_event == user_events->accept || user_event == user_events->leftEquip || user_event == user_events->rightEquip) {
 			if (const auto selected_item = GetSelectedItemInMenu(); 
-				selected_item && M->IsFakeContainer(selected_item->GetFormID())) 
-			{
+				selected_item && Manager::GetSingleton()->IsFakeContainer(selected_item->GetFormID())) {
 			    if (button_event->IsDown()) {
 				    equip_was_pressed.store(true);
 			    }
@@ -48,42 +56,12 @@ bool Hooks::HandleEquip(RE::InputEvent* event)
 				    return false;
 			    }
 				if (button_event->HeldDuration()>0.25f) {
-					M->OnLongPressEquip(selected_item);
+					Manager::GetSingleton()->CloseMenu();
+					Manager::GetSingleton()->OnLongPressEquip(selected_item);
 				}
 				else if (button_event->IsUp()) {
 					const auto player = RE::PlayerCharacter::GetSingleton();
-					if (ui->IsMenuOpen(RE::ContainerMenu::MENU_NAME)) {
-						RE::TESObjectREFRPtr refr_container;
-						if (LookupReferenceByHandle(RE::ContainerMenu::GetTargetRefHandle(), refr_container)) {
-                            for (const auto container_menu = ui->GetMenu<RE::ContainerMenu>();
-								const auto a_item : container_menu->GetRuntimeData().itemList->items) {
-
-								if (a_item->data.objDesc->GetObject()->GetFormID() == selected_item->GetFormID()) {
-                                    if (RE::TESObjectREFRPtr refr_owner; LookupReferenceByHandle(a_item->data.owner,refr_owner)) {
-									    if (refr_owner->IsPlayerRef()) {
-											if (user_event == user_events->leftEquip || user_event == user_events->rightEquip) {
-												Inventory::ToggleEquip(selected_item);
-											}
-											else {
-											    refr_owner->RemoveItem(selected_item,1,RE::ITEM_REMOVE_REASON::kStoreInContainer,nullptr,refr_container.get());
-											}
-									    }
-										else {
-										    refr_owner->RemoveItem(selected_item,1,RE::ITEM_REMOVE_REASON::kStoreInContainer,nullptr,player);
-											if (user_event == user_events->leftEquip || user_event == user_events->rightEquip) {
-											    Inventory::ToggleEquip(selected_item);
-											}
-										}
-									}
-									break;
-								}
-							}
-					        RE::SendUIMessage::SendInventoryUpdateMessage(refr_container.get(),nullptr);
-						}
-					}
-					else {
-						Inventory::ToggleEquip(selected_item);
-					}
+					Inventory::ToggleEquip(selected_item);
 					RE::SendUIMessage::SendInventoryUpdateMessage(player,nullptr);
 				}
 			    return true;
@@ -94,24 +72,20 @@ bool Hooks::HandleEquip(RE::InputEvent* event)
     return false;
 }
 
-RE::TESBoundObject* Hooks::GetSelectedItemInMenu()
+RE::InventoryEntryData* Hooks::GetSelectedEntryInMenu()
 {
     if (const auto ui = RE::UI::GetSingleton()) {
 	    if (const auto menu_c = ui->GetMenu<RE::ContainerMenu>()) {
 		    if (const auto a_itemList = menu_c->GetRuntimeData().itemList) {
 		        if (const auto item = a_itemList->GetSelectedItem()) {
-				    if (const auto a_data = item->data.objDesc) {
-				        return a_data->GetObject();
-				    }
+					return item->data.objDesc;
 		        }
 		    }
 	    }
 	    else if (const auto menu_i = ui->GetMenu<RE::InventoryMenu>()) {
 		    if (const auto a_itemList = menu_i->GetRuntimeData().itemList) {
 		        if (const auto item = a_itemList->GetSelectedItem()) {
-				    if (const auto a_data = item->data.objDesc) {
-				        return a_data->GetObject();
-				    }
+                    return item->data.objDesc;
 		        }
 		    }
 	    }
@@ -122,11 +96,7 @@ RE::TESBoundObject* Hooks::GetSelectedItemInMenu()
                 const std::int32_t selected_index = static_cast<std::int32_t>(selectedIndex.GetNumber());
 			    const auto& items = runtime_data.favorites;
 			    if (selected_index >= 0 && static_cast<uint32_t>(selected_index) < items.size()) {
-			        if (const auto item = items[selected_index].item) {
-				        if (const auto bound = skyrim_cast<RE::TESBoundObject*>(item)) {
-						    return bound;
-				        }
-			        }
+					return items[selected_index].entryData;
 			    }
 		    }
 	    }
@@ -134,10 +104,21 @@ RE::TESBoundObject* Hooks::GetSelectedItemInMenu()
     return nullptr;
 }
 
+RE::TESBoundObject* Hooks::GetSelectedItemInMenu()
+{
+#undef GetObject
+	if (auto selected_entry = GetSelectedEntryInMenu()) {
+		if (const auto selected_object = selected_entry->GetObject()) {
+			return selected_object;
+		}
+	}
+	return nullptr;
+}
+
 
 void Hooks::add_item_functor(RE::TESObjectREFR* a_this, RE::TESObjectREFR* a_object, int32_t a_count, bool a4, bool a5)
 {
-	if (!M || M->isUninstalled) {
+	if (Manager::GetSingleton()->isUninstalled) {
 		return add_item_functor_(a_this, a_object, a_count, a4, a5);
 	}
 
@@ -147,21 +128,21 @@ void Hooks::add_item_functor(RE::TESObjectREFR* a_this, RE::TESObjectREFR* a_obj
 	if (!a_this || !a_object || a_count>1) {
 		return add_item_functor_(a_this, a_object, a_count, a4, a5);
 	}
-	M->OnPickup(a_this, a_object);
+    Manager::GetSingleton()->OnPickup(a_this, a_object);
 	return add_item_functor_(a_this, a_object, a_count, a4, a5);
 }
 
 template<typename RefType>
 void Hooks::MoveItemHooks<RefType>::pickUpObject(RefType * a_this, RE::TESObjectREFR * a_object, int32_t a_count, bool a_arg3, bool a_play_sound)
 {
-	if (!M || M->isUninstalled) {
+	if (Manager::GetSingleton()->isUninstalled) {
 		return pick_up_object_(a_this, a_object, a_count, a_arg3, a_play_sound);
 	}
 
 	if (!a_this || !a_object || a_count>1) {
 		return pick_up_object_(a_this, a_object, a_count, a_arg3, a_play_sound);
 	}
-	M->OnPickup(a_this, a_object);
+	Manager::GetSingleton()->OnPickup(a_this, a_object);
 
 	pick_up_object_(a_this, a_object, a_count, a_arg3, a_play_sound);
 }
@@ -169,7 +150,7 @@ void Hooks::MoveItemHooks<RefType>::pickUpObject(RefType * a_this, RE::TESObject
 template<typename RefType>
 void Hooks::MoveItemHooks<RefType>::addObjectToContainer(RefType* a_this, RE::TESBoundObject* a_object, RE::ExtraDataList* a_extraList, std::int32_t a_count, RE::TESObjectREFR* a_fromRefr)
 {
-	if (!M || M->isUninstalled)
+	if (Manager::GetSingleton()->isUninstalled)
 	{
 		return add_object_to_container_(a_this, a_object, a_extraList, a_count, a_fromRefr);
 	}
@@ -190,6 +171,7 @@ void Hooks::MoveItemHooks<RefType>::addObjectToContainer(RefType* a_this, RE::TE
 
 	const auto original_count = a_count;
 	RE::TESBoundObject* fake_bound = nullptr;
+	auto M = Manager::GetSingleton();
 	if (const auto chest_id = a_this->GetFormID(); M->IsChest(chest_id)) {
 		fake_bound = M->GetFakeBound(chest_id);
 		if (const RE::TESBoundObject* real_bound = M->FakeToRealContainer(fake_bound->GetFormID()); real_bound->GetFormID() != a_object->GetFormID()) {
@@ -215,7 +197,8 @@ void Hooks::MoveItemHooks<RefType>::addObjectToContainer(RefType* a_this, RE::TE
 template<typename RefType>
 RE::ObjectRefHandle* Hooks::MoveItemHooks<RefType>::RemoveItem(RefType * a_this, RE::ObjectRefHandle & a_hidden_return_argument, RE::TESBoundObject * a_item, std::int32_t a_count, RE::ITEM_REMOVE_REASON a_reason, RE::ExtraDataList * a_extra_list, RE::TESObjectREFR * a_move_to_ref, const RE::NiPoint3 * a_drop_loc, const RE::NiPoint3 * a_rotate)
 {
-	if (!M || M->isUninstalled) {
+	auto M = Manager::GetSingleton();
+	if (M->isUninstalled) {
 		return remove_item_(a_this, a_hidden_return_argument, a_item, a_count, a_reason, a_extra_list, a_move_to_ref, a_drop_loc, a_rotate);
 	}
 
@@ -241,7 +224,7 @@ RE::ObjectRefHandle* Hooks::MoveItemHooks<RefType>::RemoveItem(RefType * a_this,
 
 	if (!a_move_to_ref) {
         if (const auto a_formid = a_item->GetFormID(); M->IsFakeContainer(a_formid)) {
-			if (!M->doppelgangers.contains(a_this->GetBaseObject()->GetFormID())) {
+			if (!ModCompatibility::Mods::doppelgangers.contains(a_this->GetBaseObject()->GetFormID())) {
 			    logger::info("Item removed from {} {:x} to nowhere for reason {}. Count {}", a_this->GetName(), a_this->GetFormID(),static_cast<int>(a_reason),a_count);
 			}
 			M->OnConsume(a_formid, a_this);
@@ -253,12 +236,18 @@ RE::ObjectRefHandle* Hooks::MoveItemHooks<RefType>::RemoveItem(RefType * a_this,
 
 void Hooks::InputHook::thunk(RE::BSTEventSource<RE::InputEvent*>* a_dispatcher, RE::InputEvent* const* a_event)
 {
-	if (!M || M->isUninstalled) {
-		return func(a_dispatcher, a_event);
+	if (Manager::GetSingleton()->isUninstalled) {
+	    return func(a_dispatcher, a_event);
 	}
 
 	if (!a_dispatcher || !a_event) {
 		return func(a_dispatcher, a_event);
+	}
+
+	if (const auto ui = RE::UI::GetSingleton()) {
+	    if (!ui->IsMenuOpen(RE::FavoritesMenu::MENU_NAME)) {
+		    return func(a_dispatcher, a_event);
+	    }
 	}
 
 	if (IsOtherButtonHeld(a_event)) {
@@ -269,19 +258,13 @@ void Hooks::InputHook::thunk(RE::BSTEventSource<RE::InputEvent*>* a_dispatcher, 
 		return func(a_dispatcher, a_event);
 	}
 
-	if (const auto ui = RE::UI::GetSingleton()) {
-	    if (ui->IsMenuOpen(RE::BarterMenu::MENU_NAME) ||
-		    ui->IsMenuOpen(RE::MainMenu::MENU_NAME)) {
-		    return func(a_dispatcher, a_event);
-	    }
-	}
 
     auto first = *a_event;
     auto last = *a_event;
     size_t length = 0;
 
     for (auto current = *a_event; current; current = current->next) {
-        if (ProcessInput(current)) {
+        if (HandleEquip(current)) {
             if (current != last) {
                 last->next = current->next;
             } else {
@@ -303,34 +286,6 @@ void Hooks::InputHook::thunk(RE::BSTEventSource<RE::InputEvent*>* a_dispatcher, 
     }
 }
 
-bool Hooks::InputHook::ProcessInput(RE::InputEvent* event)
-{
-	bool block = false;
-    if (const auto button_event = event->AsButtonEvent()) {
-        if (button_event->userEvent == RE::UserEvents::GetSingleton()->activate) {
-            const auto crosshair_pick_data = RE::CrosshairPickData::GetSingleton();
-			if (const auto crosshair_target = crosshair_pick_data->target) {
-                if (M->IsRealContainer(crosshair_target.get()->GetBaseObject()->GetFormID())) {
-		            if (button_event->IsDown()) {
-			            block = true;
-						down_pressed.store(true);
-                    }
-                    else if (button_event->IsUp()) {
-			            block = true;
-						if (down_pressed.exchange(false)) {
-                            if (const auto grabbed_ref = RE::PlayerCharacter::GetSingleton()->GetGrabbedRef(); 
-                                !grabbed_ref || crosshair_target.get()->GetFormID() != grabbed_ref->GetFormID()) {
-                                M->OnActivateContainer(crosshair_target.get().get());
-                            }
-						}
-                    }
-				}
-			}
-		}
-    }
-	return block ? block : HandleEquip(event);
-}
-
 bool Hooks::InputHook::IsOtherButtonHeld(RE::InputEvent* const* a_event) {
 	for (auto current = *a_event; current; current = current->next) {
 		if (const auto button_event = current->AsButtonEvent()) {
@@ -345,7 +300,8 @@ bool Hooks::InputHook::IsOtherButtonHeld(RE::InputEvent* const* a_event) {
 template<typename MenuType>
 RE::UI_MESSAGE_RESULTS Hooks::MenuHook<MenuType>::ProcessMessage_Hook(RE::UIMessage& a_message)
 {
-	if (!M || M->isUninstalled) {
+	const auto manager = Manager::GetSingleton();
+	if (manager->isUninstalled) {
 		return _ProcessMessage(this, a_message);
 	}
 
@@ -353,12 +309,21 @@ RE::UI_MESSAGE_RESULTS Hooks::MenuHook<MenuType>::ProcessMessage_Hook(RE::UIMess
 	if (msg_type != 3 && msg_type != 1) {
 		return _ProcessMessage(this, a_message);
 	}
+
+	SkyPrompt::MenuPromptSink::GetSingleton()->Hide();
+
+	clib_utilsQTR::Tasker::GetSingleton()->PushTask(
+		[msg_type] {
+		    is_open.store(msg_type==1);
+		},500
+	);
+
 	if (const std::string_view menuname = MenuType::MENU_NAME; a_message.menu==menuname) {
 	    if (menuname == RE::ContainerMenu::MENU_NAME) {
             if (RE::TESObjectREFRPtr refr; LookupReferenceByHandle(RE::ContainerMenu::GetTargetRefHandle(), refr)) {
-				if (M->IsChest(refr->GetFormID())) {
-			        if (msg_type == 3) M->OnContainerMenuExit();
-			        else if (msg_type == 1) M->OnContainerMenuEnter();
+				if (manager->IsChest(refr->GetFormID())) {
+			        if (msg_type == 3) manager->OnChestExit(refr.get());
+			        else if (msg_type == 1) manager->OnChestEnter(refr.get());
 				}
 			}
         }
@@ -366,9 +331,189 @@ RE::UI_MESSAGE_RESULTS Hooks::MenuHook<MenuType>::ProcessMessage_Hook(RE::UIMess
     return _ProcessMessage(this, a_message);
 }
 
+template<typename FormType>
+bool Hooks::ActivateHook<FormType>::Activate_Hook(RE::TESBoundObject* a_this, RE::TESObjectREFR* a_targetRef, RE::TESObjectREFR* a_activatorRef, std::uint8_t a_arg3, RE::TESBoundObject* a_obj, std::int32_t a_targetCount)
+{
+	if (!a_activatorRef->IsPlayerRef()) {
+		return _Activate(a_this, a_targetRef, a_activatorRef, a_arg3, a_obj, a_targetCount);
+	}
+	if (auto base = Manager::GetSingleton()->GetFakeBound(a_targetRef)) {
+	    return _Activate(base, a_targetRef, a_activatorRef, a_arg3, a_obj, a_targetCount);
+	}
+	return _Activate(a_this, a_targetRef, a_activatorRef, a_arg3, a_obj, a_targetCount);
+}
+
 template<typename MenuType>
 void Hooks::MenuHook<MenuType>::InstallHook(const REL::VariantID& varID)
 {
     REL::Relocation<std::uintptr_t> vTable(varID);
     _ProcessMessage = vTable.write_vfunc(0x4, &MenuHook<MenuType>::ProcessMessage_Hook);
+}
+
+namespace {
+
+	// yoinked po3's code
+    template <class T, class U>
+    auto adjust_pointer(U* a_ptr, std::ptrdiff_t a_adjust) noexcept {
+        auto addr = a_ptr ? reinterpret_cast<std::uintptr_t>(a_ptr) + a_adjust : 0;
+        if constexpr (std::is_const_v<U> && std::is_volatile_v<U>) {
+            return reinterpret_cast<std::add_cv_t<T>*>(addr);
+        } else if constexpr (std::is_const_v<U>) {
+            return reinterpret_cast<std::add_const_t<T>*>(addr);
+        } else if constexpr (std::is_volatile_v<U>) {
+            return reinterpret_cast<std::add_volatile_t<T>*>(addr);
+        } else {
+            return reinterpret_cast<T*>(addr);  // NOLINT(performance-no-int-to-ptr)
+        }
+    }
+
+    RE::NiNode* GetAttachNode(RE::NiAVObject* animObjectMesh) {
+        auto* root = animObjectMesh->AsFadeNode();
+        RE::NiNode* defaultAttachNode = nullptr;
+        if (root) {
+            if (auto* attachNode = root->GetObjectByName(Hooks::attach_node)) {
+                defaultAttachNode = attachNode->AsNode();
+            }
+        }
+        return defaultAttachNode;
+    }
+
+    std::vector<RE::BSGeometry*> GetAllGeometries(RE::NiAVObject* root) {
+        std::vector<RE::BSGeometry*> geometries;
+        RE::BSVisit::TraverseScenegraphGeometries(root, [&geometries](RE::BSGeometry* geom) -> RE::BSVisit::BSVisitControl {
+            if (geom && geom->AsGeometry()) {
+                geometries.emplace_back(geom);
+            }
+
+            return RE::BSVisit::BSVisitControl::kContinue;
+        });
+        return geometries;
+    }
+
+    RE::NiAVObject* Clone(RE::NiAVObject* original) {
+        typedef RE::NiAVObject* (*func_t)(RE::NiAVObject* avObj);
+        REL::Relocation<func_t> func{RELOCATION_ID(68835, 70187)};
+        return func(original);
+    }
+
+    RE::NiAVObject* GetContainerMesh(RE::NiAVObject* original, RE::NiAVObject* ContainerMesh) {
+        if (ContainerMesh == nullptr) {
+            return nullptr;
+        }
+
+        auto* node = GetAttachNode(original);
+	    if (!node) {
+		    return nullptr;
+	    }
+
+        auto geometries = GetAllGeometries(ContainerMesh);
+
+        for (auto* geom : geometries) {
+            if (!geom) {
+                continue;
+            }
+
+            auto* clone = Clone(geom);
+
+            node->AttachChild(clone, true);
+        }
+        return original->AsFadeNode();
+    }
+}
+
+
+void Hooks::AnimObjectHook::OnIsWorn(RE::TESBoundObject* object_to_equip)
+{
+    if (object_to_equip->GetFormType() == RE::FormType::Armor) {
+        RE::PlayerCharacter* player = RE::PlayerCharacter::GetSingleton();
+        RE::TESObjectARMO* armor = object_to_equip->As<RE::TESObjectARMO>();
+        RE::TESRace* race = player->GetRace();
+        RE::TESObjectARMA* armorAddon = armor->GetArmorAddon(race);
+        char addonString[MAX_PATH]{'\0'};
+        armorAddon->GetNodeName(addonString, player, armor,-1.0f);
+		if (const auto a_node = player->GetNodeByName(addonString)) {
+		    objectNode.reset(a_node);
+		}
+		else {
+			logger::warn("Failed to get node by name: {}", addonString);
+		}
+    }
+}
+
+RE::NiAVObject* Hooks::AnimObjectHook::thunk(RE::TESModel* a_model, RE::BIPED_OBJECT a_bipedObj,
+                                               RE::TESObjectREFR* a_actor, RE::BSTSmartPointer<RE::BipedAnim>& a_biped,
+                                               RE::NiAVObject* a_root) {
+
+    RE::NiAVObject* output = _LoadAnimObject(a_model, a_bipedObj, a_actor, a_biped, a_root);
+    if (const auto animObject = adjust_pointer<RE::TESObjectANIO>(a_model->GetAsModelTextureSwap(), -0x20);
+        animObject) { 
+		if (container_meshes.contains(container_mesh)) {
+            if (auto* containerMesh = GetContainerMesh(output,container_meshes.at(container_mesh).get())) {
+                output = containerMesh;
+            }
+		}
+    }
+
+    return output;
+}
+
+int64_t Hooks::InventoryHoverHook::thunk(RE::InventoryEntryData* a1)
+{
+	if (is_open.load()) {
+		if (const auto a_bound = a1->GetObject()) {
+			const auto a_formid = a_bound->GetFormID();
+			if (const auto mngr = Manager::GetSingleton();
+				mngr->IsFakeContainer(a_formid)) {
+				SkyPrompt::RegistrationPromptSink::GetSingleton()->Hide();
+	            SkyPrompt::MenuPromptSink::GetSingleton()->Show(a_bound);
+			}
+			else if (mngr->IsRealContainer(a_formid)) {
+				SkyPrompt::MenuPromptSink::GetSingleton()->Hide();
+	            SkyPrompt::RegistrationPromptSink::GetSingleton()->Show(a_bound);
+			}
+			else {
+				SkyPrompt::RegistrationPromptSink::GetSingleton()->Hide();
+				SkyPrompt::MenuPromptSink::GetSingleton()->Hide();
+			}
+		}
+	}
+	return originalFunction(a1);
+}
+
+namespace {
+	bool IsGameFrozen() {
+        if (const auto main = RE::Main::GetSingleton()) {
+            if (main->freezeTime) return true;
+            if (!main->gameActive) return true;
+        }
+	    else return true;
+	    if (RE::UI::GetSingleton()->GameIsPaused()) return true;
+	    return false;
+    }
+
+	bool IsGameWindowInFocus() {
+        const HWND foregroundWindow = GetForegroundWindow();
+        if (!foregroundWindow) {
+            return false;
+        }
+
+        DWORD foregroundProcessId;
+        GetWindowThreadProcessId(foregroundWindow, &foregroundProcessId);
+
+        const DWORD currentProcessId = GetCurrentProcessId();
+        return foregroundProcessId == currentProcessId;
+    }
+    
+}
+
+void Hooks::DrawHook::thunk(std::uint32_t a_timer)
+{
+	func(a_timer);
+
+    if (IsGameFrozen() || !IsGameWindowInFocus()) {
+        Animations::MyAnimator::GetSingleton()->Pause();
+    }
+	else {
+        Animations::MyAnimator::GetSingleton()->Resume();
+    }
 }

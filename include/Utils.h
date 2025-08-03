@@ -2,20 +2,54 @@
 #include <windows.h>
 #include "ClibUtil/editorID.hpp"
 #include "SimpleIni.h"
+#include "CLibUtilsQTR/FormReader.hpp"
 
 
 bool GetDllVersion(const std::wstring& dllPath, DWORD& major, DWORD& minor, DWORD& build, DWORD& revision);
 std::wstring s2ws(const std::string& str);
 
 const auto mod_name = static_cast<std::string>(SKSE::PluginDeclaration::GetSingleton()->GetName());
-constexpr auto po3path = "Data/SKSE/Plugins/po3_Tweaks.dll";
-constexpr auto po3_UoTpath = "Data/SKSE/Plugins/po3_UseOrTake.dll";
-constexpr auto obj_manipu_path = "Data/SKSE/Plugins/ObjectManipulationOverhaul.dll";
-bool IsPo3Installed();
-inline bool IsObjManipuInstalled() { return std::filesystem::exists(obj_manipu_path); };
-inline bool IsPo3_UoTInstalled() { return std::filesystem::exists(po3_UoTpath); };
-const auto po3_use_or_take = IsPo3_UoTInstalled();
-const auto obj_manipu_installed = IsObjManipuInstalled();
+
+namespace ModCompatibility {
+    inline bool IsModInstalled(const char* mod_path) {return std::filesystem::exists(mod_path);}
+    namespace Mods {
+
+        constexpr auto po3path = "Data/SKSE/Plugins/po3_Tweaks.dll";
+        bool IsPo3Installed();
+
+        constexpr auto po3_UoTpath = "Data/SKSE/Plugins/po3_UseOrTake.dll";
+		const auto po3_use_or_take = IsModInstalled(po3_UoTpath);
+
+        constexpr auto obj_manipu_path = "Data/SKSE/Plugins/ObjectManipulationOverhaul.dll";
+		const auto obj_manipu_installed = IsModInstalled(obj_manipu_path);
+
+        constexpr auto souls_unpaused_path = "Data/SKSE/Plugins/SkyrimSoulsRE.dll";
+		const auto souls_unpaused_installed = IsModInstalled(souls_unpaused_path);
+
+        constexpr auto improved_cam_path = "Data/SKSE/Plugins/ImprovedCameraSE.dll";
+		const auto improved_cam_path_installed = IsModInstalled(improved_cam_path);
+
+        constexpr auto ui_extensions_path = "UIExtensions.esp";
+		inline bool ui_extensions_installed = false;
+
+        // CC content
+        constexpr auto doppelgangers_path = "ccbgssse018-shadowrend.esl";
+        inline const std::set<FormID> doppelgangers_local = {0x832,0x833,0x834,0x835,0x836,0x837,0x838,0x839,0x83a,0x83b};
+        inline std::set<FormID> doppelgangers;
+    }
+
+    void MakeChecks();
+    void Load();
+}
+
+namespace UnownedStuff {
+    // unowned stuff
+    constexpr RefID unownedChestOGRefID = 0x000EA29A;
+    constexpr RefID unownedChestFormID = 0x000EA299;
+    //RE::TESObjectCELL* unownedCell = RE::TESForm::LookupByID<RE::TESObjectCELL>(0x000FE47B);  // cwquartermastercontainers
+    //RE::TESObjectCONT* unownedChest = RE::TESForm::LookupByID<RE::TESObjectCONT>(0x000A0DB5); // playerhousechestnew
+    constexpr RE::NiPoint3 unownedChestPos = {1986.f, 1780.f, 6784.f};
+}
 
 
 inline std::string no_src_msgbox = std::format(
@@ -42,57 +76,7 @@ std::vector<std::string> ReadLogFile();
 
 std::string DecodeTypeCode(std::uint32_t typeCode);
 
-inline bool isValidHexWithLength7or8(const char* input);
-
-template <class T = RE::TESForm>
-static T* GetFormByID(const RE::FormID id, const std::string& editor_id="") {
-    if (!editor_id.empty()) {
-        if (auto* form = RE::TESForm::LookupByEditorID<T>(editor_id)) return form;
-    }
-    if (T* form = RE::TESForm::LookupByID<T>(id)) return form;
-    return nullptr;
-};
-
-std::string GetEditorID(const FormID a_formid);
-FormID GetFormEditorIDFromString(const std::string& formEditorId);
 std::string GetGameLanguage();
-
-namespace Papyrus {
-
-    using VM = RE::BSScript::Internal::VirtualMachine;
-    using ObjectPtr = RE::BSTSmartPointer<RE::BSScript::Object>;
-
-    inline RE::VMHandle GetHandle(const RE::TESForm* a_form)
-    {
-	    const auto vm = VM::GetSingleton();
-	    const auto policy = vm->GetObjectHandlePolicy();
-	    return policy->GetHandleForObject(a_form->GetFormType(), a_form);
-    }
-
-    inline ObjectPtr GetObjectPtr(const RE::TESForm* a_form, const char* a_class, const bool a_create) {
-	    const auto vm = VM::GetSingleton();
-	    const auto handle = GetHandle(a_form);
-
-	    ObjectPtr object = nullptr;
-        if (const bool found = vm->FindBoundObject(handle, a_class, object); !found && a_create) {
-		    vm->CreateObject2(a_class, object);
-		    vm->BindObject(object, handle, false);
-	    }
-	    return object;
-    }
-
-    template <class... Args>
-	bool CallFunction(const std::string_view functionClass, const std::string_view function, Args... a_args)
-	{
-		const auto skyrimVM = RE::SkyrimVM::GetSingleton();
-        if (const auto vm = skyrimVM ? skyrimVM->impl : nullptr) {
-			RE::BSTSmartPointer<RE::BSScript::IStackCallbackFunctor> callback;
-			auto args = RE::MakeFunctionArguments(std::forward<Args>(a_args)...);
-			return vm->DispatchStaticCall(std::string(functionClass).c_str(), std::string(function).c_str(), args, callback);
-		}
-		return false;
-	}
-}
 
 namespace Functions {
 
@@ -134,17 +118,12 @@ namespace Math {
     };
 };
 
-namespace String {
-    inline std::string trim(const std::string& str);
 
-    inline std::string toLowercase(const std::string& str);
-
-    inline std::string replaceLineBreaksWithSpace(const std::string& input);
-
-    bool includesWord(const std::string& input, const std::vector<std::string>& strings);
-}
 
 namespace FunctionsSkyrim {
+
+    int32_t GetEnchantmentCostOverride(const RE::EnchantmentItem* enchantment);
+	int32_t GetItemValue(RE::TESBoundObject* item, const RE::ExtraDataList* a_xlist=nullptr);
 
     template <typename T>
     struct FormTraits {
@@ -183,7 +162,7 @@ namespace FunctionsSkyrim {
             // For example, if TESAmmo had a SetWeight method, you would call it here
         }
 
-        static int GetValue(RE::TESAmmo* form) {
+        static int GetValue(const RE::TESAmmo* form) {
 			return form->value;
 		}
         static void SetValue(RE::TESAmmo* form, const int value) {
@@ -193,7 +172,7 @@ namespace FunctionsSkyrim {
 
     template <>
     struct FormTraits<RE::AlchemyItem> {
-        static float GetWeight(RE::AlchemyItem* form) { 
+        static float GetWeight(const RE::AlchemyItem* form) { 
             return form->weight;
         }
 
@@ -201,7 +180,7 @@ namespace FunctionsSkyrim {
             form->weight = weight;
         }
 
-        static int GetValue(RE::AlchemyItem* form) {
+        static int GetValue(const RE::AlchemyItem* form) {
         	return form->GetGoldValue();
         }
         static void SetValue(RE::AlchemyItem* form, const int value) { 
@@ -216,12 +195,12 @@ namespace MsgBoxesNotifs {
 
     // https://github.com/SkyrimScripting/MessageBox/blob/ac0ea32af02766582209e784689eb0dd7d731d57/include/SkyrimScripting/MessageBox.h#L9
     class SkyrimMessageBox {
-        class MessageBoxResultCallback : public RE::IMessageBoxCallback {
+        class MessageBoxResultCallback final : public RE::IMessageBoxCallback {
             std::function<void(unsigned int)> _callback;
 
         public:
-            ~MessageBoxResultCallback() override {}
-            explicit MessageBoxResultCallback(std::function<void(unsigned int)> callback) : _callback(callback) {}
+            ~MessageBoxResultCallback() override = default;
+            explicit MessageBoxResultCallback(const std::function<void(unsigned int)>& callback) : _callback(callback) {}
             void Run(RE::IMessageBoxCallback::Message message) override {
                 _callback(static_cast<unsigned int>(message));
             }
@@ -273,7 +252,7 @@ namespace MsgBoxesNotifs {
             RE::DebugMessageBox(message.c_str());
         }
 
-        inline void ProblemWithContainer(int id) {
+        inline void ProblemWithContainer(RE::FormID id) {
             std::string message = fmt::vformat("{}: {}", fmt::make_format_args(mod_name, problem_with_container_msgbox));
             message = fmt::vformat(message, fmt::make_format_args(id));
             RE::DebugMessageBox(message.c_str());
@@ -292,33 +271,29 @@ namespace Inventory {
 
     inline bool HasItem(RE::TESBoundObject* item, RE::TESObjectREFR* inventory_owner) {
         return HasItemEntry(item, inventory_owner->GetInventory(), true);
-    };
+    }
 
     std::int32_t GetItemCount(RE::TESBoundObject* item, const RE::TESObjectREFR::InventoryItemMap& inventory);
 
     std::int32_t GetItemValue(RE::TESBoundObject* item,
                               const RE::TESObjectREFR::InventoryItemMap& inventory);
 
-    bool IsQuestItem(const FormID formid, RE::TESObjectREFR* inv_owner);
+    bool IsQuestItem(FormID formid, RE::TESObjectREFR* inv_owner);
 
     inline int32_t GetEntryCostOverride(const RE::InventoryEntryData* entry);
 
     int GetValueInContainer(RE::TESObjectREFR* container);
 
-    void FavoriteItem(const RE::TESBoundObject* item, RE::TESObjectREFR* inventory_owner);
+    void FavoriteItem(RE::InventoryEntryData* entry_data, RE::InventoryChanges* inventory_changes);
 
     bool IsFavorited(RE::TESBoundObject* item, RE::TESObjectREFR* inventory_owner);
 
-    void EquipItem(const RE::TESBoundObject* item, bool unequip = false);
-
-    inline void EquipItem(const FormID formid, const bool unequip = false) {
-	    EquipItem(GetFormByID<RE::TESBoundObject>(formid), unequip);
-    }
+    void EquipItem(RE::InventoryEntryData* entry_data, bool unequip = false);
 
     [[nodiscard]] bool IsEquipped(RE::TESBoundObject* item);
 
     [[nodiscard]] inline bool IsEquipped(const FormID formid) {
-	    return IsEquipped(GetFormByID<RE::TESBoundObject>(formid));
+	    return IsEquipped(FormReader::GetFormByID<RE::TESBoundObject>(formid));
     }
 
     void ToggleEquip(RE::TESBoundObject* item);
@@ -334,7 +309,7 @@ namespace WorldObject {
     inline void StartDraggingObject(RE::TESObjectREFR* ref) {
         using func_t = void(*)(RE::TESObjectREFR*);
         static auto ObjectManipulationOverhaul = GetModuleHandle(L"ObjectManipulationOverhaul");
-        const func_t func = reinterpret_cast<func_t>(GetProcAddress(ObjectManipulationOverhaul, "StartDraggingObject"));
+        const auto func = reinterpret_cast<func_t>(GetProcAddress(ObjectManipulationOverhaul, "StartDraggingObject"));  // NOLINT(clang-diagnostic-cast-function-type-strict)
         return func(ref);
     }
 };
@@ -473,7 +448,11 @@ namespace Menu {
 
     bool IsOpen(const RE::BSFixedString& menu_name);
 
-    void OpenMenu(const std::string_view menuname);;
+    void OpenMenu(std::string_view menuname);
+
+	bool GetContainerMenuOwner(RE::TESObjectREFRPtr& a_out);
+
+    RE::RefHandle GetOwnerInContainerMenu(RE::FormID a_itemid);
 };
 
 
