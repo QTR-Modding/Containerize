@@ -49,18 +49,6 @@ std::string Manager::GetValueText(RE::TESObjectREFR* a_container) {
     return "";
 }
 
-void Manager::SetUpAnimation(const RE::TESBoundObject* a_real)
-{
-    constexpr auto a_datatype = Animations::kInventory;
-    SetUpAnimation(a_datatype,a_real->GetFormID());
-}
-
-void Manager::SetUpAnimation(const RE::TESObjectREFR* a_real)
-{
-    constexpr auto a_datatype = Animations::kDrop;
-	SetUpAnimation(a_datatype, a_real->GetBaseObject()->GetFormID());
-}
-
 void Manager::CloseMenu() {
     containermenu_owner.reset();
     if (!Menu::GetContainerMenuOwner(containermenu_owner)) {
@@ -1056,7 +1044,7 @@ void Manager::OnChestExit(RE::TESObjectREFR* a_chest) {
     }
 
     if (!next_menu_is_chest){
-        Animations::MyAnimator::GetSingleton()->CloseBag();
+        Animations::SendAnimEvent(false,nullptr);
     }
 }
 
@@ -1364,7 +1352,7 @@ void Manager::Gateway(const int result, const RE::ObjectRefHandle& a_current_con
     else if (!ActivateChest(a_chest)) {
         reals_to_takeback.clear();
         queued_chests.clear();
-        Animations::MyAnimator::GetSingleton()->CloseBag();
+        Animations::SendAnimEvent(false,nullptr);
 		logger::warn("Chest not found.");
     }
 }
@@ -1394,20 +1382,6 @@ std::string Manager::GetWeightText_(RE::TESObjectREFR* a_chest) {
         }
     }
 	return "";
-}
-
-void Manager::SetUpAnimation(const Animations::AnimDataType a_datatype, const FormID a_real_id)
-{
-    const auto animator = Animations::MyAnimator::GetSingleton();
-	if (const auto src = GetContainerSource(a_real_id)) {
-        const auto anim_data = src->anim_data;
-	    auto [open, close, attach_node] = anim_data.contains(a_datatype)
-                                                    ? anim_data.at(a_datatype)
-                                                    : Animations::AnimData();
-		Hooks::attach_node = attach_node;
-        animator->SetOpenAnim(open);
-		animator->SetCloseAnim(close);
-	}
 }
 
 std::string Manager::GetWeightText(const float weight, const float capacity)

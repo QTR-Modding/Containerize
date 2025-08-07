@@ -69,17 +69,12 @@ namespace Settings {
     inline bool problems_in_INI_sources = false;
     inline bool duplicate_sources = false;
 
-    struct ConfigData {
-		std::unordered_map<std::string,SourceAnimData> anim_data;
-    };
-
     bool AnimationsDelayMenuOpen();
 };
 
 std::vector<Source> LoadSources();
 void LoadOtherSettings();
-std::vector<Source> parseSources(const YAML::Node& config, const Settings::ConfigData& data);
-std::unordered_map<std::string,SourceAnimData> LoadAnimationData();
+std::vector<Source> parseSources(const YAML::Node& config);
 void LoadFormGroups();
 std::vector<Source> LoadYAMLSources();
 std::vector<Source> LoadINISources();

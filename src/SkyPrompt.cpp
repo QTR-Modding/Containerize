@@ -65,18 +65,6 @@ bool SkyPrompt::IsAnyMenuOpen() {
 	return false;
 }
 
-void MenuPromptSink::GetContainerMesh(const FormID a_realid, const FormID model_item) {
-	if (!Hooks::container_meshes.contains(a_realid)) {
-        for (const auto& loaded_models = RE::Inventory3DManager::GetSingleton()->GetRuntimeData().loadedModels; 
-			auto& a_loaded_model : loaded_models) {
-			if (a_loaded_model.modelObj->GetFormID() == model_item) {
-                Hooks::container_meshes[a_realid] = a_loaded_model.spModel;
-				break;
-			}
-		}
-	}
-}
-
 void SkyPrompt::MenuPromptSink::ProcessEvent(const SkyPromptAPI::PromptEvent event) const
 {
 #undef GetObject
@@ -132,10 +120,9 @@ void MenuPromptSink::OpenBag(RE::TESBoundObject* a_fake, const bool is_worn) {
 	const auto manager = Manager::GetSingleton();
 
 	const auto a_real = manager->FakeToRealContainer(a_fake->GetFormID());
-    GetContainerMesh(a_real->GetFormID(), a_fake->GetFormID());
 
     if (is_worn) {
-        Hooks::AnimObjectHook::OnIsWorn(a_fake);
+        Hooks::OnIsWorn(a_fake);
     }
 	
 	manager->CloseMenu();
@@ -155,7 +142,6 @@ void SkyPrompt::RegistrationPromptSink::ProcessEvent(const SkyPromptAPI::PromptE
 		const bool is_in_inventory_menu = RE::UI::GetSingleton()->IsMenuOpen(RE::InventoryMenu::MENU_NAME);
 		const bool is_worn = is_in_inventory_menu && a_entry->IsWorn();
 		const auto real_id = a_entry->GetObject()->GetFormID();
-		MenuPromptSink::GetContainerMesh(real_id,real_id);
 		auto owner_handle = Menu::GetOwnerInContainerMenu(real_id);
 		RE::TESObjectREFRPtr a_owner;
 		if (is_in_inventory_menu || !RE::LookupReferenceByHandle(owner_handle,a_owner)) {

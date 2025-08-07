@@ -67,7 +67,6 @@ namespace SkyPrompt {
 		void Hide() const;
 
         static void OpenBag(RE::TESBoundObject* a_fake, bool is_worn);
-        static void GetContainerMesh(FormID a_realid, FormID model_item);
     };
 
 	class RegistrationPromptSink final : public SkyPromptAPI::PromptSink,

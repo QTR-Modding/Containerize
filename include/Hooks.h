@@ -5,10 +5,8 @@ namespace Hooks {
 	void Install();
 	void InstallUseOrTakeHooks();
 
-    struct DrawHook {
-		static void thunk(std::uint32_t a_timer);
-        static inline REL::Relocation<decltype(thunk)> func;
-	};
+    inline RE::NiPointer<RE::NiAVObject> objectNode = nullptr;
+    void OnIsWorn(RE::TESBoundObject* object_to_equip);
 
     inline bool HandleEquip(RE::InputEvent* event);
     RE::InventoryEntryData* GetSelectedEntryInMenu();
@@ -88,21 +86,6 @@ namespace Hooks {
         static inline REL::Relocation<decltype(addObjectToContainer)> add_object_to_container_;
 
     };
-
-    class AnimObjectHook {
-    public:
-        static RE::NiAVObject* thunk(RE::TESModel* a_model, RE::BIPED_OBJECT a_bipedObj,
-                                              RE::TESObjectREFR* a_actor, RE::BSTSmartPointer<RE::BipedAnim>& a_biped,
-                                              RE::NiAVObject* a_root);
-
-        static inline REL::Relocation<decltype(thunk)> _LoadAnimObject;
-        static void OnIsWorn(RE::TESBoundObject* object_to_equip);
-    };
-
-	inline std::map<FormID,RE::NiPointer<RE::NiAVObject>> container_meshes;
-	inline FormID container_mesh;
-    inline std::string attach_node;
-    inline RE::NiPointer<RE::NiAVObject> objectNode = nullptr;
 
     static void add_item_functor(RE::TESObjectREFR* a_this, RE::TESObjectREFR* a_object, int32_t a_count, bool a4, bool a5);
 	static inline REL::Relocation<decltype(add_item_functor)> add_item_functor_;

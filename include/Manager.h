@@ -115,7 +115,6 @@ public clib_util::singleton::ISingleton<Manager>
     bool HandleRegistration(RE::TESObjectREFR* a_item);
 
     std::string GetWeightText_(RE::TESObjectREFR* a_chest);
-    void SetUpAnimation(Animations::AnimDataType a_datatype, FormID a_real_id);
 
     static std::string GetWeightText(float weight, float capacity);
 
@@ -189,8 +188,6 @@ public:
     std::string GetWeightText(RE::TESObjectREFR* a_container);
     std::string GetWeightText(const RE::TESBoundObject* fake_or_real);
     std::string GetValueText(RE::TESObjectREFR* a_container);
-    void SetUpAnimation(const RE::TESBoundObject* a_real);
-    void SetUpAnimation(const RE::TESObjectREFR* a_real);
     void CloseMenu();
     RE::TESBoundObject* RegisterFromMenu(RE::InventoryEntryData* a_real_entry, RE::TESObjectREFR* a_owner);
     bool IsInChestMenu() const {return !reals_to_takeback.empty();}

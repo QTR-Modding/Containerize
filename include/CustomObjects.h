@@ -39,7 +39,6 @@ struct FormFormID {  // used by ChestToFakeContainer
 
 using SourceDataKey = RefID;  // Chest Ref ID
 using SourceDataVal = RefID;  // Container Ref ID if it exists otherwise Chest Ref ID
-using SourceAnimData = std::map<Animations::AnimDataType, Animations::AnimData>;
 
 struct Source {
 
@@ -47,13 +46,12 @@ struct Source {
 
 	float weight_ratio; // 1 - cloud storage, i.e. how much of the weight actually counts in percentage
     std::map<FormID,Count> initial_items;
-	SourceAnimData anim_data;
     float capacity;
     FormID formid;
     std::string editorid;
     SourceData data;
 
-    Source(FormID id, std::string id_str, float capacity, float cs, SourceAnimData ad);
+    Source(FormID id, std::string id_str, float capacity, float cs);
 
     [[nodiscard]] std::string_view GetName() const;
 
