@@ -7,10 +7,15 @@
 namespace Animations
 {
 	inline DAF_API::AnimEventID anim_event_id_open = 0;
+	inline DAF_API::AnimEventID anim_event_id_open_world = 0;
 	inline DAF_API::AnimEventID anim_event_id_close = 0;
+	inline DAF_API::AnimEventID anim_event_id_close_world = 0;
 
     inline const char* anim_event_open = "ContainerizeOpen";
+	inline const char* anim_event_open_world = "ContainerizeOpenWorld";
     inline const char* anim_event_close = "ContainerizeClose";
+	inline const char* anim_event_close_world = "ContainerizeCloseWorld";
+
 	int SendAnimEvent(bool open, RE::TESForm* a_real);
 
 	class MyAnimator : 

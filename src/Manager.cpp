@@ -1005,11 +1005,12 @@ void Manager::OnChestExit(RE::TESObjectREFR* a_chest) {
 
     const bool next_menu_is_chest = containermenu_owner && IsChest(containermenu_owner->GetFormID());
 
+    const auto real_bound = GetRealBound(chest_id);
+
     if (reals_to_takeback.contains(chest_id)) {
 
         reals_to_takeback.erase(chest_id);
 
-        const auto real_bound = GetRealBound(chest_id);
         TakeBackReal(real_bound, a_chest);
         const auto fake_bound = GetFakeBound(chest_id);
 		fake_bound->formFlags = real_bound->formFlags;
@@ -1044,7 +1045,7 @@ void Manager::OnChestExit(RE::TESObjectREFR* a_chest) {
     }
 
     if (!next_menu_is_chest){
-        Animations::SendAnimEvent(false,nullptr);
+        Animations::SendAnimEvent(false,real_bound);
     }
 }
 

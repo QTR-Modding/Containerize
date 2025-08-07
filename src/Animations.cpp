@@ -42,8 +42,9 @@ int Animations::SetUpPlayAnimation(RE::TESObjectREFR* a_real, const bool is_worn
 
 int Animations::SendAnimEvent(bool open, RE::TESForm* a_real)
 {
-	auto& a_id = open ? anim_event_id_open : anim_event_id_close;
-	const char* a_event = open ? anim_event_open : anim_event_close;
+	bool is_ref = a_real->GetFormType() == RE::FormType::Reference;
+	auto& a_id = is_ref ? (open ? anim_event_id_open_world : anim_event_id_close_world) : (open ? anim_event_id_open : anim_event_id_close);
+	const char* a_event = is_ref ? (open ? anim_event_open_world : anim_event_close_world) : (open ? anim_event_open : anim_event_close);
 
 	if (a_id == 0) {
 		a_id = DAF_API::RequestEventID(a_event);
