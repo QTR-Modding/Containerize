@@ -1,25 +1,29 @@
 #pragma once
 #include "ClibUtil/singleton.hpp"
-#include "CLibUtilsQTR/Animations.hpp"
 #include "Hooks.h"
+#include "DynamicAnimationFramework/API.h"
 
 namespace Animations
 {
-	class MyAnimator : 
-		public Animator,
-		public clib_util::singleton::ISingleton<MyAnimator>
+	inline DAF_API::AnimEventID anim_event_id_open = 0;
+	inline DAF_API::AnimEventID anim_event_id_open_world = 0;
+	inline DAF_API::AnimEventID anim_event_id_close = 0;
+	inline DAF_API::AnimEventID anim_event_id_close_world = 0;
+
+    inline const char* anim_event_open = "ContainerizeOpen";
+	inline const char* anim_event_open_world = "ContainerizeOpenWorld";
+    inline const char* anim_event_close = "ContainerizeClose";
+	inline const char* anim_event_close_world = "ContainerizeCloseWorld";
+
+	int SendAnimEvent(bool open, RE::TESForm* a_real);
+
+	class AnimSink : 
+		public RE::BSTEventSink<RE::BSAnimationGraphEvent>,
+		public clib_util::singleton::ISingleton<AnimSink>
 	{
         RE::BSEventNotifyControl ProcessEvent(const RE::BSAnimationGraphEvent* a_event,
                                               RE::BSTEventSource<RE::BSAnimationGraphEvent>*) override {
-			if (!HasAnim()) {
-				if (const auto a_actor = a_event->holder->As<RE::Actor>()) {
-					RemoveSink(a_actor);
-				}
-				return RE::BSEventNotifyControl::kContinue;
-			}
-			if (!a_event || !a_event->holder->IsPlayerRef()) {
-				return RE::BSEventNotifyControl::kContinue;
-			}
+
 			const bool playing_open = !opened && a_event->tag == "AnimObjLoad";
 			const bool playing_close = opened && a_event->tag == "AnimObjectUnequip";
 			if (playing_open || playing_close) {
@@ -29,12 +33,11 @@ namespace Animations
 				}
 				if (playing_close) {
 				    Hooks::objectNode.reset();
-					Reset();
+				    if (const auto a_actor = a_event->holder->As<RE::Actor>()) {
+					    RemoveSink(a_actor);
+				    }
 				}
 
-				if (const auto a_actor = a_event->holder->As<RE::Actor>()) {
-					RemoveSink(a_actor);
-				}
 
 				opened = !opened;
 			}
@@ -42,65 +45,9 @@ namespace Animations
 			return RE::BSEventNotifyControl::kContinue;
 		}
 
-		void Reset() {
-			open_anim = {};
-			close_anim = {};
-        }
-
 		bool opened = false; // only for animations with anim object
-		std::vector<Animation> open_anim;
-		std::vector<Animation> close_anim;
 
 		void RemoveSink(const RE::Actor* a_actor) {a_actor->RemoveAnimationGraphEventSink(this);}
-
-		bool HasAnim() const {
-			return !open_anim.empty() && !close_anim.empty();
-		}
-
-	public:
-
-		void SetOpenAnim(const std::vector<Animation>& a_open_anim) {
-			open_anim = a_open_anim;
-		}
-
-		void SetCloseAnim(const std::vector<Animation>& a_close_anim) {
-			close_anim = a_close_anim;
-		}
-
-		void OpenBag() {
-		    Add2Q(open_anim);
-		}
-		void CloseBag() {
-		    Add2Q(close_anim);
-		}
-
-	    unsigned int GetOpenDuration() const {
-			unsigned int res = 0;
-		    for (const auto& anim : open_anim) {
-				res += anim.t_wait_ms;
-		    }
-			return res;
-        }
-
-		unsigned int GetCloseDuration() const {
-			unsigned int res = 0;
-			for (const auto& anim : close_anim) {
-				res += anim.t_wait_ms;
-			}
-			return res;
-		}
-
-	};
-
-	enum AnimDataType : uint8_t {
-		kInventory = 0,
-		kDrop = 1,
-	};
-
-	struct AnimData {
-		std::vector<Animation> open;
-		std::vector<Animation> close;
-		std::string attach_node;
 	};
 
 	template <typename T>
