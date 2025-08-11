@@ -16,13 +16,11 @@ namespace  {
 		    (player_cam->IsInThirdPerson() || player_cam->IsInFirstPerson() && improved_cam_path_installed)
 		    ) 
 	    {
-		    if (souls_unpaused_installed || Settings::AnimationsDelayMenuOpen()) {
+			bool should_delay = Settings::AnimationsDelayMenuOpen();
+		    if (souls_unpaused_installed || should_delay) {
 				duration = Animations::SendAnimEvent(true,a_real);
-		    }
-
-		    if (!Settings::AnimationsDelayMenuOpen()) {
-			    duration = 0;
-		    }
+				duration = should_delay ? duration : 0;
+			}
 	    }
 	    return duration;
     }
@@ -51,7 +49,7 @@ int Animations::SendAnimEvent(bool open, RE::TESForm* a_real)
 	}
 
 	if (a_id > 0) {
-		RE::PlayerCharacter::GetSingleton()->AddAnimationGraphEventSink(Animations::MyAnimator::GetSingleton());
+		RE::PlayerCharacter::GetSingleton()->AddAnimationGraphEventSink(Animations::AnimSink::GetSingleton());
 		return DAF_API::SendEvent(a_id,0x14,a_real ? a_real->GetFormID() : 0);
 	}
 	return 0;

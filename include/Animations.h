@@ -1,6 +1,5 @@
 #pragma once
 #include "ClibUtil/singleton.hpp"
-#include "CLibUtilsQTR/Animations.hpp"
 #include "Hooks.h"
 #include "DynamicAnimationFramework/API.h"
 
@@ -18,9 +17,9 @@ namespace Animations
 
 	int SendAnimEvent(bool open, RE::TESForm* a_real);
 
-	class MyAnimator : 
+	class AnimSink : 
 		public RE::BSTEventSink<RE::BSAnimationGraphEvent>,
-		public clib_util::singleton::ISingleton<MyAnimator>
+		public clib_util::singleton::ISingleton<AnimSink>
 	{
         RE::BSEventNotifyControl ProcessEvent(const RE::BSAnimationGraphEvent* a_event,
                                               RE::BSTEventSource<RE::BSAnimationGraphEvent>*) override {
