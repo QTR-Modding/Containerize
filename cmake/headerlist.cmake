@@ -13,5 +13,4 @@ set(headers ${headers}
 	include/Papyrus.h
 	include/SkyPrompt.h
 	include/Animations.h
-	include/DynamicAnimationFramework/API.h
 )

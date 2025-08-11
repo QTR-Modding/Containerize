@@ -1,6 +1,5 @@
 #include "Animations.h"
 #include "Manager.h"
-#include "DynamicAnimationFramework/API.h"
 
 namespace  {
     template <typename T>

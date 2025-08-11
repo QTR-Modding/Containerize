@@ -1,7 +1,7 @@
 #pragma once
 #include "ClibUtil/singleton.hpp"
 #include "Hooks.h"
-#include "DynamicAnimationFramework/API.h"
+#include "DynamicAnimationFramework/API.hpp"
 
 namespace Animations
 {

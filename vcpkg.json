@@ -13,7 +13,8 @@
     "clib-util",
     "clib-utils-qtr",
     "skse-mcp",
-    "skyprompt-api"
+    "skyprompt-api",
+    "daf-api"
   ],
   "overrides": [
     {
