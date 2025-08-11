@@ -3,7 +3,8 @@
 #include "CLibUtilsQTR/FormReader.hpp"
 #include "rapidjson/document.h"
 #include "rapidjson/istreamwrapper.h"
-#include "CLibUtilsQTR/PresetHelpers.hpp"
+#include "CLibUtilsQTR/PresetHelpers/PresetHelpersTXT.hpp"
+#include "CLibUtilsQTR/PresetHelpers/PresetHelpersYAML.hpp"
 
 namespace {
     Source parseSource_(const YAML::Node& config, const FormID formid, const std::string& editorid)
