@@ -15,7 +15,8 @@ void Hooks::Install()
 
 	auto& trampoline = SKSE::GetTrampoline();
     constexpr size_t size_per_hook = 14;
-	trampoline.create(size_per_hook*3);
+    constexpr size_t NUM_TRAMPOLINE_HOOKS = 3;
+	trampoline.create(size_per_hook * NUM_TRAMPOLINE_HOOKS);
 
 	const REL::Relocation<std::uintptr_t> target4{REL::RelocationID(67315, 68617)};
     InputHook::func = trampoline.write_call<5>(target4.address() + 0x7B, InputHook::thunk);
