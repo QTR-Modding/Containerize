@@ -18,11 +18,11 @@ void MyPromptSink::ProcessEvent(const SkyPromptAPI::PromptEvent event) const
         if (const auto prompt_eventid = event.prompt.eventID; 
 			prompt_eventid == 0) {
 
-			const auto duration = Animations::SetUpPlayAnimation(crosshairref.get().get(),true);
-		    Manager::GetSingleton()->OnActivateContainer(crosshairref.get().get(), 0, duration);
+			const auto duration = Animations::SetUpPlayAnimation(crosshairref->get().get(),true);
+		    Manager::GetSingleton()->OnActivateContainer(crosshairref->get().get(), 0, duration);
 	    }
 	    else if (prompt_eventid == 1) {
-			const auto a_ref = crosshairref.get().get();
+			const auto a_ref = crosshairref->get().get();
 		    M->OnActivateContainer(a_ref,1);
 	    }
 	    else {
