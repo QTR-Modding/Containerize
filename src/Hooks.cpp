@@ -2,7 +2,6 @@
 #include "Manager.h"
 #include "SkyPrompt.h"
 #include "CLibUtilsQTR/Tasker.hpp"
-#include "SkyPrompt/API.hpp"
 
 void Hooks::Install()
 {

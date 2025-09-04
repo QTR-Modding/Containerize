@@ -1,4 +1,5 @@
 #include "SkyPrompt.h"
+#include "Animations.h"
 #include "Events.h"
 #include "Hooks.h"
 #include "Manager.h"
@@ -15,15 +16,14 @@ void MyPromptSink::ProcessEvent(const SkyPromptAPI::PromptEvent event) const
 
 	if (const auto crosshairref = RE::CrosshairPickData::GetSingleton()->target) {
 		if (const auto a_ref = crosshairref->get().get()) {
-            const auto M = Manager::GetSingleton();
             if (const auto prompt_eventid = event.prompt.eventID; 
 			    prompt_eventid == 0) {
 
 			    const auto duration = Animations::SetUpPlayAnimation(a_ref,true);
-		        M->OnActivateContainer(a_ref, 0, duration);
+		        Manager::GetSingleton()->OnActivateContainer(a_ref, 0, duration);
 	        }
 	        else if (prompt_eventid == 1) {
-		        M->OnActivateContainer(a_ref,1);
+		        Manager::GetSingleton()->OnActivateContainer(a_ref,1);
 	        }
 		}
 	}
@@ -79,7 +79,7 @@ void SkyPrompt::MenuPromptSink::ProcessEvent(const SkyPromptAPI::PromptEvent eve
 	
 }
 
-void SkyPrompt::MenuPromptSink::Show(RE::TESBoundObject* a_fake) const {
+void SkyPrompt::MenuPromptSink::Show(const RE::TESBoundObject* a_fake) const {
 
     weight_text.clear();
 

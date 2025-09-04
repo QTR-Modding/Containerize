@@ -63,7 +63,7 @@ namespace SkyPrompt {
 
         void ProcessEvent(SkyPromptAPI::PromptEvent event) const override;
 	    std::span<const SkyPromptAPI::Prompt> GetPrompts() const override { return prompts; }
-		void Show(RE::TESBoundObject* a_fake) const;
+		void Show(const RE::TESBoundObject* a_fake) const;
 		void Hide() const;
 
         static void OpenBag(RE::TESBoundObject* a_fake, bool is_worn);
