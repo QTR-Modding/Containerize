@@ -37,7 +37,6 @@ public clib_util::singleton::ISingleton<Manager>
 
     [[nodiscard]] static int GetChestValue(RE::TESObjectREFR* a_chest);
 
-    // from container out in the world to linked chest
     [[nodiscard]] RE::TESObjectREFR* GetContainerChest(const RE::TESObjectREFR* a_container) const;
     [[nodiscard]] RE::TESObjectREFR* GetFakeContainerChest(const RE::TESBoundObject* a_fake) const;
     [[nodiscard]] RE::TESObjectREFR* GetContainerLocation(FormID a_fake_id) const;
