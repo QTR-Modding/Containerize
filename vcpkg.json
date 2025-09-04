@@ -14,7 +14,8 @@
     "clib-utils-qtr",
     "skse-mcp",
     "skyprompt-api",
-    "daf-api"
+    "daf-api",
+    "directxtk"
   ],
   "overrides": [
     {

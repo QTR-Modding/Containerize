@@ -2,7 +2,6 @@
 #include "Manager.h"
 #include "SkyPrompt.h"
 #include "CLibUtilsQTR/Tasker.hpp"
-#include "SkyPrompt/API.hpp"
 
 void Hooks::Install()
 {
@@ -39,7 +38,7 @@ bool Hooks::HandleEquip(RE::InputEvent* event)
 {
 	const auto user_events = RE::UserEvents::GetSingleton();
     if (const auto button_event = event->AsButtonEvent()) {
-		if (const auto user_event = button_event->userEvent;
+		if (const auto& user_event = button_event->GetUserEvent();
 			user_event == user_events->accept || user_event == user_events->leftEquip || user_event == user_events->rightEquip) {
 			if (const auto selected_item = GetSelectedItemInMenu(); 
 				selected_item && Manager::GetSingleton()->IsFakeContainer(selected_item->GetFormID())) {

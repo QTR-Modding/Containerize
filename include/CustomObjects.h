@@ -1,5 +1,4 @@
 #pragma once
-#include "Animations.h"
 #include "Utils.h"
 
 struct FormRefID {

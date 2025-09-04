@@ -1,4 +1,5 @@
 #include "SkyPrompt.h"
+#include "Animations.h"
 #include "Events.h"
 #include "Hooks.h"
 #include "Manager.h"
@@ -12,25 +13,19 @@ void MyPromptSink::ProcessEvent(const SkyPromptAPI::PromptEvent event) const
 	}
 	EventSink::RemovePrompts();
 
-    const auto M = Manager::GetSingleton();
 
 	if (const auto crosshairref = RE::CrosshairPickData::GetSingleton()->target) {
-        if (const auto prompt_eventid = event.prompt.eventID; 
-			prompt_eventid == 0) {
+		if (const auto a_ref = crosshairref->get().get()) {
+            if (const auto prompt_eventid = event.prompt.eventID; 
+			    prompt_eventid == 0) {
 
-			const auto duration = Animations::SetUpPlayAnimation(crosshairref.get().get(),true);
-		    Manager::GetSingleton()->OnActivateContainer(crosshairref.get().get(), 0, duration);
-	    }
-	    else if (prompt_eventid == 1) {
-			const auto a_ref = crosshairref.get().get();
-		    M->OnActivateContainer(a_ref,1);
-	    }
-	    else {
-		    logger::warn("Prompt event: Unrecognized prompt.");
-	    }
-	}
-	else {
-		logger::warn("Crosshair ref is null.");
+			    const auto duration = Animations::SetUpPlayAnimation(a_ref,true);
+		        Manager::GetSingleton()->OnActivateContainer(a_ref, 0, duration);
+	        }
+	        else if (prompt_eventid == 1) {
+		        Manager::GetSingleton()->OnActivateContainer(a_ref,1);
+	        }
+		}
 	}
 }
 
@@ -84,7 +79,7 @@ void SkyPrompt::MenuPromptSink::ProcessEvent(const SkyPromptAPI::PromptEvent eve
 	
 }
 
-void SkyPrompt::MenuPromptSink::Show(RE::TESBoundObject* a_fake) const {
+void SkyPrompt::MenuPromptSink::Show(const RE::TESBoundObject* a_fake) const {
 
     weight_text.clear();
 
@@ -142,7 +137,7 @@ void SkyPrompt::RegistrationPromptSink::ProcessEvent(const SkyPromptAPI::PromptE
 		const bool is_in_inventory_menu = RE::UI::GetSingleton()->IsMenuOpen(RE::InventoryMenu::MENU_NAME);
 		const bool is_worn = is_in_inventory_menu && a_entry->IsWorn();
 		const auto real_id = a_entry->GetObject()->GetFormID();
-		auto owner_handle = Menu::GetOwnerInContainerMenu(real_id);
+		const auto owner_handle = Menu::GetOwnerInContainerMenu(real_id);
 		RE::TESObjectREFRPtr a_owner;
 		if (is_in_inventory_menu || !RE::LookupReferenceByHandle(owner_handle,a_owner)) {
 		    a_owner.reset();

@@ -1,5 +1,4 @@
 #include "Serialization.h"
-
 #include "Events.h"
 #include "Manager.h"
 
