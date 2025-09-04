@@ -1044,7 +1044,9 @@ void Manager::OnChestExit(RE::TESObjectREFR* a_chest) {
     }
 
     if (!next_menu_is_chest){
-		if (const auto container_ref = GetContainerLocation(GetFakeID(chest_id))) {
+        const auto fake_id = GetFakeID(chest_id);
+		if (const auto container_ref = GetContainerLocation(fake_id);
+            container_ref && container_ref->GetBaseObject() == real_bound) {
             Animations::SendAnimEvent(false,container_ref);
 		}
         else {
