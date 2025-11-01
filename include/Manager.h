@@ -102,7 +102,7 @@ public clib_util::singleton::ISingleton<Manager>
 
     // for the cases when real container is in its chest and fake container is in some other inventory (player,unownedchest,external_container)
     // DOES NOT UPDATE THE SOURCE DATA and CHESTTOFAKECONTAINER !!!
-    void qTRICK_(SourceDataKey chest_ref, SourceDataVal cont_ref,bool fake_nonexistent = false);
+    void FakePlacement_Sub(SourceDataKey chest_ref, SourceDataVal cont_ref,bool fake_nonexistent = false);
 
     // places fakes according to loaded data to player or unowned chests
     void FakePlacementCeption(RefID chest_ref, std::vector<RefID>& ha);
