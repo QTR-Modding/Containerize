@@ -662,10 +662,15 @@ RE::TESObjectREFR* WorldObject::CreateRef(RE::TESBoundObject* obj, const Count c
         logger::critical("Player cell is null.");
         return nullptr;
 	}
+	const auto player_worldspace = player->GetWorldspace();
+    if (!player_worldspace) {
+        logger::critical("Player worldspace is null.");
+		return nullptr;
+    }
     const auto newPropRef =
         RE::TESDataHandler::GetSingleton()
         ->CreateReferenceAtLocation(obj, {}, {}, player_cell,
-                                                        nullptr, nullptr, nullptr, {}, false, false)
+                                                        player_worldspace, nullptr, nullptr, {}, false, false)
             .get()
             .get();
     if (!newPropRef) {
