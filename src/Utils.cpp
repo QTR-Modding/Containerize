@@ -682,9 +682,19 @@ RE::TESObjectREFR* WorldObject::DropObjectIntoTheWorld(RE::TESBoundObject* obj, 
 }
 
 RE::TESObjectREFR* WorldObject::CreateRef(RE::TESBoundObject* obj, const Count count, const bool player_owned) {
-    auto* newPropRef =
+	auto player = RE::PlayerCharacter::GetSingleton();
+    if (!player) {
+        logger::critical("Player is null!!!");
+        return nullptr;
+	}
+	auto player_cell = player->GetParentCell();
+    if (!player_cell) {
+        logger::critical("Player cell is null.");
+        return nullptr;
+	}
+    auto newPropRef =
         RE::TESDataHandler::GetSingleton()
-        ->CreateReferenceAtLocation(obj, {}, {}, nullptr,
+        ->CreateReferenceAtLocation(obj, {}, {}, player_cell,
                                                         nullptr, nullptr, nullptr, {}, false, false)
             .get()
             .get();
