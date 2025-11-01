@@ -940,6 +940,16 @@ RE::RefHandle Menu::GetOwnerInContainerMenu(const RE::FormID a_itemid) {
     return {};
 }
 
+bool Menu::IsPickpocketingOrStealing()
+{
+	if (const auto container_menu = RE::UI::GetSingleton()->GetMenu<RE::ContainerMenu>()) {
+		if (static_cast<int>(container_menu->GetContainerMode()) % 3) {
+			return true;
+		}
+	}
+    return false;
+}
+
 void ModCompatibility::MakeChecks()
 {
     Settings::po3installed = Mods::IsPo3Installed();

@@ -454,6 +454,8 @@ namespace Menu {
 	bool GetContainerMenuOwner(RE::TESObjectREFRPtr& a_out);
 
     RE::RefHandle GetOwnerInContainerMenu(RE::FormID a_itemid);
+
+    bool IsPickpocketingOrStealing();
 };
 
 
