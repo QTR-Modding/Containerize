@@ -606,7 +606,7 @@ namespace {
     }
 }
 
-void Inventory::EquipItem(RE::InventoryEntryData* entry_data, bool unequip)
+void Inventory::EquipItem(const RE::InventoryEntryData* entry_data, const bool unequip)
 {
 	const auto xLists = entry_data->extraLists;
     if (!entry_data || !xLists) {
@@ -681,9 +681,24 @@ RE::TESObjectREFR* WorldObject::DropObjectIntoTheWorld(RE::TESBoundObject* obj, 
     return newPropRef;
 }
 
+RE::TESObjectREFR* WorldObject::CreateRef(RE::TESBoundObject* obj, const Count count, const bool player_owned) {
+    auto* newPropRef =
+        RE::TESDataHandler::GetSingleton()
+        ->CreateReferenceAtLocation(obj, {}, {}, nullptr,
+                                                        nullptr, nullptr, nullptr, {}, false, false)
+            .get()
+            .get();
+    if (!newPropRef) {
+        logger::critical("New prop ref is null.");
+        return nullptr;
+    }
+    if (player_owned) newPropRef->extraList.SetOwner(RE::TESForm::LookupByID(0x07));
+	if (count > 1) newPropRef->extraList.SetCount(static_cast<uint16_t>(count));
+    return newPropRef;
+}
+
 void WorldObject::SwapObjects(RE::TESObjectREFR* a_from, RE::TESBoundObject* a_to, const bool apply_havok)
 {
-    logger::trace("SwapObjects");
     if (!a_from) {
         logger::error("Ref is null.");
         return;

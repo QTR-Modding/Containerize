@@ -135,7 +135,7 @@ public:
     void OnPickup(RE::TESObjectREFR* picked_up_by, RE::TESObjectREFR * a_object);
 	void HandleDrop(RE::TESObjectREFR* fake_object);
     void UpdateData(RefID chestID, RefID loc_id);
-    void OnLongPressEquip(RE::TESBoundObject* a_fake, int delay=0);
+    void OnLongPressEquip(const RE::TESBoundObject* a_fake, int delay=0);
 	void UpdateFakeWV(RE::TESBoundObject* fake_form);
     Count CanBeAdded(const RE::TESBoundObject* a_item, Count a_count, const RE::TESBoundObject* fake_container);
     [[nodiscard]] RE::TESBoundObject* FakeToRealContainer(FormID fake) const;
