@@ -121,7 +121,7 @@ RE::TESBoundObject* Manager::RegisterFromMenu(RE::InventoryEntryData* a_real_ent
             });
         }
 
-        const auto fake_ref = WorldObject::DropObjectIntoTheWorld(fake_bound);
+        const auto fake_ref = WorldObject::CreateRef(fake_bound);
 		if (const auto real_xList = real_it->second.second && real_it->second.second->extraLists && !real_it->second.second->extraLists->empty() ? real_it->second.second->extraLists->front() : nullptr) {
             if (!xData::UpdateExtras(real_xList,&fake_ref->extraList)) {
 				logger::error("Failed to update extras for fake object.");
@@ -130,11 +130,6 @@ RE::TESBoundObject* Manager::RegisterFromMenu(RE::InventoryEntryData* a_real_ent
         if (!MoveObject(fake_ref,a_owner)) {
 			logger::critical("Failed to move fake object into the world.");
         }
-
-        //a_owner->AddObjectToContainer(fake_bound,nullptr,1,nullptr);
-        /*if (!UpdateExtrasInInventory(ChestObjRef,a_real->GetFormID(),a_owner,fake_bound->GetFormID())) {
-			logger::warn("Failed to update extras in inventory for chest {:x} and real container {:x}", ChestObjRef->GetFormID(), a_real->GetFormID());
-        }*/
 
 	    return fake_bound;
     }
@@ -268,7 +263,7 @@ void Manager::UpdateData(const RefID chestID, const RefID loc_id)
     }
 }
 
-void Manager::OnLongPressEquip(RE::TESBoundObject* a_fake, const int delay)
+void Manager::OnLongPressEquip(const RE::TESBoundObject* a_fake, const int delay)
 {
 	auto chest = GetFakeContainerChest(a_fake);
     queued_chests.insert(chest->GetFormID());
@@ -942,7 +937,6 @@ bool Manager::IsFakeContainer(const FormID formid) {
 }
 
 bool Manager::IsRealContainer(const RE::TESObjectREFR* ref) const {
-    logger::trace("IsRealContainer2");
     if (!ref) return false;
     if (ref->IsDisabled()) return false;
     if (ref->IsDeleted()) return false;
@@ -1077,9 +1071,8 @@ bool Manager::IsARegistry(const RefID registry) const {
     return false;
 }
 
-void Manager::qTRICK_(const SourceDataKey chest_ref, const SourceDataVal cont_ref, const bool fake_nonexistent) {
+void Manager::FakePlacement_Sub(const SourceDataKey chest_ref, const SourceDataVal cont_ref, const bool fake_nonexistent) {
         
-    logger::trace("qTrick before execute_trick");
     const auto real_formid = ChestToFakeContainer[chest_ref].outerKey;
     const auto chest = RE::TESForm::LookupByID<RE::TESObjectREFR>(chest_ref);
     const auto chest_cont_ref = RE::TESForm::LookupByID<RE::TESObjectREFR>(cont_ref);
@@ -1092,20 +1085,12 @@ void Manager::qTRICK_(const SourceDataKey chest_ref, const SourceDataVal cont_re
     // fake form nonexistent ise
 
     if (fake_nonexistent) {
-        logger::trace("Executing trick");
-        logger::trace("TRICK");
 
         const auto old_fakeid = ChestToFakeContainer[chest_ref].innerKey;  // for external_favs
-        /*auto fakeid = DFT->Fetch(real_formid, real_editorid, chest_ref);
-            if (!fakeid) fakeid = CreateFakeContainer(real_bound, chest_ref, nullptr);
-            else DFT->EditCustomID(fakeid, chest_ref);*/
+
         const auto fakeid = CreateFakeContainer(real_bound, chest_ref, nullptr);
         // load game den dolayi
-        logger::trace("ChestToFakeContainer (chest refid: {:x}) before: {:x}", chest_ref,
-                      ChestToFakeContainer[chest_ref].innerKey);
         ChestToFakeContainer[chest_ref].innerKey = fakeid;
-        logger::trace("ChestToFakeContainer (chest refid: {:x}) after: {:x}", chest_ref,
-                      ChestToFakeContainer[chest_ref].innerKey);
 
         // if old_fakeid is in external_favs, we need to update it with new fakeid
         if (const auto it = std::ranges::find(external_favs, old_fakeid); it != external_favs.end()) {
@@ -1119,16 +1104,13 @@ void Manager::qTRICK_(const SourceDataKey chest_ref, const SourceDataVal cont_re
         }
     }
 
-    logger::trace("qTrick after fake_nonexistent");
     const auto fake_formid = ChestToFakeContainer[chest_ref].innerKey;  // the new one (fake_nonexistent)
-
-    logger::trace("FetchFake");
 
     const auto fake_bound = RE::TESForm::LookupByID<RE::TESBoundObject>(fake_formid);
     if (!fake_bound) return RaiseMngrErr("Fake bound not found");
 
     if (fake_nonexistent) {
-        RE::TESObjectREFR* fake_ref = WorldObject::DropObjectIntoTheWorld(fake_bound);
+        RE::TESObjectREFR* fake_ref = WorldObject::CreateRef(fake_bound);
         if (!fake_ref) return RaiseMngrErr("Fake ref is null.");
         if (!PickUpItem(fake_ref)) return RaiseMngrErr("Failed to pick up fake container");
     }
@@ -1139,15 +1121,12 @@ void Manager::qTRICK_(const SourceDataKey chest_ref, const SourceDataVal cont_re
         logger::error("Failed to update extras");
     }
 
-    logger::trace("Updating FakeWV");
     const auto src = GetContainerSource(real_formid);
     if (!src) return RaiseMngrErr("Could not find source for container");
     UpdateFakeWV(fake_bound, chest, src->weight_ratio);
 
     // fave it if it is in external_favs
-    logger::trace("Fave");
     if (const auto it = std::ranges::find(external_favs, fake_formid); it != external_favs.end()) {
-        logger::trace("Faving");
         if (const auto inventory_changes = to_inv->GetInventoryChanges()) {
             if (const auto entry_list = inventory_changes->entryList) {
                 const auto it2 = std::ranges::find_if(*entry_list, [fake_formid](const auto& entry) {
@@ -1183,7 +1162,6 @@ void Manager::FakePlacementCeption(const RefID chest_ref, std::vector<RefID>& ha
 
 void Manager::FakePlacement(RefID saved_ref, const RefID chest_ref, RE::TESObjectREFR* external_cont) {
 
-    // bu sadece load sirasinda
     // ya playerda olcak ya da unownedlardan birinde (containerception)
     // bu ikisi disindaki seylere load_game safhasinda bisey yapamiyorum external_cont nullptr sa
     if (Settings::is_pre_0_10_0) {
@@ -1203,7 +1181,7 @@ void Manager::FakePlacement(RefID saved_ref, const RefID chest_ref, RE::TESObjec
     const auto cont_of_fakecont = external_cont ? external_cont : RE::TESForm::LookupByID<RE::TESObjectREFR>(cont_ref);
     if (!cont_of_fakecont) return RaiseMngrErr("cont_of_fakecont not found");
 
-    auto fake_formid = ChestToFakeContainer[chest_ref].innerKey;  // dont use this again bcs it can change after qTRICK_
+    auto fake_formid = ChestToFakeContainer[chest_ref].innerKey;  // dont use this again bcs it can change after FakePlacement_Sub
     RE::TESBoundObject* fake_bound = RE::TESForm::LookupByID<RE::TESBoundObject>(fake_formid);
 
     if (fake_bound && fake_bound->IsDeleted()) {
@@ -1213,7 +1191,7 @@ void Manager::FakePlacement(RefID saved_ref, const RefID chest_ref, RE::TESObjec
     }
 
     if (!fake_bound || !HasItemPlusCleanUp(fake_bound, cont_of_fakecont)) {
-        qTRICK_(chest_ref, cont_ref, true);
+        FakePlacement_Sub(chest_ref, cont_ref, true);
     }
     else {
         if (!std::strlen(fake_bound->GetName())) {
@@ -1222,9 +1200,7 @@ void Manager::FakePlacement(RefID saved_ref, const RefID chest_ref, RE::TESObjec
         if (fake_formid != fake_bound->GetFormID()) {
             logger::warn("Fake container formid changed from {} to {}", fake_formid, fake_bound->GetFormID());
         }
-        logger::trace("Fake container found in {} with name {} and formid {:x}.",
-                      cont_of_fakecont->GetDisplayFullName(), fake_bound->GetName(), fake_bound->GetFormID());
-        qTRICK_(chest_ref, cont_ref);
+        FakePlacement_Sub(chest_ref, cont_ref);
     }
         
     // (pre 0.10) yani playerda deilse
@@ -1284,7 +1260,7 @@ bool Manager::HandleRegistration(RE::TESObjectREFR* a_item) {
             }
 
             // (>=0.7.1) makes a copy of the real at its current state and sends it to the linked chest
-            const auto temp_realref = WorldObject::DropObjectIntoTheWorld(a_item->GetBaseObject(), 1);
+            const auto temp_realref = WorldObject::CreateRef(a_item->GetBaseObject(), 1);
             if (!temp_realref) {
                 RaiseMngrErr("Failed to drop real container into the world");
 			    return false;

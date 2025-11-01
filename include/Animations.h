@@ -15,7 +15,7 @@ namespace Animations
     inline const char* anim_event_close = "ContainerizeClose";
 	inline const char* anim_event_close_world = "ContainerizeCloseWorld";
 
-	int SendAnimEvent(bool open, RE::TESForm* a_real);
+	int SendAnimEvent(bool open, const RE::TESForm* a_real);
 
 	class AnimSink : 
 		public RE::BSTEventSink<RE::BSAnimationGraphEvent>,

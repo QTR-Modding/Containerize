@@ -606,7 +606,7 @@ namespace {
     }
 }
 
-void Inventory::EquipItem(RE::InventoryEntryData* entry_data, bool unequip)
+void Inventory::EquipItem(const RE::InventoryEntryData* entry_data, const bool unequip)
 {
 	const auto xLists = entry_data->extraLists;
     if (!entry_data || !xLists) {
@@ -651,25 +651,21 @@ void Inventory::ToggleEquip(RE::TESBoundObject* item)
 	}
 }
 
-RE::TESObjectREFR* WorldObject::DropObjectIntoTheWorld(RE::TESBoundObject* obj, const Count count, const bool player_owned)
-{
-    const auto player_ch = RE::PlayerCharacter::GetSingleton();
-
-    constexpr auto multiplier = 100.0f;
-    constexpr float q_pi = std::numbers::pi_v<float>;
-    auto orji_vec = RE::NiPoint3{multiplier, 0.f, player_ch->GetHeight()};
-    Math::LinAlg::R3::rotateZ(orji_vec, q_pi / 4.f - player_ch->GetAngleZ());
-    const auto drop_pos = player_ch->GetPosition() + orji_vec;
-    const auto player_cell = player_ch->GetParentCell();
-    const auto player_ws = player_ch->GetWorldspace();
-    if (!player_cell && !player_ws) {
-        logger::critical("Player cell AND player world is null.");
+RE::TESObjectREFR* WorldObject::CreateRef(RE::TESBoundObject* obj, const Count count, const bool player_owned) {
+	const auto player = RE::PlayerCharacter::GetSingleton();
+    if (!player) {
+        logger::critical("Player is null!!!");
         return nullptr;
-    }
-    auto* newPropRef =
+	}
+	const auto player_cell = player->GetParentCell();
+    if (!player_cell) {
+        logger::critical("Player cell is null.");
+        return nullptr;
+	}
+    const auto newPropRef =
         RE::TESDataHandler::GetSingleton()
-                            ->CreateReferenceAtLocation(obj, drop_pos, {0.0f, 0.0f, 0.0f}, player_cell,
-                                                        player_ws, nullptr, nullptr, {}, false, false)
+        ->CreateReferenceAtLocation(obj, {}, {}, player_cell,
+                                                        nullptr, nullptr, nullptr, {}, false, false)
             .get()
             .get();
     if (!newPropRef) {
@@ -683,7 +679,6 @@ RE::TESObjectREFR* WorldObject::DropObjectIntoTheWorld(RE::TESBoundObject* obj, 
 
 void WorldObject::SwapObjects(RE::TESObjectREFR* a_from, RE::TESBoundObject* a_to, const bool apply_havok)
 {
-    logger::trace("SwapObjects");
     if (!a_from) {
         logger::error("Ref is null.");
         return;
@@ -923,6 +918,16 @@ RE::RefHandle Menu::GetOwnerInContainerMenu(const RE::FormID a_itemid) {
     }
 
     return {};
+}
+
+bool Menu::IsPickpocketingOrStealing()
+{
+	if (const auto container_menu = RE::UI::GetSingleton()->GetMenu<RE::ContainerMenu>()) {
+		if (static_cast<int>(container_menu->GetContainerMode()) % 3) {
+			return true;
+		}
+	}
+    return false;
 }
 
 void ModCompatibility::MakeChecks()

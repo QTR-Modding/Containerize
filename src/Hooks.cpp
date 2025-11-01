@@ -305,11 +305,13 @@ RE::UI_MESSAGE_RESULTS Hooks::MenuHook<MenuType>::ProcessMessage_Hook(RE::UIMess
 
 	SkyPrompt::MenuPromptSink::GetSingleton()->Hide();
 
-	clib_utilsQTR::Tasker::GetSingleton()->PushTask(
-		[msg_type] {
-		    is_open.store(msg_type==1);
-		},500
-	);
+	if (!Menu::IsPickpocketingOrStealing()) {
+	    clib_utilsQTR::Tasker::GetSingleton()->PushTask(
+		    [msg_type] {
+		        is_open.store(msg_type==1);
+		    },500
+	    );
+	}
 
 	if (const std::string_view menuname = MenuType::MENU_NAME; a_message.menu==menuname) {
 	    if (menuname == RE::ContainerMenu::MENU_NAME) {

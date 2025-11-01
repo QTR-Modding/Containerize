@@ -37,8 +37,8 @@ bool Serialization::SaveLoadData::Save(SKSE::SerializationInterface* serializati
     return true;
 }
 
-bool Serialization::SaveLoadData::Save(SKSE::SerializationInterface* serializationInterface, std::uint32_t type,
-    std::uint32_t version) {
+bool Serialization::SaveLoadData::Save(SKSE::SerializationInterface* serializationInterface, const std::uint32_t type,
+    const std::uint32_t version) {
     if (!serializationInterface->OpenRecord(type, version)) {
         logger::error("Failed to open record for Data Serialization!");
         return false;
@@ -141,8 +141,8 @@ bool Serialization::DFSaveLoadData::Save(SKSE::SerializationInterface* serializa
     return true;
 }
 
-bool Serialization::DFSaveLoadData::Save(SKSE::SerializationInterface* serializationInterface, std::uint32_t type,
-    std::uint32_t version) {
+bool Serialization::DFSaveLoadData::Save(SKSE::SerializationInterface* serializationInterface, const std::uint32_t type,
+    const std::uint32_t version) {
     if (!serializationInterface->OpenRecord(type, version)) {
         logger::error("Failed to open record for Data Serialization!");
         return false;

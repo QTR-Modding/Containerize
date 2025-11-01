@@ -288,7 +288,7 @@ namespace Inventory {
 
     bool IsFavorited(RE::TESBoundObject* item, RE::TESObjectREFR* inventory_owner);
 
-    void EquipItem(RE::InventoryEntryData* entry_data, bool unequip = false);
+    void EquipItem(const RE::InventoryEntryData* entry_data, bool unequip = false);
 
     [[nodiscard]] bool IsEquipped(RE::TESBoundObject* item);
 
@@ -302,7 +302,7 @@ namespace Inventory {
 
 namespace WorldObject {
 
-    RE::TESObjectREFR* DropObjectIntoTheWorld(RE::TESBoundObject* obj, Count count=1, bool player_owned=true);
+    RE::TESObjectREFR* CreateRef(RE::TESBoundObject* obj, Count count=1, bool player_owned=true);
 
     void SwapObjects(RE::TESObjectREFR* a_from, RE::TESBoundObject* a_to, bool apply_havok=true);
 
@@ -453,6 +453,8 @@ namespace Menu {
 	bool GetContainerMenuOwner(RE::TESObjectREFRPtr& a_out);
 
     RE::RefHandle GetOwnerInContainerMenu(RE::FormID a_itemid);
+
+    bool IsPickpocketingOrStealing();
 };
 
 

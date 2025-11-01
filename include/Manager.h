@@ -102,7 +102,7 @@ public clib_util::singleton::ISingleton<Manager>
 
     // for the cases when real container is in its chest and fake container is in some other inventory (player,unownedchest,external_container)
     // DOES NOT UPDATE THE SOURCE DATA and CHESTTOFAKECONTAINER !!!
-    void qTRICK_(SourceDataKey chest_ref, SourceDataVal cont_ref,bool fake_nonexistent = false);
+    void FakePlacement_Sub(SourceDataKey chest_ref, SourceDataVal cont_ref,bool fake_nonexistent = false);
 
     // places fakes according to loaded data to player or unowned chests
     void FakePlacementCeption(RefID chest_ref, std::vector<RefID>& ha);
@@ -135,7 +135,7 @@ public:
     void OnPickup(RE::TESObjectREFR* picked_up_by, RE::TESObjectREFR * a_object);
 	void HandleDrop(RE::TESObjectREFR* fake_object);
     void UpdateData(RefID chestID, RefID loc_id);
-    void OnLongPressEquip(RE::TESBoundObject* a_fake, int delay=0);
+    void OnLongPressEquip(const RE::TESBoundObject* a_fake, int delay=0);
 	void UpdateFakeWV(RE::TESBoundObject* fake_form);
     Count CanBeAdded(const RE::TESBoundObject* a_item, Count a_count, const RE::TESBoundObject* fake_container);
     [[nodiscard]] RE::TESBoundObject* FakeToRealContainer(FormID fake) const;
