@@ -302,7 +302,6 @@ namespace Inventory {
 
 namespace WorldObject {
 
-    RE::TESObjectREFR* DropObjectIntoTheWorld(RE::TESBoundObject* obj, Count count=1, bool player_owned=true);
     RE::TESObjectREFR* CreateRef(RE::TESBoundObject* obj, Count count=1, bool player_owned=true);
 
     void SwapObjects(RE::TESObjectREFR* a_from, RE::TESBoundObject* a_to, bool apply_havok=true);

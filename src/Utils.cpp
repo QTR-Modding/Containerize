@@ -651,48 +651,18 @@ void Inventory::ToggleEquip(RE::TESBoundObject* item)
 	}
 }
 
-RE::TESObjectREFR* WorldObject::DropObjectIntoTheWorld(RE::TESBoundObject* obj, const Count count, const bool player_owned)
-{
-    const auto player_ch = RE::PlayerCharacter::GetSingleton();
-
-    constexpr auto multiplier = 100.0f;
-    constexpr float q_pi = std::numbers::pi_v<float>;
-    auto orji_vec = RE::NiPoint3{multiplier, 0.f, player_ch->GetHeight()};
-    Math::LinAlg::R3::rotateZ(orji_vec, q_pi / 4.f - player_ch->GetAngleZ());
-    const auto drop_pos = player_ch->GetPosition() + orji_vec;
-    const auto player_cell = player_ch->GetParentCell();
-    const auto player_ws = player_ch->GetWorldspace();
-    if (!player_cell && !player_ws) {
-        logger::critical("Player cell AND player world is null.");
-        return nullptr;
-    }
-    auto* newPropRef =
-        RE::TESDataHandler::GetSingleton()
-                            ->CreateReferenceAtLocation(obj, drop_pos, {0.0f, 0.0f, 0.0f}, player_cell,
-                                                        player_ws, nullptr, nullptr, {}, false, false)
-            .get()
-            .get();
-    if (!newPropRef) {
-        logger::critical("New prop ref is null.");
-        return nullptr;
-    }
-    if (player_owned) newPropRef->extraList.SetOwner(RE::TESForm::LookupByID(0x07));
-	if (count > 1) newPropRef->extraList.SetCount(static_cast<uint16_t>(count));
-    return newPropRef;
-}
-
 RE::TESObjectREFR* WorldObject::CreateRef(RE::TESBoundObject* obj, const Count count, const bool player_owned) {
-	auto player = RE::PlayerCharacter::GetSingleton();
+	const auto player = RE::PlayerCharacter::GetSingleton();
     if (!player) {
         logger::critical("Player is null!!!");
         return nullptr;
 	}
-	auto player_cell = player->GetParentCell();
+	const auto player_cell = player->GetParentCell();
     if (!player_cell) {
         logger::critical("Player cell is null.");
         return nullptr;
 	}
-    auto newPropRef =
+    const auto newPropRef =
         RE::TESDataHandler::GetSingleton()
         ->CreateReferenceAtLocation(obj, {}, {}, player_cell,
                                                         nullptr, nullptr, nullptr, {}, false, false)
