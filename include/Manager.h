@@ -29,6 +29,8 @@ public clib_util::singleton::ISingleton<Manager>
     mutable std::shared_mutex source_mutex_;
 	mutable std::shared_mutex chest2fake_mutex_;
 
+    std::set<std::pair<RefID,FormID>> bypass_CanBeAdded;
+
     void TakeBackReal(RE::TESBoundObject* real_obj, RE::TESObjectREFR* chest);
 
     std::string GetChestName(const RE::TESObjectREFR* chest) const;
@@ -43,7 +45,8 @@ public clib_util::singleton::ISingleton<Manager>
 
     [[nodiscard]] uint32_t GetNoChests() const;
 
-    [[nodiscard]] std::vector<RefID> GetConnectedChests(RefID chestID);
+    // chestID nin icindeki chestler
+    [[nodiscard]] std::vector<RefID> GetChildChests(RefID chestID, bool deep);
 
     [[nodiscard]] bool IsUnownedChest(RefID refid) const;
 
@@ -137,7 +140,7 @@ public:
     void UpdateData(RefID chestID, RefID loc_id);
     void OnLongPressEquip(const RE::TESBoundObject* a_fake, int delay=0);
 	void UpdateFakeWV(RE::TESBoundObject* fake_form);
-    Count CanBeAdded(const RE::TESBoundObject* a_item, Count a_count, const RE::TESBoundObject* fake_container);
+    Count CanBeAdded(const RE::TESBoundObject* a_item, Count a_count, RefID a_chestID);
     [[nodiscard]] RE::TESBoundObject* FakeToRealContainer(FormID fake) const;
 
     void OnActivateContainer(RE::TESObjectREFR* a_container, int msgbox_action, int a_delay=0);

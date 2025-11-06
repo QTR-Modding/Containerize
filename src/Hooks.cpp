@@ -151,25 +151,12 @@ void Hooks::MoveItemHooks<RefType>::addObjectToContainer(RefType* a_this, RE::TE
 	if (!a_this || !a_object || a_count<=0) {
 		return add_object_to_container_(a_this, a_object, a_extraList, a_count, a_fromRefr);
 	}
-
-	//if (a_fromRefr) {
- //       logger::info("Object {} {:x} added to {} {:x} from {} {:x}. Count {}", a_object->GetName(), a_object->GetFormID(),
-	//	    a_this->GetName(), a_this->GetFormID(), a_fromRefr->GetName(), a_fromRefr->GetFormID(),a_count);
-	//}
-	//else {
-	//	logger::info("Object {} {:x} added to {} {:x}. Count {}", a_object->GetName(), a_object->GetFormID(),
-	//		a_this->GetName(), a_this->GetFormID(), a_count);
-	//}
-
-
 	const auto original_count = a_count;
 	RE::TESBoundObject* fake_bound = nullptr;
 	auto M = Manager::GetSingleton();
 	if (const auto chest_id = a_this->GetFormID(); M->IsChest(chest_id)) {
 		fake_bound = M->GetFakeBound(chest_id);
-		if (const RE::TESBoundObject* real_bound = M->FakeToRealContainer(fake_bound->GetFormID()); real_bound->GetFormID() != a_object->GetFormID()) {
-		    a_count = std::max(0,M->CanBeAdded(a_object, a_count, fake_bound));
-		}
+		a_count = std::max(0,M->CanBeAdded(a_object, a_count, chest_id));
 	}
 	if (a_fromRefr && a_count < original_count) {
 		a_fromRefr->AddObjectToContainer(a_object, a_extraList, original_count - a_count, a_this);
@@ -191,11 +178,8 @@ template<typename RefType>
 RE::ObjectRefHandle* Hooks::MoveItemHooks<RefType>::RemoveItem(RefType * a_this, RE::ObjectRefHandle & a_hidden_return_argument, RE::TESBoundObject * a_item, std::int32_t a_count, RE::ITEM_REMOVE_REASON a_reason, RE::ExtraDataList * a_extra_list, RE::TESObjectREFR * a_move_to_ref, const RE::NiPoint3 * a_drop_loc, const RE::NiPoint3 * a_rotate)
 {
 	auto M = Manager::GetSingleton();
-	if (M->isUninstalled) {
-		return remove_item_(a_this, a_hidden_return_argument, a_item, a_count, a_reason, a_extra_list, a_move_to_ref, a_drop_loc, a_rotate);
-	}
 
-	if (!a_this || !a_item || a_count > 1 || !a_item->IsDynamicForm()) {
+	if (M->isUninstalled || !a_this || !a_item || a_count > 1 || !a_item->IsDynamicForm()) {
 		return remove_item_(a_this, a_hidden_return_argument, a_item, a_count, a_reason, a_extra_list, a_move_to_ref, a_drop_loc, a_rotate);
 	}
 

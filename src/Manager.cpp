@@ -11,7 +11,11 @@ void Manager::TakeBackReal(RE::TESBoundObject* real_obj, RE::TESObjectREFR* ches
     if (real_obj && !Inventory::HasItem(real_obj, unownedChestOG)){
         return RaiseMngrErr("Real container not found in unownedChestOG");
     }
+
+	const auto temp_pair = std::make_pair(chest->GetFormID(), real_obj->GetFormID());
+	bypass_CanBeAdded.insert(temp_pair);
     unownedChestOG->RemoveItem(real_obj,1,RE::ITEM_REMOVE_REASON::kStoreInContainer,nullptr,chest);
+    bypass_CanBeAdded.erase(temp_pair);
 }
 
 std::string Manager::GetWeightText(RE::TESObjectREFR* a_container)
@@ -99,8 +103,13 @@ RE::TESBoundObject* Manager::RegisterFromMenu(RE::InventoryEntryData* a_real_ent
 
 
 		const auto xlist = a_real_entry->extraLists && !a_real_entry->extraLists->empty() ? a_real_entry->extraLists->front() : nullptr;
+
+		const auto temp_pair = std::make_pair(ChestRefID, a_real->GetFormID());
+        bypass_CanBeAdded.insert(temp_pair);
         a_owner->RemoveItem(a_real,1,RE::ITEM_REMOVE_REASON::kStoreInContainer,xlist,ChestObjRef);
-		auto chest_inv = ChestObjRef->GetInventory();
+		bypass_CanBeAdded.erase(temp_pair);
+
+        auto chest_inv = ChestObjRef->GetInventory();
 		const auto real_it = chest_inv.find(a_real);
         if (real_it == chest_inv.end()) {
             RaiseMngrErr("Failed to move real to its chest at registration!");
@@ -426,8 +435,8 @@ uint32_t Manager::GetNoChests() const {
     return no_chests;
 }
 
-std::vector<RefID> Manager::GetConnectedChests(const RefID chestID) {
-    std::vector<RefID> connected_chests; // chestID nin icindeki chestler
+std::vector<RefID> Manager::GetChildChests(const RefID chestID, bool deep) {
+    std::vector<RefID> connected_chests;
 	std::shared_lock lock(chest2fake_mutex_);
     for (const auto& [a_chest_id, cont_ref] : ChestToFakeContainer) {
         if (const auto src = GetContainerSource(cont_ref.outerKey)) {
@@ -440,6 +449,17 @@ std::vector<RefID> Manager::GetConnectedChests(const RefID chestID) {
 			logger::error("Source not found for formid: {:x}", cont_ref.outerKey);
 		}
     }
+
+    if (deep) {
+		// for each connected chest, find their connected chests
+        std::vector<RefID> deeper_chests;
+        for (const auto& conn_chest_id : connected_chests) {
+            const auto child_chests = GetChildChests(conn_chest_id, true);
+            deeper_chests.insert(deeper_chests.end(), child_chests.begin(), child_chests.end());
+        }
+		connected_chests.insert(connected_chests.end(), deeper_chests.begin(), deeper_chests.end());
+    }
+
     return connected_chests;
 }
 
@@ -513,8 +533,6 @@ RefID Manager::GetFakeContainerChestID(const FormID fake_id) const {
 
 std::vector<FormID> Manager::RemoveAllItemsFromChest(RE::TESObjectREFR* chest, RE::TESObjectREFR* move2ref) {
 
-    logger::trace("RemoveAllItemsFromChest");
-
     std::vector<FormID> removed_objects;
 
     if (!chest) {
@@ -522,11 +540,9 @@ std::vector<FormID> Manager::RemoveAllItemsFromChest(RE::TESObjectREFR* chest, R
         return removed_objects;
     }
 
-    logger::trace("Checking for fake containers in chest");
-    // need to handle if a fake container was inside this chest. yani cont_ref i bu cheste bakan data varsa
-    // redirectlemeliyim
+    // Check for fake containers in chest
     const auto chest_refid = chest->GetFormID();
-    std::vector<FormID> connected_chests;
+    std::vector<FormID> connected_fakes;
     for (std::shared_lock lock(source_mutex_); const auto& src : sources) {
         for (const auto& [key, value] : src.data) {
             if (value == chest_refid && key != value) {
@@ -534,7 +550,7 @@ std::vector<FormID> Manager::RemoveAllItemsFromChest(RE::TESObjectREFR* chest, R
                     "Fake container with formid {:x} found in chest during RemoveAllItemsFromChest. Redirecting...",
                     ChestToFakeContainer.at(key).innerKey);
                 // the chest that is connected to the fake container which was inside this chest
-				connected_chests.push_back(GetFakeID(key));
+				connected_fakes.push_back(GetFakeID(key));
             }
         }
     }
@@ -552,25 +568,21 @@ std::vector<FormID> Manager::RemoveAllItemsFromChest(RE::TESObjectREFR* chest, R
     }
 
     const auto removeReason = move2ref ? RE::ITEM_REMOVE_REASON::kStoreInContainer : RE::ITEM_REMOVE_REASON::kRemove;
-    //if (move2ref && move2ref->IsPlayerRef()) removeReason = RE::ITEM_REMOVE_REASON::kRemove;
 
-    for (const auto inventory = chest->GetInventory(); const auto& item : inventory) {
-        const auto item_obj = item.first;
+    for (const auto inventory = chest->GetInventory(); const auto& [fst, snd] : inventory) {
+        const auto item_obj = fst;
         if (!std::strlen(item_obj->GetName())) logger::warn("RemoveAllItemsFromChest: Item name is empty");
-        const auto item_count = item.second.first;
-        const auto inv_data = item.second.second.get();
+        const auto item_count = snd.first;
+        const auto inv_data = snd.second.get();
         if (const auto asd = inv_data->extraLists; !asd || asd->empty()) {
-            //logger::trace("Removing item: {} with count: {} and remove reason", item_obj->GetName(), item_count);
             chest->RemoveItem(item_obj, item_count, removeReason, nullptr, move2ref);
         } else {
-            //logger::trace("Removing item with extradata: {} with count: {}", item_obj->GetName(), item_count);
             chest->RemoveItem(item_obj, item_count, removeReason, asd->front(), move2ref);
         }
         removed_objects.push_back(item_obj->GetFormID());
     }
-        
-        
-	for (const auto& connected_chest : connected_chests) {
+
+    for (const auto& connected_chest : connected_fakes) {
         HandleSell(connected_chest, move2ref);
 	}
 
@@ -836,12 +848,9 @@ void Manager::HandleSell(const FormID fake_container, RE::TESObjectREFR* sell_re
     const auto chest_refid = GetFakeContainerChestID(fake_container);
     if (const auto chest = RE::TESForm::LookupByID<RE::TESObjectREFR>(chest_refid)) {
 		const auto fake_bound = RE::TESForm::LookupByID<RE::TESBoundObject>(fake_container);
-	    logger::trace("HandleSell {}", fake_bound->GetName());
         if (other_settings[Settings::otherstuffKeys[3]]) RemoveAllItemsFromChest(chest, sell_ref);
         else {
-			std::shared_lock lock(chest2fake_mutex_);
-			const auto real_bound = RE::TESForm::LookupByID<RE::TESBoundObject>(ChestToFakeContainer[chest_refid].outerKey);
-            RemoveItem(chest, sell_ref, real_bound,
+            RemoveItem(chest, sell_ref, GetRealBound(chest_refid),
                 RE::ITEM_REMOVE_REASON::kStoreInContainer);
         }
         // remove all items from the chest to the player's inventory and deregister this chest
@@ -1001,10 +1010,8 @@ void Manager::OnChestExit(RE::TESObjectREFR* a_chest) {
     const auto real_bound = GetRealBound(chest_id);
 
     if (reals_to_takeback.contains(chest_id)) {
-
-        reals_to_takeback.erase(chest_id);
-
         TakeBackReal(real_bound, a_chest);
+        reals_to_takeback.erase(chest_id);
         const auto fake_bound = GetFakeBound(chest_id);
 		fake_bound->formFlags = real_bound->formFlags;
 
@@ -1147,7 +1154,7 @@ void Manager::FakePlacementCeption(const RefID chest_ref, std::vector<RefID>& ha
     // ha: handled already
     if (std::ranges::find(ha, chest_ref) != ha.end()) return;
     logger::info("-------------------chest_ref: {:x} -------------------", chest_ref);
-    for (const auto connected_chests = GetConnectedChests(chest_ref); const auto& connected_chest : connected_chests) {
+    for (const auto connected_chests = GetChildChests(chest_ref, false); const auto& connected_chest : connected_chests) {
         logger::info("Connected chest: {:x}", connected_chest);
         FakePlacementCeption(connected_chest,ha);
     }
@@ -1473,13 +1480,26 @@ void Manager::UpdateFakeWV(RE::TESBoundObject* fake_form)
 	}
 }
 
-Count Manager::CanBeAdded(const RE::TESBoundObject* a_item, const Count a_count, const RE::TESBoundObject* fake_container)
+Count Manager::CanBeAdded(const RE::TESBoundObject* a_item, const Count a_count, RefID a_chestID)
 {
+    if (bypass_CanBeAdded.contains({a_chestID, a_item->GetFormID()})) {
+        return a_count;
+    }
+	// avoid transferring of a fake container (a_item) into another (a_chestID) when it
+	// (a_chestID) is already inside the fake container (a_item)
+    if (const auto item_id = a_item->GetFormID(); IsFakeContainer(item_id)) {
+        for (const auto other_chest = GetFakeContainerChest(a_item); 
+            const auto& a_child_chest : GetChildChests(other_chest->GetFormID(), true)) {
+            if (a_child_chest == a_chestID) {
+                return 0;
+            }
+        }
+    }
+
 	if (a_item->GetWeight() < 0.001f) return a_count;
 
-    const auto chestID = GetFakeContainerChestID(fake_container->GetFormID());
-	if (const auto chestRef = RE::TESForm::LookupByID<RE::TESObjectREFR>(chestID)) {
-		if (const auto src = GetContainerSource(ChestToFakeContainer.at(chestID).outerKey)) {
+	if (const auto chestRef = RE::TESForm::LookupByID<RE::TESObjectREFR>(a_chestID)) {
+		if (const auto src = GetContainerSource(ChestToFakeContainer.at(a_chestID).outerKey)) {
 			if (src->weight_ratio < 0.001f) return a_count;
             const auto remaining_capacity = src->capacity - chestRef->GetWeightInContainer() * src->weight_ratio;
 			const auto item_weight = a_item->GetWeight() * src->weight_ratio;
@@ -1711,11 +1731,6 @@ void Manager::ReceiveData() {
         const auto chest = RE::TESForm::LookupByID<RE::TESObjectREFR>(chestRef_);
         if (!chest) return RaiseMngrErr("Chest not found");
         RemoveAllItemsFromChest(chest, player_ref);
-        // also remove the associated fake item from player or unowned chest
-        if (RealFakeForm_.innerKey) {
-			//RemoveItem(player_ref, nullptr, fake_id, RE::ITEM_REMOVE_REASON::kRemove); // causes crash
-            //RemoveItem(unownedChestOG, nullptr, fake_id, RE::ITEM_REMOVE_REASON::kRemove); // < v0.7.1
-        }
         // make sure no item is left in the chest
         if (!chest->GetInventory().empty()) {
             logger::critical("Chest still has items in it. Degistering failed");

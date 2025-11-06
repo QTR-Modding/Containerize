@@ -48,7 +48,7 @@ struct Source {
     float capacity;
     FormID formid;
     std::string editorid;
-    SourceData data;
+    SourceData data; // Chest-Container Reference ID Pairs
 
     Source(FormID id, std::string id_str, float capacity, float cs);
 
