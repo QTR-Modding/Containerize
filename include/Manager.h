@@ -56,10 +56,6 @@ public clib_util::singleton::ISingleton<Manager>
 
     [[nodiscard]] RE::TESObjectREFR* FindNotMatchedChest() const;
 
-    std::vector<FormID> RemoveAllItemsFromChest(RE::TESObjectREFR* chest, RE::TESObjectREFR* move2ref = nullptr);
-
-    void DeRegisterChest(RefID chest_ref);
-
     void OpenChestFromMenu(RE::TESObjectREFR* a_chest);
 
     [[nodiscard]] const Source* GetContainerSource(FormID real_id) const;
@@ -116,6 +112,10 @@ public clib_util::singleton::ISingleton<Manager>
 
     bool HandleRegistration(RE::TESObjectREFR* a_item);
 
+	// deregisters the chest, moves its contents to transfer_dest, removes the fake container from its location and deletes the chest
+    // TODO: test
+	bool DeRegister(RE::TESObjectREFR* chest, RE::TESObjectREFR* transfer_dest);
+
     std::string GetWeightText_(RE::TESObjectREFR* a_chest);
 
     static std::string GetWeightText(float weight, float capacity);
@@ -165,9 +165,11 @@ public:
 
     void HandleCraftingExit();
 
+	// TODO: test
     void OnConsume(FormID fake_formid, RE::TESObjectREFR* consumed_by);
 
-    void HandleSell(FormID fake_container, RE::TESObjectREFR* sell_ref);
+    // TODO: test
+    void HandleSell(RefID chestID, RE::TESObjectREFR* sell_ref);
 
     void HandleFormDelete(RefID refid);
 
@@ -253,20 +255,14 @@ void Manager::UpdateFakeWV(T* fake_form, RE::TESObjectREFR* chest_linked, const 
     const int target_value = Inventory::GetValueInContainer(chest_linked);
 
 	int32_t extracost = 0;
-    if (other_settings[Settings::otherstuffKeys[3]]) {
-		if (auto temp_entry = chest_inventory.find(real_container); temp_entry != chest_inventory.end()) {
-			extracost = Inventory::EntryHasXDataList(temp_entry->second.second.get()) ? xData::GetXDataCostOverride(temp_entry->second.second->extraLists->front()) : 0;
-			x_0 = target_value - extracost;
-		}
-    }
+	if (auto temp_entry = chest_inventory.find(real_container); temp_entry != chest_inventory.end()) {
+		extracost = Inventory::EntryHasXDataList(temp_entry->second.second.get()) ? xData::GetXDataCostOverride(temp_entry->second.second->extraLists->front()) : 0;
+		x_0 = target_value - extracost;
+	}
     x_0 = std::max(x_0, 0);
 
     FunctionsSkyrim::FormTraits<T>::SetValue(fake_form, x_0);
         
- //   bool player_has_item = Inventory::HasItem(fake_form, player_ref);
-	//RE::TESObjectREFR* container_location = GetContainerLocation(fake_form->GetFormID());
- //   if (!player_has_item && !container_location) return;
-
     const auto fake_bound = RE::TESForm::LookupByID<RE::TESBoundObject>(fake_form->GetFormID());
     if (!fake_bound) return RaiseMngrErr("Fake bound is null");
     const int f_0 = fake_bound->GetGoldValue() + extracost; // player_has_item ? Inventory::GetItemValue(fake_bound, player_ref->GetInventory()) : container_location->GetGoldValue();
