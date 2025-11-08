@@ -1025,7 +1025,7 @@ void Manager::RenameContainer(const std::string& new_name, RE::TESBoundObject* a
     else if (formtype == "ALCH") Rename(new_name, a_fake->As<RE::AlchemyItem>());
     else logger::warn("Form type not supported: {}", formtype);
     {
-		UNIQUE_GUARD;
+        UNIQUE_GUARD;
         renames[fake_formid] = new_name;
     }
     RE::ExtraDataList* xList = nullptr;
