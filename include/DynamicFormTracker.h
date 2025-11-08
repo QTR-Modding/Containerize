@@ -590,6 +590,12 @@ public:
         protected_forms.erase(dynamic_formid);
 	}
 
+    void SetInactive(const FormID dynamic_formid) {
+        active_forms.erase(dynamic_formid);
+        customIDforms.erase(dynamic_formid);
+		protected_forms.erase(dynamic_formid);
+    }
+
     size_t GetNDeleted() const {
 		return deleted_forms.size();
 	}
