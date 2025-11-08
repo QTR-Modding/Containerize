@@ -475,25 +475,25 @@ void Manager::FakePlacementCeption(const RefID chest_ref, std::vector<RefID>& ha
         FakePlacementCeption(connected_chest,ha);
     }
     RefID saved_loc = 0;
-	bool error = false;
+    bool error = false;
     {
         SHARED_GUARD;
         const auto src = GetChestSource_NoLock(chest_ref);
         if (!src) {
-			logger::error("Could not find source for container {:x}", chest_ref);
-			error = true;
+            logger::error("Could not find source for container {:x}", chest_ref);
+            error = true;
         } else {
             const auto it = src->data.find(chest_ref);
             if (it == src->data.end()) {
-				logger::error("Source data missing chest_ref {:x}", chest_ref);
-				error = true;
+                logger::error("Source data missing chest_ref {:x}", chest_ref);
+                error = true;
             } else {
-		        saved_loc = it->second;
+                saved_loc = it->second;
             }
         }
     }
 
-	if (error) return RaiseMngrErr("Error in FakePlacementCeption");
+    if (error) return RaiseMngrErr("Error in FakePlacementCeption");
 
     FakePlacement(saved_loc, chest_ref);
     logger::info("-------------------chest_ref: {:x} DONE -------------------", chest_ref);
