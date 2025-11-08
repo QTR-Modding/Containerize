@@ -216,7 +216,7 @@ std::vector<RefID> Manager::GetChildChests(const RefID parent_chestID, std::unor
             return {};
         }
         parents->insert(parent_chestID);
-	}
+    }
 
     std::vector<RefID> children;
     {
