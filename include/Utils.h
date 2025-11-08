@@ -266,7 +266,8 @@ namespace MsgBoxesNotifs {
 namespace Inventory {
     bool EntryHasXDataList(const RE::InventoryEntryData* entry);
 
-    inline bool HasItemEntry(RE::TESBoundObject* item, const RE::TESObjectREFR::InventoryItemMap& inventory,
+    inline bool HasItemEntry(RE::TESBoundObject* item,
+                             const RE::TESObjectREFR::InventoryItemMap& inventory,
                              bool nonzero_entry_check = false);
 
     inline bool HasItem(RE::TESBoundObject* item, RE::TESObjectREFR* inventory_owner) {
@@ -301,8 +302,6 @@ namespace Inventory {
 };
 
 namespace WorldObject {
-
-    RE::TESObjectREFR* CreateRef(RE::TESBoundObject* obj, Count count=1, bool player_owned=true);
 
     void SwapObjects(RE::TESObjectREFR* a_from, RE::TESBoundObject* a_to, bool apply_havok=true);
 
@@ -416,6 +415,19 @@ namespace xData {
 
     void AddTextDisplayData(RE::ExtraDataList* extraDataList, const std::string& displayName);
 
+    inline RE::ExtraDataList* ConstructExtraDataList(void* a_this)
+    {
+        using func_t = decltype(&ConstructExtraDataList);
+        REL::Relocation<func_t> func{ RELOCATION_ID(11437, 11583) };
+        return func(a_this);
+    }
+
+    RE::ExtraDataList* ConstructExtraDataList();
+
+    RE::ExtraDataList* GetOrCreateExtraList(RE::InventoryEntryData* data, bool a_create=true);
+
+    bool UpdateExtrasInInventory(RE::TESObjectREFR* from_ref, FormID from_item_formid,
+                                      RE::TESObjectREFR* to_ref, FormID to_item_formid);
 };
 
 namespace DynamicForm {
@@ -455,6 +467,20 @@ namespace Menu {
     RE::RefHandle GetOwnerInContainerMenu(RE::FormID a_itemid);
 
     bool IsPickpocketingOrStealing();
+
+    template <typename T>
+    void UpdateItemList() {
+        if (const auto ui = RE::UI::GetSingleton(); ui->IsMenuOpen(T::MENU_NAME)) {
+            if (auto a_menu = ui->GetMenu<T>()) {
+                if (auto itemlist = a_menu->GetRuntimeData().itemList) {
+                    //logger::trace("Updating itemlist.");
+                    itemlist->Update();
+                } else logger::info("Itemlist is null.");
+            } else logger::info("Inventory menu is null.");
+        } else logger::info("Inventory menu is not open.");
+    }
+
+    void UpdateItemList();
 };
 
 
