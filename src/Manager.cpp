@@ -238,10 +238,6 @@ std::vector<RefID> Manager::GetChildChests(const RefID parent_chestID, std::unor
     if (parents) {
         std::vector<RefID> deeper;
         for (const auto child : children) {
-            if (parents->contains(child)) {
-                logger::critical("GetChildChests (deep): Detected cycle for chest ID: {:x}", child);
-                continue;
-            }
             auto children_of_child = GetChildChests(child, parents);
             deeper.insert(deeper.end(), children_of_child.begin(), children_of_child.end());
         }
