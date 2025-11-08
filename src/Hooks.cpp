@@ -115,13 +115,10 @@ void Hooks::add_item_functor(RE::TESObjectREFR* a_this, RE::TESObjectREFR* a_obj
 		return add_item_functor_(a_this, a_object, a_count, a4, a5);
 	}
 
-	/*logger::info("Object {} {:x} added to {} {:x}. Count {}", a_object->GetName(), a_object->GetFormID(),
-		a_this->GetName(), a_this->GetFormID(),a_count);*/
-
 	if (!a_this || !a_object || a_count>1) {
 		return add_item_functor_(a_this, a_object, a_count, a4, a5);
 	}
-    Manager::GetSingleton()->OnPickup(a_this, a_object);
+    Manager::GetSingleton()->BeforePickup(a_this, a_object);
 	return add_item_functor_(a_this, a_object, a_count, a4, a5);
 }
 
@@ -135,7 +132,7 @@ void Hooks::MoveItemHooks<RefType>::pickUpObject(RefType * a_this, RE::TESObject
 	if (!a_this || !a_object || a_count>1) {
 		return pick_up_object_(a_this, a_object, a_count, a_arg3, a_play_sound);
 	}
-	Manager::GetSingleton()->OnPickup(a_this, a_object);
+	Manager::GetSingleton()->BeforePickup(a_this, a_object);
 
 	pick_up_object_(a_this, a_object, a_count, a_arg3, a_play_sound);
 }
@@ -152,10 +149,9 @@ void Hooks::MoveItemHooks<RefType>::addObjectToContainer(RefType* a_this, RE::TE
 		return add_object_to_container_(a_this, a_object, a_extraList, a_count, a_fromRefr);
 	}
 	const auto original_count = a_count;
-	RE::TESBoundObject* fake_bound = nullptr;
-	auto M = Manager::GetSingleton();
+
+    auto M = Manager::GetSingleton();
 	if (const auto chest_id = a_this->GetFormID(); M->IsChest(chest_id)) {
-		fake_bound = M->GetFakeBound(chest_id);
 		a_count = std::max(0,M->CanBeAdded(a_object, a_count, chest_id));
 	}
 	if (a_fromRefr && a_count < original_count) {
@@ -165,13 +161,11 @@ void Hooks::MoveItemHooks<RefType>::addObjectToContainer(RefType* a_this, RE::TE
 	    }
 	}
 
-	if (const auto chest_id = M->GetFakeContainerChestID(a_object->GetFormID())) {
-		M->UpdateData(chest_id,a_this->GetFormID());
-	}
-
-
     add_object_to_container_(a_this, a_object, a_extraList, a_count, a_fromRefr);
-	if (fake_bound) M->UpdateFakeWV(fake_bound);
+
+	if (const auto a_objectID = a_object->GetFormID(); M->IsFakeContainer(a_objectID)) {
+		M->UpdateLoc(a_objectID,a_this->GetFormID());
+	}
 }
 
 template<typename RefType>
@@ -192,19 +186,21 @@ RE::ObjectRefHandle* Hooks::MoveItemHooks<RefType>::RemoveItem(RefType * a_this,
 		return res;
 	}
 
-    if (a_reason == RE::ITEM_REMOVE_REASON::kSelling && M->IsFakeContainer(a_item->GetFormID())) {
+    if (const auto a_id = a_item->GetFormID();
+		a_reason == RE::ITEM_REMOVE_REASON::kSelling && M->IsFakeContainer(a_id)) {
 		RE::ObjectRefHandle* res = remove_item_(a_this, a_hidden_return_argument, a_item, a_count, a_reason, a_extra_list, a_move_to_ref, a_drop_loc, a_rotate);
-		M->UpdateData(M->GetFakeContainerChestID(a_item->GetFormID()),a_move_to_ref->GetFormID());
-        M->HandleSell(a_item->GetFormID(),a_move_to_ref);
+		M->UpdateLoc(a_id,a_move_to_ref->GetFormID());
+        M->HandleSell(a_id,a_move_to_ref);
 		return res;
 	}
 
 	if (!a_move_to_ref) {
         if (const auto a_formid = a_item->GetFormID(); M->IsFakeContainer(a_formid)) {
 			if (!ModCompatibility::Mods::doppelgangers.contains(a_this->GetBaseObject()->GetFormID())) {
-			    logger::info("Item removed from {} {:x} to nowhere for reason {}. Count {}", a_this->GetName(), a_this->GetFormID(),static_cast<int>(a_reason),a_count);
 			}
+			RE::ObjectRefHandle* res = remove_item_(a_this, a_hidden_return_argument, a_item, a_count, a_reason, a_extra_list, a_move_to_ref, a_drop_loc, a_rotate);
 			M->OnConsume(a_formid, a_this);
+			return res;
 	    }
 	}
 
@@ -287,15 +283,20 @@ RE::UI_MESSAGE_RESULTS Hooks::MenuHook<MenuType>::ProcessMessage_Hook(RE::UIMess
 		return _ProcessMessage(this, a_message);
 	}
 
-	SkyPrompt::MenuPromptSink::GetSingleton()->Hide();
-
-	if (!Menu::IsPickpocketingOrStealing()) {
-	    clib_utilsQTR::Tasker::GetSingleton()->PushTask(
-		    [msg_type] {
-		        is_open.store(msg_type==1);
-		    },500
-	    );
+	if (msg_type==1) {
+	    if (!Menu::IsPickpocketingOrStealing()) {
+	        clib_utilsQTR::Tasker::GetSingleton()->PushTask(
+		        [] {
+		            is_open.store(true);
+		        },500
+	        );
+		}
 	}
+	else {
+		is_open.store(false);
+	}
+
+    SkyPrompt::MenuPromptSink::GetSingleton()->Hide();
 
 	if (const std::string_view menuname = MenuType::MENU_NAME; a_message.menu==menuname) {
 	    if (menuname == RE::ContainerMenu::MENU_NAME) {

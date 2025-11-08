@@ -52,6 +52,10 @@ void __stdcall UI::RenderSettings()
 {
 	bool settings_changed = false;
     for (auto& [setting_name, setting] : other_settings) {
+        // Skip BatchSell (always enabled and not user-configurable)
+        if (setting_name == Settings::otherstuffKeys[3]) {
+            continue;
+        }
 		settings_changed |= ImGui::Checkbox((setting_name+":").c_str(), &setting);
 		ImGui::SameLine();
         const char* value = setting ? Strings::enabled.c_str() : Strings::disabled.c_str();
@@ -245,11 +249,12 @@ void UI::SaveToINI()
     ini.SetUnicode();
     ini.LoadFile(path);
     // other stuff section
-	for (const auto& [setting_name, setting] : other_settings) {
-		ini.SetBoolValue(InISections[2], setting_name.c_str(), setting);
-	}
+    for (const auto& [setting_name, setting] : other_settings) {
+        if (setting_name == otherstuffKeys[3]) continue; // skip BatchSell
+        ini.SetBoolValue(InISections[2], setting_name.c_str(), setting);
+    }
 
-	ini.SaveFile(path);
+    ini.SaveFile(path);
 
 }
 

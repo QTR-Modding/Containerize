@@ -40,13 +40,14 @@ namespace Settings {
 		{";Set to false to suppress the 'INI changed between saves' message.",
 		"; Set to true to remove the initial carry weight bonuses on your container items.",
         "; Set to true to return to the initial menu after closing your container's menu (which you had opened by holding equip).",
-        "; Set to true to sell your container to vendors together with the items inside it.",
+        "; BatchSell always enabled. (Ignored)",
         "; Set to true to make your containers weigh nothing by default.",
         "; Set to true to make use of Object Manipulation Overhaul upon dropping containers.",
 		"; Set to true to delay the opening of the container menu until the animations are finished.",
         "; Set to true to play animations only if the Containerized item is equipped."
 		};
    
+    // BatchSell (index 3) kept for internal indexing but always true and removed from INI/menu.
     constexpr std::array<const char*, otherstuffSize> otherstuffKeys = 
     {"INI_changed_msg", "RemoveCarryBoosts","ReturnToInitialMenu", "BatchSell", "CloudStorage", "ObjectManipulationOverhaul", "AnimationsDelayMenuOpen","PlayAnimationsOnlyIfEquipped"};
     constexpr std::array<bool, otherstuffSize> otherstuffVals = {true, true, true, true, false, false, false, false};

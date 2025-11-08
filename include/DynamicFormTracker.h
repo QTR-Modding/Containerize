@@ -220,9 +220,6 @@ class DynamicFormTracker final : public DFSaveLoadData {
 
         const auto new_formid = new_form->GetFormID();
 
-        logger::trace("Created form with type: {}, Base ID: {:x}, Name: {}",
-                      RE::FormTypeToString(new_form->GetFormType()), new_form->GetFormID(),new_form->GetName());
-
         if (!forms[{base_formid, base_editorid}].insert(new_formid).second) {
             logger::error("Failed to insert new form into forms.");
             if (!_delete({base_formid, base_editorid}, new_formid) && !deleted_forms.contains(new_formid)) {
@@ -592,6 +589,12 @@ public:
 	void Unreserve(const FormID dynamic_formid) { 
         protected_forms.erase(dynamic_formid);
 	}
+
+    void SetInactive(const FormID dynamic_formid) {
+        active_forms.erase(dynamic_formid);
+        customIDforms.erase(dynamic_formid);
+		protected_forms.erase(dynamic_formid);
+    }
 
     size_t GetNDeleted() const {
 		return deleted_forms.size();

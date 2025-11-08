@@ -68,7 +68,8 @@ void SkyPrompt::MenuPromptSink::ProcessEvent(const SkyPromptAPI::PromptEvent eve
 	}
 	EventSink::RemoveMenuPrompts();
 	if (const auto a_entry = Hooks::GetSelectedEntryInMenu()) {
-		if (const auto a_fake = a_entry->GetObject()) {
+		if (const auto a_fake = a_entry->GetObject();
+			a_fake && Manager::GetSingleton()->IsFakeContainer(a_fake->GetFormID())) {
 	        if (event.prompt.eventID == 1) {
 				Manager::RenameCallback(a_fake);
 	            return;
@@ -142,7 +143,8 @@ void SkyPrompt::RegistrationPromptSink::ProcessEvent(const SkyPromptAPI::PromptE
 		if (is_in_inventory_menu || !RE::LookupReferenceByHandle(owner_handle,a_owner)) {
 		    a_owner.reset();
 		}
-		if (const auto a_fake = Manager::GetSingleton()->RegisterFromMenu(a_entry, a_owner.get())) {
+		if (const auto a_fake = Manager::GetSingleton()->RegisterFromMenu(a_entry, a_owner.get());
+			a_fake && Manager::GetSingleton()->IsFakeContainer(a_fake->GetFormID())) {
 			if (is_worn) {
 				RE::ActorEquipManager::GetSingleton()->EquipObject(RE::PlayerCharacter::GetSingleton(),a_fake);
 			}

@@ -294,11 +294,8 @@ void Serialization::LoadCallback(SKSE::SerializationInterface* serializationInte
 
     logger::info("Receiving Data.");
     DFT->ReceiveData();
-    SKSE::GetTaskInterface()->AddTask([]() { 
-            Manager::GetSingleton()->ReceiveData(); 
-            logger::info("Data loaded from skse co-save.");
-        }
-        );
+    Manager::GetSingleton()->ReceiveData(); 
+    logger::info("Data loaded from skse co-save.");
 }
 
 void Serialization::InitializeSerialization() {

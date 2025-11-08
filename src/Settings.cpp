@@ -9,25 +9,25 @@
 namespace {
     Source parseSource_(const YAML::Node& config, const FormID formid, const std::string& editorid)
     {
-	    using namespace Settings;
+        using namespace Settings;
 
         const auto temp_weight_limit = config["weight_limit"] && !config["weight_limit"].IsNull() ? config["weight_limit"].as<float>() : 0.f;
 
         float cloud_storage = cloud_storage_enabled ? 1.f : 0.f;
         if (config["cloud_storage"] && !config["cloud_storage"].IsNull()) {
             try {cloud_storage = std::clamp(config["cloud_storage"].as<float>(), 0.f, 1.f);}
-		    catch (const std::exception&) {
+            catch (const std::exception&) {
                 try {cloud_storage = config["cloud_storage"].as<bool>() ? 1.f : 0.f;}
-			    catch (const std::exception&) {
-				    logger::warn("Cloud storage value is invalid. Using default value.");
-			    }
-		    }
+                catch (const std::exception&) {
+                    logger::warn("Cloud storage value is invalid. Using default value.");
+                }
+            }
         }
 
         logger::trace("FormEditorID: {}, FormID: {}, WeightLimit: {}, CloudStorage: {}", editorid, formid, temp_weight_limit, cloud_storage);
         Source source(formid, editorid, temp_weight_limit, cloud_storage);
 
-	    // add initial items
+        // add initial items
         if (config["initial_items"] && config["initial_items"].size() > 0) {
             for (const auto& itemNode : config["initial_items"]) {
                 auto temp_formeditorid = itemNode["FormEditorID"] && !itemNode["FormEditorID"].IsNull()
@@ -46,7 +46,7 @@ namespace {
 
                 for (const auto id : PresetHelpers::YAML_Helpers::StringToFormIDs(temp_formeditorid)) {
                     source.AddInitialItem(id, temp_count);
-			    }
+                }
             }
         }
 
@@ -69,36 +69,36 @@ std::vector<Source> LoadSources()
     const auto YamlSources = LoadYAMLSources();
     logger::trace("YamlSources size: {}", YamlSources.size());
     //sources.insert(sources.end(), YamlSources.begin(), YamlSources.end());
-	std::set<FormID> formids;
-	for (const auto& source : YamlSources) {
-		if (!source.IsHealthy()) {
-			logger::error("Source is not healthy. Skipping. formid {:x} / editorid {} / capacity {}", source.formid, source.editorid, source.capacity);
-			Settings::problems_in_YAML_sources |= true;
-			continue;
-		}
-		if (formids.contains(source.formid)) {
-			logger::warn("Duplicate formid found. Skipping. formid {:x} / editorid {} / capacity {}", source.formid, source.editorid, source.capacity);
-			Settings::duplicate_sources |= true;
-			continue;
-		}
-		formids.insert(source.formid);
-		sources.push_back(source);
-	}
+    std::set<FormID> formids;
+    for (const auto& source : YamlSources) {
+        if (!source.IsHealthy()) {
+            logger::error("Source is not healthy. Skipping. formid {:x} / editorid {} / capacity {}", source.formid, source.editorid, source.capacity);
+            Settings::problems_in_YAML_sources |= true;
+            continue;
+        }
+        if (formids.contains(source.formid)) {
+            logger::warn("Duplicate formid found. Skipping. formid {:x} / editorid {} / capacity {}", source.formid, source.editorid, source.capacity);
+            Settings::duplicate_sources |= true;
+            continue;
+        }
+        formids.insert(source.formid);
+        sources.push_back(source);
+    }
 
-	for (const auto& source : IniSources) {
-		if (!source.IsHealthy()) {
-			logger::error("Source is not healthy. Skipping. formid {:x} / editorid {} / capacity {}", source.formid, source.editorid, source.capacity);
+    for (const auto& source : IniSources) {
+        if (!source.IsHealthy()) {
+            logger::error("Source is not healthy. Skipping. formid {:x} / editorid {} / capacity {}", source.formid, source.editorid, source.capacity);
             Settings::problems_in_INI_sources |= true;
-			continue;
-		}
-		if (formids.contains(source.formid)) {
-			logger::warn("Duplicate formid found. Skipping. formid {:x} / editorid {} / capacity {}", source.formid, source.editorid, source.capacity);
-			Settings::duplicate_sources |= true;
-			continue;
-		}
-		formids.insert(source.formid);
-		sources.push_back(source);
-	}
+            continue;
+        }
+        if (formids.contains(source.formid)) {
+            logger::warn("Duplicate formid found. Skipping. formid {:x} / editorid {} / capacity {}", source.formid, source.editorid, source.capacity);
+            Settings::duplicate_sources |= true;
+            continue;
+        }
+        formids.insert(source.formid);
+        sources.push_back(source);
+    }
     return sources;
 }
 
@@ -115,36 +115,40 @@ void LoadOtherSettings()
     ini.LoadFile(path);
 
     // other stuff section
-	for (size_t i = 0; i < otherstuffSize; ++i) {
-		const auto key = otherstuffKeys[i];
+    for (size_t i = 0; i < otherstuffSize; ++i) {
+        if (i == 3) {
+            // Skip BatchSell key (index 3). It's always enabled and not configurable.
+            continue;
+        }
+        const auto key = otherstuffKeys[i];
         const bool val = ini.GetBoolValue(InISections[2], key);
         other_settings[key] = val;
-	}
+    }
 }
 
 std::vector<Source> parseSources(const YAML::Node& config) {
-	std::vector<Source> sources;
+    std::vector<Source> sources;
     const auto formeditorid = config["FormEditorID"] && !config["FormEditorID"].IsNull() ? config["FormEditorID"].as<std::string>() : "";
     const auto candidates = PresetHelpers::YAML_Helpers::StringToFormIDs(formeditorid);
-	size_t i = 0;
-	for (const auto formid : candidates) {
+    size_t i = 0;
+    for (const auto formid : candidates) {
         if (const auto form = FormReader::GetFormByID(formid)) {
-		    const auto editorid = clib_util::editorID::get_editorID(form);
+            const auto editorid = clib_util::editorID::get_editorID(form);
             sources.push_back(parseSource_(config, formid, editorid));
             break;
         }
         ++i;
-	}
+    }
     for (auto k = i + 1; k < candidates.size(); ++k) {
         const auto formid = candidates[k];
         if (const auto form = FormReader::GetFormByID(formid)) {
             const auto editorid = clib_util::editorID::get_editorID(form);
             Source new_source = sources[0];
-			new_source.formid = formid;
-			new_source.editorid = editorid;
+            new_source.formid = formid;
+            new_source.editorid = editorid;
             sources.push_back(new_source);
         }
-	}
+    }
     return sources;
 }
 
@@ -176,18 +180,18 @@ std::vector<Source> LoadYAMLSources()
                     for (const auto& source : parseSources(node)) {
                         if (!source.IsHealthy()) {
                             logger::error("LoadYAMLSources: File {} has invalid source: {}, {}", filename, source.formid, source.editorid);
-					        continue;
-				        }
+                            continue;
+                        }
                         if (!source_formids.contains(source.formid)) {
                             source_formids.insert(source.formid);
                             sources.push_back(source);
                         }
                     }
                 }
-				catch (const std::exception& e) {
-					logger::error("Error parsing source: {}", e.what());
-					Settings::problems_in_YAML_sources |= true;
-				}
+                catch (const std::exception& e) {
+                    logger::error("Error parsing source: {}", e.what());
+                    Settings::problems_in_YAML_sources |= true;
+                }
             }
         }
     }
@@ -196,7 +200,7 @@ std::vector<Source> LoadYAMLSources()
 
 std::vector<Source> LoadINISources()
 {
-	using namespace Settings;
+    using namespace Settings;
 
     std::vector<Source> sources;
 
@@ -216,25 +220,26 @@ std::vector<Source> LoadINISources()
         }
     }
 
-    // Create Sections with defaults if they don't exist
+    // Other Stuff section defaults (exclude BatchSell)
     if (!ini.SectionExists(InISections[2])) {
-        ini.SetBoolValue(InISections[2], otherstuffKeys[0], otherstuffVals[0], section_comments[2].c_str());
         logger::info("Default values set for section {}", InISections[2]);
+        for (size_t i = 0; i < otherstuffSize; ++i) {
+            if (i == 3) continue; // skip BatchSell
+            ini.SetBoolValue(InISections[2], otherstuffKeys[i], otherstuffVals[i], os_comments[i].c_str());
+        }
+    } else {
+        // Ensure all keys except BatchSell exist; do not overwrite existing values
+        ini.GetAllKeys(InISections[2], otherkeys);
+        std::unordered_set<std::string> existing;
+        for (const auto& k : otherkeys) existing.insert(k.pItem);
+        for (size_t i = 0; i < otherstuffSize; ++i) {
+            if (i == 3) continue; // skip BatchSell
+            const auto key = otherstuffKeys[i];
+            if (!existing.contains(key)) {
+                ini.SetBoolValue(InISections[2], key, otherstuffVals[i], os_comments[i].c_str());
+            }
+        }
     }
-
-    ini.GetAllKeys(InISections[2], otherkeys);
-    auto numOthers = otherkeys.size();
-
-    if (numOthers == 0 || numOthers != otherstuffKeys.size()) {
-        logger::warn(
-            "No other settings found in the ini file or Invalid number of other settings . Using defaults.");
-        size_t index = 0;
-        for (const auto& key : otherstuffKeys) {
-			ini.SetBoolValue(InISections[2], key, otherstuffVals[index], os_comments[index].c_str());
-			index++;
-		}
-    }
-
 
     // Sections: Containers, Capacities
     ini.GetAllKeys(InISections[0], source_names);
@@ -249,7 +254,7 @@ std::vector<Source> LoadINISources()
         const char* val2 = ini.GetValue(InISections[1], it->pItem);
         if (!val1 || !val2 || !std::strlen(val1) || !std::strlen(val2)) {
             logger::warn("Source {} is missing a value. Skipping.", it->pItem);
-			problems_in_INI_sources |= true;
+            problems_in_INI_sources |= true;
             continue;
         }
         // back to container_id and capacity
@@ -279,13 +284,13 @@ std::vector<Source> LoadINISources()
 
 void LoadTranslations()
 {
-	logger::info("Loading translations");
-	const auto lang = Translations::GetValidLanguage();
-	logger::info("Game language: {}", lang);
+    logger::info("Loading translations");
+    const auto lang = Translations::GetValidLanguage();
+    logger::info("Game language: {}", lang);
     if (Translations::LoadTranslations(lang)) {
-		logger::info("Translations loaded.");
-	}
-	else {
-		logger::warn("Failed to load translations.");
+        logger::info("Translations loaded.");
+    }
+    else {
+        logger::warn("Failed to load translations.");
     }
 }
