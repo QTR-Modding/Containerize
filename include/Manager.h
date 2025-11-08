@@ -36,8 +36,6 @@ public clib_util::singleton::ISingleton<Manager>
 
     [[nodiscard]] bool ActivateChest(RE::TESObjectREFR* chest) const;
 
-    [[nodiscard]] static int GetChestValue(RE::TESObjectREFR* a_chest);
-
     [[nodiscard]] RE::TESObjectREFR* GetContainerChest(const RE::TESObjectREFR* a_loc) const;
     [[nodiscard]] RE::TESObjectREFR* GetFakeContainerChest(const RE::TESBoundObject* a_fake) const;
     [[nodiscard]] RE::TESObjectREFR* GetContainerLocation(FormID a_fake_id) const;

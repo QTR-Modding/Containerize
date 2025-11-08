@@ -156,20 +156,6 @@ bool Manager::ActivateChest(RE::TESObjectREFR* chest) const {
     return false;
 }
 
-int Manager::GetChestValue(RE::TESObjectREFR* a_chest) {
-    if (!a_chest) {
-        return 0;
-    }
-    const auto chest_inventory = a_chest->GetInventory();
-    int total_value = 0;
-    for (const auto& snd : chest_inventory | std::views::values) {
-        const auto item_count = snd.first;
-        const auto inv_data = snd.second.get();
-        total_value += inv_data->GetValue() * item_count;
-    }
-    return total_value;
-}
-
 RE::TESObjectREFR* Manager::GetContainerChest(const RE::TESObjectREFR* a_loc) const {
     if (const auto chest_refid = GetContainerChestID(a_loc->GetFormID())) {
         return RE::TESForm::LookupByID<RE::TESObjectREFR>(chest_refid);
@@ -839,7 +825,7 @@ void Manager::HandleDrop(RE::TESObjectREFR* fake_object)
         const auto chestID = GetFakeContainerChestID(fake_id);
         const auto real_bound = GetRealBound(chestID);
         WorldObject::SwapObjects(fake_object, real_bound, false);
-        UpdateLoc(chestID,fake_object->GetFormID());
+        UpdateLoc_Private(chestID,fake_object->GetFormID());
     }
     else {
         logger::warn("Fake object not found in ChestToFakeContainer.");
@@ -1100,13 +1086,11 @@ void Manager::OnChestEnter(RE::TESObjectREFR* a_chest)
 {
     const RefID chest_id = a_chest->GetFormID();
     queued_chests.erase(chest_id);
-    const auto real_bound = GetRealBound(chest_id);
-    if (real_bound) {
+    if (const auto real_bound = GetRealBound(chest_id)) {
         reals_to_takeback.insert(chest_id);
         const auto unownedChestOG = RE::TESForm::LookupByID<RE::TESObjectREFR>(UnownedStuff::unownedChestOGRefID);
         RemoveItem(a_chest, unownedChestOG, real_bound, RE::ITEM_REMOVE_REASON::kStoreInContainer);
-        const auto fake_bound = GetFakeBound(chest_id);
-        if (fake_bound) fake_bound->formFlags = 13;
+        if (const auto fake_bound = GetFakeBound(chest_id)) fake_bound->formFlags = 13;
     }
 }
 
