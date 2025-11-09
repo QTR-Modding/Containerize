@@ -1340,8 +1340,6 @@ void Manager::ReceiveData() {
         const auto a_fakeID = GetFakeID(a_chestID);
         DFT->Reserve(a_realID, real_editorid, a_fakeID);
     }
-    logger::info("handled_already: ");
-    for (const auto& ref : handled_already) logger::info("{:x}", ref);
     all_chestIDs.clear();
     handled_already.clear();
     const auto inventory_changes = player_ref->GetInventoryChanges();
