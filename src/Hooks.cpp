@@ -296,7 +296,6 @@ RE::UI_MESSAGE_RESULTS Hooks::MenuHook<MenuType>::ProcessMessage_Hook(RE::UIMess
 		}
 	}
 	else {
-		clib_utilsQTR::Tasker::GetSingleton()->Stop();
 		is_open.store(false);
 	}
 
