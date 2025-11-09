@@ -587,24 +587,23 @@ bool Manager::HandleRegistration(RE::TESObjectREFR* a_item) {
             } else logger::error("Chest not found for initial items addition.");
         }
         return Register_Sub(master_formid, fake_formid, ChestRefID, container_refid);
-    } else {
-        const auto chest_refid = GetContainerChestID(container_refid);
-        const auto real_cont_id = GetRealID(chest_refid);
-        const auto real_cont_editorid = FormReader::GetEditorID(real_cont_id);
-        if (real_cont_editorid.empty()) {
-            RaiseMngrErr("Failed to get editorid of real container.");
+    }
+    const auto chest_refid = GetContainerChestID(container_refid);
+    const auto real_cont_id = GetRealID(chest_refid);
+    const auto real_cont_editorid = FormReader::GetEditorID(real_cont_id);
+    if (real_cont_editorid.empty()) {
+        RaiseMngrErr("Failed to get editorid of real container.");
+        return false;
+    }
+    auto* DFT = DynamicFormTracker::GetSingleton();
+    if (const auto fake_cont_id = DFT->Fetch(real_cont_id, real_cont_editorid, chest_refid); !fake_cont_id) {
+        logger::info("Fake container NOT found in DFT.");
+        if (!FakePlacement_Sub_Sub(chest_refid)) {
+            RaiseMngrErr("Failed to create fake container.");
             return false;
         }
-        auto* DFT = DynamicFormTracker::GetSingleton();
-        if (const auto fake_cont_id = DFT->Fetch(real_cont_id, real_cont_editorid, chest_refid); !fake_cont_id) {
-            logger::info("Fake container NOT found in DFT.");
-            if (!FakePlacement_Sub_Sub(chest_refid)) {
-                RaiseMngrErr("Failed to create fake container.");
-                return false;
-            }
-        } else {
-            DFT->EditCustomID(fake_cont_id, chest_refid);
-        }
+    } else {
+        DFT->EditCustomID(fake_cont_id, chest_refid);
     }
     return true;
 }
@@ -666,7 +665,10 @@ bool Manager::Register_Sub(const FormID master_formID, const FormID fake_formID,
     Source* src = GetContainerSource_NoLock(master_formID);
     if (!src) return false;
     if (!src->data.insert({chest_refID, loc_refID}).second) return false;
-    if (!ChestToFakeContainer.insert({chest_refID, {.outerKey= master_formID, .innerKey= fake_formID}}).second) return false;
+    if (!ChestToFakeContainer.insert({chest_refID, {.outerKey= master_formID, .innerKey= fake_formID}}).second) {
+		src->data.erase(chest_refID);
+        return false;
+    }
     return true;
 }
 
