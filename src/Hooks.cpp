@@ -284,15 +284,19 @@ RE::UI_MESSAGE_RESULTS Hooks::MenuHook<MenuType>::ProcessMessage_Hook(RE::UIMess
 	}
 
 	if (msg_type==1) {
+		is_open.store(false);
+		inventory_loaded.store(false);
 	    if (!Menu::IsPickpocketingOrStealing()) {
+			is_open.store(true);
 	        clib_utilsQTR::Tasker::GetSingleton()->PushTask(
 		        [] {
-		            is_open.store(true);
-		        },500
+		            inventory_loaded.store(true);
+		        },inventory_load_time
 	        );
 		}
 	}
 	else {
+		clib_utilsQTR::Tasker::GetSingleton()->Stop();
 		is_open.store(false);
 	}
 
@@ -332,7 +336,7 @@ void Hooks::MenuHook<MenuType>::InstallHook(const REL::VariantID& varID)
 
 int64_t Hooks::InventoryHoverHook::thunk(RE::InventoryEntryData* a1)
 {
-	if (is_open.load()) {
+	if (is_open.load() && inventory_loaded.load()) {
 		if (const auto a_bound = a1->GetObject()) {
 			const auto a_formid = a_bound->GetFormID();
 			if (const auto mngr = Manager::GetSingleton();

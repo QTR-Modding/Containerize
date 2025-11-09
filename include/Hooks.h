@@ -13,6 +13,8 @@ namespace Hooks {
     RE::TESBoundObject* GetSelectedItemInMenu();
 	inline std::atomic_bool equip_was_pressed = false;
     inline std::atomic_bool is_open = false;
+    inline std::atomic_bool inventory_loaded = false;
+    inline int inventory_load_time = 500;
 
     template <typename FormType>
     class ActivateHook : public FormType {

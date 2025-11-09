@@ -96,6 +96,8 @@ namespace SkyPrompt {
 									RE::MapMenu::MENU_NAME,
 									RE::StatsMenu::MENU_NAME,
 									RE::ContainerMenu::MENU_NAME,
+									RE::BarterMenu::MENU_NAME,
+									RE::CraftingMenu::MENU_NAME,
 									RE::InventoryMenu::MENU_NAME,
 									RE::TweenMenu::MENU_NAME,
 									RE::TrainingMenu::MENU_NAME,
