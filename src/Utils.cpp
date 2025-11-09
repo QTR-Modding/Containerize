@@ -1,5 +1,4 @@
 #include <Utils.h>
-#include <numbers>
 #include "Translations.h"
 #include "CLibUtilsQTR/FormReader.hpp"
 
@@ -377,26 +376,26 @@ bool xData::UpdateExtras(RE::ExtraDataList* copy_from, RE::ExtraDataList* copy_t
             copy_to->Add(soul_fake);
         } else return false;
     }
-    // Flags (OK)
-    if (copy_from->HasType(RE::ExtraDataType::kFlags)) {
-        logger::trace("Flags found");
-        if (const auto flags = skyrim_cast<RE::ExtraFlags*>(copy_from->GetByType(RE::ExtraDataType::kFlags))) {
-            SKSE::stl::enumeration<RE::ExtraFlags::Flag, std::uint32_t> flags_fake;
-            if (flags->flags.all(RE::ExtraFlags::Flag::kBlockActivate))
-                flags_fake.set(RE::ExtraFlags::Flag::kBlockActivate);
-            if (flags->flags.all(RE::ExtraFlags::Flag::kBlockPlayerActivate))
-                flags_fake.set(RE::ExtraFlags::Flag::kBlockPlayerActivate);
-            if (flags->flags.all(RE::ExtraFlags::Flag::kBlockLoadEvents))
-                flags_fake.set(RE::ExtraFlags::Flag::kBlockLoadEvents);
-            if (flags->flags.all(RE::ExtraFlags::Flag::kBlockActivateText))
-                flags_fake.set(RE::ExtraFlags::Flag::kBlockActivateText);
-            if (flags->flags.all(RE::ExtraFlags::Flag::kPlayerHasTaken))
-                flags_fake.set(RE::ExtraFlags::Flag::kPlayerHasTaken);
+    // Flags
+    //if (copy_from->HasType(RE::ExtraDataType::kFlags)) {
+        //logger::trace("Flags found");
+        //if (const auto flags = skyrim_cast<RE::ExtraFlags*>(copy_from->GetByType(RE::ExtraDataType::kFlags))) {
+        //    SKSE::stl::enumeration<RE::ExtraFlags::Flag, std::uint32_t> flags_fake;
+        //    if (flags->flags.all(RE::ExtraFlags::Flag::kBlockActivate))
+        //        flags_fake.set(RE::ExtraFlags::Flag::kBlockActivate);
+        //    if (flags->flags.all(RE::ExtraFlags::Flag::kBlockPlayerActivate))
+        //        flags_fake.set(RE::ExtraFlags::Flag::kBlockPlayerActivate);
+        //    if (flags->flags.all(RE::ExtraFlags::Flag::kBlockLoadEvents))
+        //        flags_fake.set(RE::ExtraFlags::Flag::kBlockLoadEvents);
+        //    if (flags->flags.all(RE::ExtraFlags::Flag::kBlockActivateText))
+        //        flags_fake.set(RE::ExtraFlags::Flag::kBlockActivateText);
+        //    if (flags->flags.all(RE::ExtraFlags::Flag::kPlayerHasTaken))
+        //        flags_fake.set(RE::ExtraFlags::Flag::kPlayerHasTaken);
             // RE::ExtraFlags* flags_fake = RE::BSExtraData::Create<RE::ExtraFlags>();
             // flags_fake->flags = flags->flags;
             // copy_to->Add(flags_fake);
-        } else return false;
-    }
+        //} else return false;
+    //}
     // Lock (Disabled)
     /*if (copy_from->HasType(RE::ExtraDataType::kLock)) {
         logger::trace("Lock found");
@@ -493,14 +492,96 @@ void xData::AddTextDisplayData(RE::ExtraDataList* extraDataList, const std::stri
     extraDataList->Add(textDisplayData);
 }
 
+// Credits and much love to digital-apple: https://github.com/digital-apple/ArcaneDisenchanterNG/blob/177f3d20d39ee2af28c786b251a09a6dbb4fae5e/source/System.cpp#L110
+RE::ExtraDataList* xData::ConstructExtraDataList() {
+    const auto memoryManager = RE::MemoryManager::GetSingleton();
+    const auto alloc = memoryManager->Allocate(0x20, 0, false);
+    return ConstructExtraDataList(alloc);
+}
+
+RE::ExtraDataList* xData::GetOrCreateExtraList(RE::InventoryEntryData* data, const bool a_create) {
+    if (!data) {
+        logger::error("GetOrCreateExtraList: data is null");
+        return nullptr;
+    }
+    if (!data->extraLists) {
+        data->extraLists = new RE::BSSimpleList<RE::ExtraDataList*>();
+    }
+    if (!data->extraLists->empty()) {
+        return data->extraLists->front();
+    }
+
+    if (!a_create) {
+        return nullptr;
+    }
+        
+    auto* newList = ConstructExtraDataList();
+
+    data->AddExtraList(newList);
+    return newList;
+}
+
+bool xData::UpdateExtrasInInventory(RE::TESObjectREFR* from_ref, const FormID from_item_formid,
+    RE::TESObjectREFR* to_ref, const FormID to_item_formid) {
+    const auto from_item = RE::TESForm::LookupByID<RE::TESBoundObject>(from_item_formid);
+    const auto to_item = RE::TESForm::LookupByID<RE::TESBoundObject>(to_item_formid);
+    if (!from_item || !to_item || !from_ref || !to_ref) {
+        logger::error("UpdateExtrasInInventory: null refs or items");
+        return false;
+    }
+
+    auto from_inv = from_ref->GetInventory();
+    const auto it_from = from_inv.find(from_item);
+    if (it_from == from_inv.end()) {
+        logger::error("Item not found in from_ref");
+        return false;
+    }
+    const auto entry_from = it_from->second.second.get();
+    if (!entry_from) {
+        logger::error("Item entry_from null");
+        return false;
+    }
+    auto to_inv = to_ref->GetInventory();
+    const auto it_to = to_inv.find(to_item);
+    if (it_to == to_inv.end()) {
+        logger::error("Item not found in to_ref");
+        return false;
+    }
+    const auto entry_to = it_to->second.second.get();
+    if (!entry_to) {
+        logger::error("Item entry_to null");
+        return false;
+    }
+
+    RE::ExtraDataList* extralist_from = GetOrCreateExtraList(entry_from, false);
+    if (!extralist_from) {
+        return true;
+    }
+    RE::ExtraDataList* extralist_to = GetOrCreateExtraList(entry_to);
+    if (!extralist_to) {
+        logger::error("Extra data list is null (to)");
+        return false;
+    }
+
+    if (!UpdateExtras(extralist_from, extralist_to)) {
+        logger::error("Failed to update extras");
+        return false;
+    }
+
+    return true;
+}
+
 bool Inventory::EntryHasXDataList(const RE::InventoryEntryData* entry) {
     if (entry && entry->extraLists && !entry->extraLists->empty()) return true;
     return false;
 }
 
-bool Inventory::HasItemEntry(RE::TESBoundObject* item, const RE::TESObjectREFR::InventoryItemMap& inventory,
+bool Inventory::HasItemEntry(RE::TESBoundObject* item,
+                             const RE::TESObjectREFR::InventoryItemMap& inventory,
                              const bool nonzero_entry_check) {
-    if (inventory.contains(item)) return nonzero_entry_check ? inventory.at(item).first > 0 : true;
+    if (inventory.contains(item)) return nonzero_entry_check
+                                             ? inventory.at(item).first > 0
+                                             : true;
 	return false;
 }
 
@@ -649,32 +730,6 @@ void Inventory::ToggleEquip(RE::TESBoundObject* item)
 	else {
 		RE::ActorEquipManager::GetSingleton()->EquipObject(player, item);
 	}
-}
-
-RE::TESObjectREFR* WorldObject::CreateRef(RE::TESBoundObject* obj, const Count count, const bool player_owned) {
-	const auto player = RE::PlayerCharacter::GetSingleton();
-    if (!player) {
-        logger::critical("Player is null!!!");
-        return nullptr;
-	}
-	const auto player_cell = player->GetParentCell();
-    if (!player_cell) {
-        logger::critical("Player cell is null.");
-        return nullptr;
-	}
-    const auto newPropRef =
-        RE::TESDataHandler::GetSingleton()
-        ->CreateReferenceAtLocation(obj, {}, {}, player_cell,
-                                                        nullptr, nullptr, nullptr, {}, false, false)
-            .get()
-            .get();
-    if (!newPropRef) {
-        logger::critical("New prop ref is null.");
-        return nullptr;
-    }
-    if (player_owned) newPropRef->extraList.SetOwner(RE::TESForm::LookupByID(0x07));
-	if (count > 1) newPropRef->extraList.SetCount(static_cast<uint16_t>(count));
-    return newPropRef;
 }
 
 void WorldObject::SwapObjects(RE::TESObjectREFR* a_from, RE::TESBoundObject* a_to, const bool apply_havok)
@@ -928,6 +983,18 @@ bool Menu::IsPickpocketingOrStealing()
 		}
 	}
     return false;
+}
+
+void Menu::UpdateItemList() {
+    if (const auto ui = RE::UI::GetSingleton(); ui->IsMenuOpen(RE::InventoryMenu::MENU_NAME)) {
+        UpdateItemList<RE::InventoryMenu>();
+    }
+    else if (ui->IsMenuOpen(RE::BarterMenu::MENU_NAME)) {
+        UpdateItemList<RE::BarterMenu>();
+    }
+    else if (ui->IsMenuOpen(RE::ContainerMenu::MENU_NAME)) {
+        UpdateItemList<RE::ContainerMenu>();
+    }
 }
 
 void ModCompatibility::MakeChecks()
