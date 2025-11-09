@@ -182,15 +182,12 @@ bool xData::UpdateExtras(RE::TESObjectREFR* copy_from, RE::TESObjectREFR* copy_t
 
 bool xData::UpdateExtras(RE::ExtraDataList* copy_from, RE::ExtraDataList* copy_to)
 {
-	logger::trace("Updating extras...");
     if (!copy_from || !copy_to) return false;
     // Enchantment
     if (copy_from->HasType(RE::ExtraDataType::kEnchantment)) {
         logger::trace("Enchantment found");
         if (const auto enchantment = copy_from->GetByType<RE::ExtraEnchantment>()) {
-			logger::trace("Enchantment found: {}", enchantment->enchantment ? enchantment->enchantment->GetName() : "No Enchantment");
             if (RE::ExtraEnchantment* enchantment_fake = RE::BSExtraData::Create<RE::ExtraEnchantment>()) {
-				logger::trace("Created fake enchantment extra data");
                 // log the associated actor value
                 logger::trace("Associated actor value: {}", enchantment->enchantment->GetAssociatedSkill());
                 Copy::CopyEnchantment(enchantment, enchantment_fake);
