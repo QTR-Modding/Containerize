@@ -1,4 +1,6 @@
 #include <Utils.h>
+
+#include "QuickLootAPI.h"
 #include "Translations.h"
 #include "CLibUtilsQTR/FormReader.hpp"
 
@@ -975,5 +977,10 @@ void ModCompatibility::Load() {
                 Mods::doppelgangers.insert(a_form->GetFormID());
             }
         }
+    }
+
+    if (Mods::quickloot_installed && !QuickLoot::API::QuickLootAPI::Init("Containerize")) {
+        logger::info("QuickLootIE not found. Continuing without QuickLootIE support.");
+        Mods::quickloot_installed = false;
     }
 }

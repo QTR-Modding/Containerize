@@ -33,7 +33,7 @@ namespace Settings {
     };
 
 
-    constexpr size_t otherstuffSize = 8;
+    constexpr size_t otherstuffSize = 9;
     const std::array<std::string, otherstuffSize> os_comments =
     {";Set to false to suppress the 'INI changed between saves' message.",
      "; Set to true to remove the initial carry weight bonuses on your container items.",
@@ -42,16 +42,19 @@ namespace Settings {
      "; Set to true to make your containers weigh nothing by default.",
      "; Set to true to make use of Object Manipulation Overhaul upon dropping containers.",
      "; Set to true to delay the opening of the container menu until the animations are finished.",
-     "; Set to true to play animations only if the Containerized item is equipped."
+     "; Set to true to play animations only if the Containerized item is equipped.",
+     "; Set to true to show the quick loot menu when using Containerized containers."
     };
 
     // BatchSell (index 3) kept for internal indexing but always true and removed from INI/menu.
     constexpr std::array<const char*, otherstuffSize> otherstuffKeys =
     {"INI_changed_msg", "RemoveCarryBoosts", "ReturnToInitialMenu", "BatchSell", "CloudStorage",
-     "ObjectManipulationOverhaul", "AnimationsDelayMenuOpen", "PlayAnimationsOnlyIfEquipped"};
-    constexpr std::array<bool, otherstuffSize> otherstuffVals = {true, true, true, true, false, false, false, false};
-
-    inline bool cloud_storage_enabled = otherstuffVals[4];
+                                                                        "ObjectManipulationOverhaul",
+                                                                        "AnimationsDelayMenuOpen",
+                                                                        "PlayAnimationsOnlyIfEquipped",
+                                                                        "ShowQuickLoot"};
+    constexpr std::array<bool, otherstuffSize> otherstuffVals = {true,  true,  true,  true, false,
+                                                                 false, false, false, true};
 
     const std::unordered_set<std::string> AllowedFormTypes{
         "SCRL", //	17 SCRL	ScrollItem
@@ -68,8 +71,11 @@ namespace Settings {
     inline bool problems_in_YAML_sources = false;
     inline bool problems_in_INI_sources = false;
     inline bool duplicate_sources = false;
+    inline std::unordered_map<std::string, bool> other_settings;
 
     bool AnimationsDelayMenuOpen();
+    bool IsCloudStorageEnabled();
+    bool IsQuickLootEnabled();
 };
 
 std::vector<Source> LoadSources();
@@ -80,7 +86,6 @@ std::vector<Source> LoadYAMLSources();
 std::vector<Source> LoadINISources();
 void LoadTranslations();
 
-inline std::unordered_map<std::string, bool> other_settings;
 
 
 namespace LogSettings {

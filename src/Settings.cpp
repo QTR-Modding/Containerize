@@ -14,7 +14,7 @@ namespace {
                                            ? config["weight_limit"].as<float>()
                                            : 0.f;
 
-        float cloud_storage = cloud_storage_enabled ? 1.f : 0.f;
+        float cloud_storage = IsCloudStorageEnabled() ? 1.f : 0.f;
         if (config["cloud_storage"] && !config["cloud_storage"].IsNull()) {
             try { cloud_storage = std::clamp(config["cloud_storage"].as<float>(), 0.f, 1.f); } catch (const
                 std::exception&) {
@@ -58,6 +58,14 @@ namespace {
 
 bool Settings::AnimationsDelayMenuOpen() {
     return other_settings.at(otherstuffKeys.at(6));
+}
+
+bool Settings::IsCloudStorageEnabled() {
+    return other_settings.at(otherstuffKeys.at(4));
+}
+
+bool Settings::IsQuickLootEnabled() {
+    return ModCompatibility::Mods::quickloot_installed && other_settings.at(otherstuffKeys.at(8));
 }
 
 std::vector<Source> LoadSources() {
@@ -124,7 +132,7 @@ void LoadOtherSettings() {
             continue;
         }
         const auto key = otherstuffKeys[i];
-        const bool val = ini.GetBoolValue(InISections[2], key);
+        const bool val = ini.GetBoolValue(InISections[2], key, otherstuffVals[i]);
         other_settings[key] = val;
     }
 }
@@ -249,7 +257,7 @@ std::vector<Source> LoadINISources() {
 
     sources.reserve(numSources);
 
-    cloud_storage_enabled = ini.GetBoolValue(InISections[2], otherstuffKeys[4]);
+    auto cloud_storage_enabled = IsCloudStorageEnabled();
 
     for (CSimpleIniA::TNamesDepend::const_iterator it = source_names.begin(); it != source_names.end(); ++it) {
         const char* val1 = ini.GetValue(InISections[0], it->pItem);

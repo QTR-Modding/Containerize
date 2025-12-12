@@ -36,6 +36,10 @@ namespace ModCompatibility {
         constexpr auto doppelgangers_path = "ccbgssse018-shadowrend.esl";
         inline const std::set<FormID> doppelgangers_local = {0x832, 0x833, 0x834, 0x835, 0x836, 0x837, 0x838, 0x839,
                                                              0x83a, 0x83b};
+
+        constexpr auto quickloot_path = "Data/SKSE/Plugins/QuickLootIE.dll";
+        inline bool quickloot_installed = IsModInstalled(quickloot_path);
+
         inline std::set<FormID> doppelgangers;
     }
 
