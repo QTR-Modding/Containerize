@@ -12,28 +12,32 @@ namespace {
         static thread_local int sharedDepth;
         static thread_local int uniqueDepth;
     };
+
     thread_local int DebugLockState::sharedDepth = 0;
     thread_local int DebugLockState::uniqueDepth = 0;
 
     struct DebugSharedLock {
         std::shared_mutex* m;
+
         explicit DebugSharedLock(std::shared_mutex* mutex) : m(mutex) {
             assert(m && "DebugSharedLock: mutex pointer is null");
             // Cannot take shared if this thread already holds unique
             assert(DebugLockState::uniqueDepth == 0 &&
-                   "Attempt to acquire shared lock while holding unique lock on Manager::mutex_ (undefined behavior). Release unique lock first.");
+                "Attempt to acquire shared lock while holding unique lock on Manager::mutex_ (undefined behavior). Release unique lock first.");
             // Prevent re-entrant shared acquisition
             if (DebugLockState::sharedDepth++ == 0) {
                 m->lock_shared();
             } else {
                 assert(false &&
-                       "Re-entrant shared lock acquisition detected on Manager::mutex_ (undefined behavior). Refactor using NoLock helpers.");
+                    "Re-entrant shared lock acquisition detected on Manager::mutex_ (undefined behavior). Refactor using NoLock helpers.");
             }
         }
+
         DebugSharedLock(const DebugSharedLock&) = delete;
         DebugSharedLock& operator=(const DebugSharedLock&) = delete;
         DebugSharedLock(DebugSharedLock&&) = delete;
         DebugSharedLock& operator=(DebugSharedLock&&) = delete;
+
         ~DebugSharedLock() {
             assert(m && "DebugSharedLock: mutex pointer is null on destruction");
             assert(DebugLockState::sharedDepth > 0 && "Shared depth underflow");
@@ -46,22 +50,25 @@ namespace {
     struct DebugUniqueLock {
         std::shared_mutex* m;
         bool owns = false;
+
         explicit DebugUniqueLock(std::shared_mutex* mutex) : m(mutex) {
             assert(m && "DebugUniqueLock: mutex pointer is null");
             // Cannot take unique if shared is currently held
             assert(DebugLockState::sharedDepth == 0 &&
-                   "Attempt to acquire unique lock while holding shared lock on Manager::mutex_ (illegal upgrade). Release shared first.");
+                "Attempt to acquire unique lock while holding shared lock on Manager::mutex_ (illegal upgrade). Release shared first.");
             // Prevent unique re-entrancy
             assert(DebugLockState::uniqueDepth == 0 &&
-                   "Re-entrant unique lock acquisition detected on Manager::mutex_. Refactor to avoid nested mutations.");
+                "Re-entrant unique lock acquisition detected on Manager::mutex_. Refactor to avoid nested mutations.");
             m->lock();
             owns = true;
             DebugLockState::uniqueDepth = 1;
         }
+
         DebugUniqueLock(const DebugUniqueLock&) = delete;
         DebugUniqueLock& operator=(const DebugUniqueLock&) = delete;
         DebugUniqueLock(DebugUniqueLock&&) = delete;
         DebugUniqueLock& operator=(DebugUniqueLock&&) = delete;
+
         ~DebugUniqueLock() {
             if (owns) {
                 assert(DebugLockState::uniqueDepth == 1 && "Unique depth corruption");
@@ -71,6 +78,7 @@ namespace {
         }
     };
 }
+
 #define SHARED_GUARD DebugSharedLock slock(&mutex_)
 #define UNIQUE_GUARD DebugUniqueLock ulock(&mutex_)
 #else
@@ -87,32 +95,40 @@ const Source* Manager::GetContainerSource_NoLock(const FormID real_id) const noe
     }
     return nullptr;
 }
+
 Source* Manager::GetContainerSource_NoLock(const FormID real_id) noexcept {
     for (auto& src : sources) {
         if (src.formid == real_id) return &src;
     }
     return nullptr;
 }
+
 FormID Manager::GetRealID_NoLock(const RefID chest_id) const noexcept {
-    if (const auto it = ChestToFakeContainer.find(chest_id); it != ChestToFakeContainer.end()) return it->second.outerKey;
+    if (const auto it = ChestToFakeContainer.find(chest_id); it != ChestToFakeContainer.end()) return it->second.
+        outerKey;
     return 0;
 }
+
 FormID Manager::GetFakeID_NoLock(const RefID chest_id) const noexcept {
-    if (const auto it = ChestToFakeContainer.find(chest_id); it != ChestToFakeContainer.end()) return it->second.innerKey;
+    if (const auto it = ChestToFakeContainer.find(chest_id); it != ChestToFakeContainer.end()) return it->second.
+        innerKey;
     return 0;
 }
+
 RefID Manager::GetFakeContainerChestID_NoLock(const FormID fake_id) const noexcept {
     for (auto& [chest_ref, cont_forms] : ChestToFakeContainer) {
         if (cont_forms.innerKey == fake_id) return chest_ref;
     }
     return 0;
 }
+
 RE::TESBoundObject* Manager::GetFakeBound_NoLock(const RefID chest_id) const noexcept {
     if (const auto it = ChestToFakeContainer.find(chest_id); it != ChestToFakeContainer.end()) {
         return RE::TESForm::LookupByID<RE::TESBoundObject>(it->second.innerKey);
     }
     return nullptr;
 }
+
 bool Manager::IsChest_NoLock(const RefID a_refid) const noexcept {
     return ChestToFakeContainer.contains(a_refid);
 }
@@ -124,18 +140,17 @@ Source* Manager::GetChestSource_NoLock(RefID a_chestID) {
 void Manager::TakeBackReal(RE::TESBoundObject* real_obj, RE::TESObjectREFR* chest) {
     const auto unownedChestOG = RE::TESForm::LookupByID<RE::TESObjectREFR>(UnownedStuff::unownedChestOGRefID);
     if (!unownedChestOG) return RaiseMngrErr("MsgBoxCallback unownedChestOG is null");
-    if (!Inventory::HasItem(real_obj, unownedChestOG)){
+    if (!Inventory::HasItem(real_obj, unownedChestOG)) {
         return RaiseMngrErr("Real container not found in unownedChestOG");
     }
 
     const auto temp_pair = std::make_pair(chest->GetFormID(), real_obj->GetFormID());
     bypass_CanBeAdded.insert(temp_pair);
-    unownedChestOG->RemoveItem(real_obj,1,RE::ITEM_REMOVE_REASON::kStoreInContainer,nullptr,chest);
+    unownedChestOG->RemoveItem(real_obj, 1, RE::ITEM_REMOVE_REASON::kStoreInContainer, nullptr, chest);
     bypass_CanBeAdded.erase(temp_pair);
 }
 
-std::string Manager::GetChestName(const RE::TESObjectREFR* chest) const
-{
+std::string Manager::GetChestName(const RE::TESObjectREFR* chest) const {
     auto chest_id = chest->GetFormID();
     const auto fake_id = GetFakeID(chest_id);
     if (const auto real_bound = FakeToRealContainer(fake_id)) {
@@ -146,10 +161,9 @@ std::string Manager::GetChestName(const RE::TESObjectREFR* chest) const
 }
 
 bool Manager::ActivateChest(RE::TESObjectREFR* chest) const {
-
     unownedChest->fullName = GetChestName(chest);
     if (const auto a_obj = chest->GetBaseObject()->As<RE::TESObjectCONT>()) {
-        RE::TESObjectCONT::SetOpenState(chest,false,true);
+        RE::TESObjectCONT::SetOpenState(chest, false, true);
         return a_obj->Activate(chest, player_ref, 0, a_obj, 1);
     }
     logger::error("ActivateChest: Chest is not a container.");
@@ -167,8 +181,7 @@ RE::TESObjectREFR* Manager::GetFakeContainerChest(const RE::TESBoundObject* a_fa
     return RE::TESForm::LookupByID<RE::TESObjectREFR>(GetFakeContainerChestID(a_fake->GetFormID()));
 }
 
-RE::TESObjectREFR* Manager::GetContainerLocation(const FormID a_fake_id) const
-{
+RE::TESObjectREFR* Manager::GetContainerLocation(const FormID a_fake_id) const {
     SHARED_GUARD;
     const RefID chest_id = GetFakeContainerChestID_NoLock(a_fake_id);
     if (!chest_id) return nullptr;
@@ -195,7 +208,6 @@ uint32_t Manager::GetNoChests() const {
 }
 
 std::vector<RefID> Manager::GetChildChests(const RefID parent_chestID, std::unordered_set<RefID>* parents) {
-
     if (parents) {
         if (parents->contains(parent_chestID)) {
             logger::critical("GetChildChests: Detected cycle for chest ID: {:x}", parent_chestID);
@@ -213,7 +225,7 @@ std::vector<RefID> Manager::GetChildChests(const RefID parent_chestID, std::unor
                 logger::error("Source not found for formid: {:x}", real_fake.outerKey);
                 continue;
             }
-            if (auto it = src->data.find(a_chest_id); 
+            if (auto it = src->data.find(a_chest_id);
                 a_chest_id != parent_chestID && it != src->data.end() && it->second == parent_chestID) {
                 if (!parents || !parents->contains(a_chest_id)) {
                     children.push_back(a_chest_id);
@@ -276,19 +288,17 @@ RE::TESObjectREFR* Manager::FindNotMatchedChest() const {
     return AddChest(GetNoChests());
 }
 
-void Manager::OpenChestFromMenu(RE::TESObjectREFR* a_chest)
-{
+void Manager::OpenChestFromMenu(RE::TESObjectREFR* a_chest) {
     if (!closed_menu.empty()) {
         if (!RE::UI::GetSingleton()->IsMenuOpen(closed_menu)) {
             if (!ActivateChest(a_chest)) {
                 logger::error("ActivateChest failed for chest: {:x}", a_chest->GetFormID());
             }
-        }
-        else {
+        } else {
             clib_utilsQTR::Tasker::GetSingleton()->PushTask(
                 [this,a_chest] {
-                    SKSE::GetTaskInterface()->AddUITask([this,a_chest] {OpenChestFromMenu(a_chest);});
-                },500
+                    SKSE::GetTaskInterface()->AddUITask([this,a_chest] { OpenChestFromMenu(a_chest); });
+                }, 500
                 );
         }
     }
@@ -298,10 +308,12 @@ const Source* Manager::GetContainerSource(const FormID real_id) const {
     SHARED_GUARD;
     return GetContainerSource_NoLock(real_id);
 }
+
 Source* Manager::GetContainerSource(const FormID real_id) {
     SHARED_GUARD;
     return GetContainerSource_NoLock(real_id);
 }
+
 Source* Manager::GetChestSource(const RefID a_chestID) {
     return GetContainerSource(GetRealID(a_chestID));
 }
@@ -319,14 +331,21 @@ void Manager::UpdateFakeWV(RE::TESBoundObject* fake_form, RE::TESObjectREFR* che
     if (!fake_form) return RaiseMngrErr("Fake form is null");
     std::string formtype(RE::FormTypeToString(fake_form->GetFormType()));
     if (formtype == "SCRL") UpdateFakeWV<RE::ScrollItem>(fake_form->As<RE::ScrollItem>(), chest_linked, weight_ratio);
-    else if (formtype == "ARMO") UpdateFakeWV<RE::TESObjectARMO>(fake_form->As<RE::TESObjectARMO>(), chest_linked, weight_ratio);
-    else if (formtype == "BOOK") UpdateFakeWV<RE::TESObjectBOOK>(fake_form->As<RE::TESObjectBOOK>(), chest_linked, weight_ratio);
-    else if (formtype == "INGR") UpdateFakeWV<RE::IngredientItem>(fake_form->As<RE::IngredientItem>(), chest_linked, weight_ratio);
-    else if (formtype == "MISC") UpdateFakeWV<RE::TESObjectMISC>(fake_form->As<RE::TESObjectMISC>(), chest_linked, weight_ratio);
-    else if (formtype == "WEAP") UpdateFakeWV<RE::TESObjectWEAP>(fake_form->As<RE::TESObjectWEAP>(), chest_linked, weight_ratio);
+    else if (formtype == "ARMO") UpdateFakeWV<RE::TESObjectARMO>(fake_form->As<RE::TESObjectARMO>(), chest_linked,
+                                                                 weight_ratio);
+    else if (formtype == "BOOK") UpdateFakeWV<RE::TESObjectBOOK>(fake_form->As<RE::TESObjectBOOK>(), chest_linked,
+                                                                 weight_ratio);
+    else if (formtype == "INGR") UpdateFakeWV<RE::IngredientItem>(fake_form->As<RE::IngredientItem>(), chest_linked,
+                                                                  weight_ratio);
+    else if (formtype == "MISC") UpdateFakeWV<RE::TESObjectMISC>(fake_form->As<RE::TESObjectMISC>(), chest_linked,
+                                                                 weight_ratio);
+    else if (formtype == "WEAP") UpdateFakeWV<RE::TESObjectWEAP>(fake_form->As<RE::TESObjectWEAP>(), chest_linked,
+                                                                 weight_ratio);
     else if (formtype == "AMMO") UpdateFakeWV<RE::TESAmmo>(fake_form->As<RE::TESAmmo>(), chest_linked, weight_ratio);
-    else if (formtype == "SLGM") UpdateFakeWV<RE::TESSoulGem>(fake_form->As<RE::TESSoulGem>(), chest_linked, weight_ratio);
-    else if (formtype == "ALCH") UpdateFakeWV<RE::AlchemyItem>(fake_form->As<RE::AlchemyItem>(), chest_linked, weight_ratio);
+    else if (formtype == "SLGM") UpdateFakeWV<RE::TESSoulGem>(fake_form->As<RE::TESSoulGem>(), chest_linked,
+                                                              weight_ratio);
+    else if (formtype == "ALCH") UpdateFakeWV<RE::AlchemyItem>(fake_form->As<RE::AlchemyItem>(), chest_linked,
+                                                               weight_ratio);
     else RaiseMngrErr(std::format("Form type not supported: {}", formtype));
 }
 
@@ -338,8 +357,7 @@ void Manager::HandleFormDelete_(const RefID chest_refid) {
             std::format("Your container with name {} was deleted by the game. Will try to return your items now.",
                         real_item->GetName());
         MsgBoxesNotifs::InGame::CustomMsg(msg);
-    }
-    else {
+    } else {
         const auto msg =
             std::format("Your container with formid {:x} was deleted by the game. Will try to return your items now.",
                         real_formid);
@@ -347,7 +365,7 @@ void Manager::HandleFormDelete_(const RefID chest_refid) {
     }
 
     if (const auto chest = RE::TESForm::LookupByID<RE::TESObjectREFR>(chest_refid)) {
-        if (DeRegister(chest,player_ref)) {
+        if (DeRegister(chest, player_ref)) {
             return;
         }
     }
@@ -371,14 +389,14 @@ void Manager::InitFailed() {
 
 FormID Manager::CreateFakeContainer(RE::TESBoundObject* container, const RefID connected_chest, RE::ExtraDataList* el) {
     std::string formtype(RE::FormTypeToString(container->GetFormType()));
-    if (formtype == "SCRL") {return CreateFakeContainer(container->As<RE::ScrollItem>(), connected_chest, el);} 
-    if (formtype == "ARMO") {return CreateFakeContainer(container->As<RE::TESObjectARMO>(), connected_chest, el);}    
-    if (formtype == "BOOK") {return CreateFakeContainer(container->As<RE::TESObjectBOOK>(), connected_chest, el);}    
-    if (formtype == "INGR") {return CreateFakeContainer(container->As<RE::IngredientItem>(),connected_chest, el);}    
-    if (formtype == "MISC") {return CreateFakeContainer(container->As<RE::TESObjectMISC>(), connected_chest, el);}    
-    if (formtype == "WEAP") {return CreateFakeContainer(container->As<RE::TESObjectWEAP>(), connected_chest, el);}    
-    if (formtype == "SLGM") {return CreateFakeContainer(container->As<RE::TESSoulGem>(), connected_chest, el);} 
-    if (formtype == "ALCH") {return CreateFakeContainer(container->As<RE::AlchemyItem>(), connected_chest, el);}    
+    if (formtype == "SCRL") { return CreateFakeContainer(container->As<RE::ScrollItem>(), connected_chest, el); }
+    if (formtype == "ARMO") { return CreateFakeContainer(container->As<RE::TESObjectARMO>(), connected_chest, el); }
+    if (formtype == "BOOK") { return CreateFakeContainer(container->As<RE::TESObjectBOOK>(), connected_chest, el); }
+    if (formtype == "INGR") { return CreateFakeContainer(container->As<RE::IngredientItem>(), connected_chest, el); }
+    if (formtype == "MISC") { return CreateFakeContainer(container->As<RE::TESObjectMISC>(), connected_chest, el); }
+    if (formtype == "WEAP") { return CreateFakeContainer(container->As<RE::TESObjectWEAP>(), connected_chest, el); }
+    if (formtype == "SLGM") { return CreateFakeContainer(container->As<RE::TESSoulGem>(), connected_chest, el); }
+    if (formtype == "ALCH") { return CreateFakeContainer(container->As<RE::AlchemyItem>(), connected_chest, el); }
     logger::error("Form type not supported: {}", formtype);
     return 0;
 }
@@ -441,7 +459,9 @@ void Manager::FakePlacement_Sub(RE::TESObjectREFR* chest, RE::TESObjectREFR* sav
         if (inventory.contains(real_bound)) {
             xList_fake = xData::ConstructExtraDataList();
             const auto real_entry = inventory.at(real_bound).second.get();
-            const auto xList_real = real_entry && real_entry->extraLists && !real_entry->extraLists->empty() ? real_entry->extraLists->front() : nullptr;
+            const auto xList_real = real_entry && real_entry->extraLists && !real_entry->extraLists->empty()
+                                        ? real_entry->extraLists->front()
+                                        : nullptr;
             if (!xData::UpdateExtras(xList_real, xList_fake)) {
                 logger::warn("Failed to copy extras to fake container");
             }
@@ -458,7 +478,7 @@ void Manager::FakePlacementCeption(const RefID chest_ref, std::vector<RefID>& ha
     logger::info("-------------------chest_ref: {:x} -------------------", chest_ref);
     for (const auto& connected_chest : GetChildChests(chest_ref, nullptr)) {
         logger::info("Connected chest: {:x}", connected_chest);
-        FakePlacementCeption(connected_chest,ha);
+        FakePlacementCeption(connected_chest, ha);
     }
     RefID saved_loc = 0;
     bool error = false;
@@ -542,7 +562,7 @@ void Manager::RemoveCarryWeightBoost(const FormID item_formid, RE::TESObjectREFR
     const auto inventory = inventory_owner->GetInventory();
     const auto it = inventory.find(item_obj);
     if (it == inventory.end()) {
-		logger::error("Item not found in inventory_owner");
+        logger::error("Item not found in inventory_owner");
         return;
     }
     if (const auto enchantment = it->second.second->GetEnchantment()) {
@@ -625,7 +645,7 @@ bool Manager::DeRegister(RE::TESObjectREFR* chest, RE::TESObjectREFR* transfer_d
     }
 
     if (fake_loc) {
-        fake_loc->RemoveItem(fake_bound,1,RE::ITEM_REMOVE_REASON::kRemove,nullptr,nullptr);
+        fake_loc->RemoveItem(fake_bound, 1, RE::ITEM_REMOVE_REASON::kRemove, nullptr, nullptr);
     }
     for (auto& [fst,snd] : chest->GetInventory()) {
         chest->RemoveItem(fst, snd.first, RE::ITEM_REMOVE_REASON::kRemove, nullptr, transfer_dest);
@@ -643,16 +663,15 @@ std::string Manager::GetWeightText_(RE::TESObjectREFR* a_chest) {
     if (a_real_id) {
         const auto real = RE::TESForm::LookupByID<RE::TESBoundObject>(a_real_id);
         const auto src = GetContainerSource(a_real_id);
-        if (real && src && src->capacity>0) {
-            const auto a_weight = std::max(0.f, a_chest->GetWeightInContainer()-real->GetWeight());
+        if (real && src && src->capacity > 0) {
+            const auto a_weight = std::max(0.f, a_chest->GetWeightInContainer() - real->GetWeight());
             return GetWeightText(a_weight * src->weight_ratio, src->capacity);
         }
     }
     return "";
 }
 
-std::string Manager::GetWeightText(const float weight, const float capacity)
-{
+std::string Manager::GetWeightText(const float weight, const float capacity) {
     std::ostringstream stream1;
     stream1 << std::fixed << std::setprecision(2) << weight;
     std::ostringstream stream2;
@@ -665,8 +684,8 @@ bool Manager::Register_Sub(const FormID master_formID, const FormID fake_formID,
     Source* src = GetContainerSource_NoLock(master_formID);
     if (!src) return false;
     if (!src->data.insert({chest_refID, loc_refID}).second) return false;
-    if (!ChestToFakeContainer.insert({chest_refID, {.outerKey= master_formID, .innerKey= fake_formID}}).second) {
-		src->data.erase(chest_refID);
+    if (!ChestToFakeContainer.insert({chest_refID, {.outerKey = master_formID, .innerKey = fake_formID}}).second) {
+        src->data.erase(chest_refID);
         return false;
     }
     return true;
@@ -690,7 +709,7 @@ void Manager::Init() {
         return InitFailed();
     }
     for (auto& src : sources) {
-        const auto form_ = FormReader::GetFormByID(src.formid,src.editorid);
+        const auto form_ = FormReader::GetFormByID(src.formid, src.editorid);
         if (const auto bound_ = src.GetBoundObject(); !form_ || !bound_) {
             init_failed = true;
             logger::error("Missing source: {:x}, {}", src.formid, src.editorid);
@@ -700,7 +719,7 @@ void Manager::Init() {
         if (std::string formtypeString(formtype_); !Settings::AllowedFormTypes.contains(formtypeString)) {
             init_failed = true;
             MsgBoxesNotifs::InGame::FormTypeErr(form_->formID);
-            logger::error("Invalid source type: {}",formtype_);
+            logger::error("Invalid source type: {}", formtype_);
             break;
         }
     }
@@ -714,14 +733,16 @@ void Manager::Init() {
     const auto unownedChestOG = RE::TESForm::LookupByID<RE::TESObjectREFR>(0x000EA29A);
     unownedChest = RE::TESForm::LookupByID<RE::TESObjectCONT>(UnownedStuff::unownedChestFormID);
     unownedCell = RE::TESForm::LookupByID<RE::TESObjectCELL>(0x000EA28B);
-    if (!unownedChestOG || unownedChestOG->GetBaseObject()->GetFormID() != unownedChest->GetFormID() || !unownedCell || !unownedChest || !unownedChest->As<RE::TESBoundObject>()) {
+    if (!unownedChestOG || unownedChestOG->GetBaseObject()->GetFormID() != unownedChest->GetFormID() || !unownedCell ||
+        !unownedChest || !unownedChest->As<RE::TESBoundObject>()) {
         logger::error("Missing unowned chest/cell");
         init_failed = true;
     }
     if (Settings::is_pre_0_7_1 && unownedChestOG) {
         for (auto& [fst,snd] : unownedChestOG->GetInventory()) {
             unownedChestOG->RemoveItem(fst, snd.first, RE::ITEM_REMOVE_REASON::kRemove, nullptr, player_ref);
-            if (fst->IsDynamicForm()) player_ref->RemoveItem(fst, snd.first, RE::ITEM_REMOVE_REASON::kRemove, nullptr, nullptr);
+            if (fst->IsDynamicForm()) player_ref->RemoveItem(fst, snd.first, RE::ITEM_REMOVE_REASON::kRemove, nullptr,
+                                                             nullptr);
         }
     }
     if (init_failed) return InitFailed();
@@ -742,7 +763,7 @@ void Manager::Gateway(const int result, const RE::ObjectRefHandle& a_current_con
     } else if (!ActivateChest(a_chest)) {
         reals_to_takeback.clear();
         queued_chests.clear();
-        Animations::SendAnimEvent(false,nullptr);
+        Animations::SendAnimEvent(false, nullptr);
         logger::warn("Chest not found.");
     }
 }
@@ -767,45 +788,40 @@ RE::TESBoundObject* Manager::GetFakeBound(const RefID chest_id) const {
     return GetFakeBound_NoLock(chest_id);
 }
 
-RE::TESBoundObject* Manager::GetRealBound(const RefID chest_id) const
-{
+RE::TESBoundObject* Manager::GetRealBound(const RefID chest_id) const {
     return RE::TESForm::LookupByID<RE::TESBoundObject>(GetRealID(chest_id));
 }
 
-FormID Manager::GetFakeID(const RefID chest_id) const
-{
+FormID Manager::GetFakeID(const RefID chest_id) const {
     SHARED_GUARD;
     return GetFakeID_NoLock(chest_id);
 }
 
-FormID Manager::GetRealID(const RefID chest_id) const
-{
+FormID Manager::GetRealID(const RefID chest_id) const {
     SHARED_GUARD;
     return GetRealID_NoLock(chest_id);
 }
 
-void Manager::BeforePickup(RE::TESObjectREFR* picked_up_by, RE::TESObjectREFR* a_object)
-{
+void Manager::BeforePickup(RE::TESObjectREFR* picked_up_by, RE::TESObjectREFR* a_object) {
     if (const auto chest = GetContainerChest(a_object)) {
         const auto chest_refid = chest->GetFormID();
 
-		RE::TESBoundObject* fake_bound = nullptr;
+        RE::TESBoundObject* fake_bound = nullptr;
         float weight_ratio = 0.f;
         {
             UNIQUE_GUARD;
             if (const auto src = GetContainerSource_NoLock(GetRealID_NoLock(chest_refid))) {
-				weight_ratio = src->weight_ratio;
+                weight_ratio = src->weight_ratio;
                 if (fake_bound = GetFakeBound_NoLock(chest_refid); fake_bound && src->data.contains(chest_refid)) {
                     src->data.at(chest_refid) = picked_up_by->GetFormID();
                 } else {
                     logger::critical("Fake bound not found.");
                 }
             }
-            
         }
 
         if (fake_bound) {
-            WorldObject::SwapObjects(a_object, fake_bound,false);
+            WorldObject::SwapObjects(a_object, fake_bound, false);
             UpdateFakeWV(fake_bound, chest, weight_ratio);
             if (other_settings[Settings::otherstuffKeys[1]]) {
                 auto ref_handle = picked_up_by->GetHandle();
@@ -820,19 +836,18 @@ void Manager::BeforePickup(RE::TESObjectREFR* picked_up_by, RE::TESObjectREFR* a
     }
 }
 
-void Manager::HandleDrop(RE::TESObjectREFR* fake_object)
-{
+void Manager::HandleDrop(RE::TESObjectREFR* fake_object) {
     const auto fake_id = fake_object->GetBaseObject()->GetFormID();
     if (IsFakeContainer(fake_id)) {
         const auto chestID = GetFakeContainerChestID(fake_id);
         const auto real_bound = GetRealBound(chestID);
         WorldObject::SwapObjects(fake_object, real_bound, false);
-        UpdateLoc_Private(chestID,fake_object->GetFormID());
-    }
-    else {
+        UpdateLoc_Private(chestID, fake_object->GetFormID());
+    } else {
         logger::warn("Fake object not found in ChestToFakeContainer.");
-        if (const auto baseform = DynamicFormTracker::GetSingleton()->GetOGFormOfDynamic(fake_object->GetBaseObject()->GetFormID())) {
-            WorldObject::SwapObjects(fake_object, skyrim_cast<RE::TESBoundObject*>(baseform), false);    
+        if (const auto baseform = DynamicFormTracker::GetSingleton()->GetOGFormOfDynamic(
+            fake_object->GetBaseObject()->GetFormID())) {
+            WorldObject::SwapObjects(fake_object, skyrim_cast<RE::TESBoundObject*>(baseform), false);
         }
     }
 }
@@ -842,8 +857,7 @@ void Manager::UpdateLoc(const FormID fakeID, const RefID loc_id) {
     UpdateLoc_Private(chestID, loc_id);
 }
 
-void Manager::UpdateLoc_Private(const RefID chestID, const RefID loc_id)
-{
+void Manager::UpdateLoc_Private(const RefID chestID, const RefID loc_id) {
     if (!IsChest(chestID)) {
         logger::error("Chest ID not found in ChestToFakeContainer.");
         return;
@@ -861,8 +875,7 @@ void Manager::UpdateLoc_Private(const RefID chestID, const RefID loc_id)
     UpdateFakeWV(GetFakeBound(chestID));
 }
 
-void Manager::OnLongPressEquip(const RE::TESBoundObject* a_fake, const int delay)
-{
+void Manager::OnLongPressEquip(const RE::TESBoundObject* a_fake, const int delay) {
     auto chest = GetFakeContainerChest(a_fake);
     if (!chest) {
         logger::error("OnLongPressEquip: chest null");
@@ -872,15 +885,13 @@ void Manager::OnLongPressEquip(const RE::TESBoundObject* a_fake, const int delay
     if (delay > 0) {
         clib_utilsQTR::Tasker::GetSingleton()->PushTask([this,chest] {
             SKSE::GetTaskInterface()->AddUITask([this,chest] { OpenChestFromMenu(chest); });
-        },delay);
-    }
-    else {
+        }, delay);
+    } else {
         SKSE::GetTaskInterface()->AddUITask([this,chest] { OpenChestFromMenu(chest); });
     }
 }
 
-void Manager::UpdateFakeWV(RE::TESBoundObject* fake_form)
-{
+void Manager::UpdateFakeWV(RE::TESBoundObject* fake_form) {
     const auto chestID = GetFakeContainerChestID(fake_form->GetFormID());
     const auto chestRef = RE::TESForm::LookupByID<RE::TESObjectREFR>(chestID);
     if (!chestRef) {
@@ -895,8 +906,7 @@ void Manager::UpdateFakeWV(RE::TESBoundObject* fake_form)
     UpdateFakeWV(fake_form, chestRef, src->weight_ratio);
 }
 
-Count Manager::CanBeAdded(const RE::TESBoundObject* a_item, const Count a_count, RefID a_chestID)
-{
+Count Manager::CanBeAdded(const RE::TESBoundObject* a_item, const Count a_count, RefID a_chestID) {
     if (!a_item) return 0;
     if (bypass_CanBeAdded.contains({a_chestID, a_item->GetFormID()})) {
         return a_count;
@@ -932,8 +942,8 @@ Count Manager::CanBeAdded(const RE::TESBoundObject* a_item, const Count a_count,
     if (src->weight_ratio < 0.00001f) return a_count;
     const auto remaining_capacity = src->capacity - chestRef->GetWeightInContainer() * src->weight_ratio;
     const auto item_weight = a_item->GetWeight() * src->weight_ratio;
-    const auto can_be_added = static_cast<Count>(remaining_capacity / (item_weight+EPSILON));
-    return std::max(0,std::min(can_be_added, a_count));
+    const auto can_be_added = static_cast<Count>(remaining_capacity / (item_weight + EPSILON));
+    return std::max(0, std::min(can_be_added, a_count));
 }
 
 RE::TESBoundObject* Manager::FakeToRealContainer(const FormID fake) const {
@@ -948,10 +958,10 @@ void Manager::OnActivateContainer(RE::TESObjectREFR* a_container, const int msgb
     auto a_handle = a_container->GetHandle();
     if (a_delay > 0) {
         clib_utilsQTR::Tasker::GetSingleton()->PushTask([this,msgbox_action,a_handle] {
-            Gateway(msgbox_action,a_handle);
-        },a_delay);
+            Gateway(msgbox_action, a_handle);
+        }, a_delay);
     } else {
-        return Gateway(msgbox_action,a_handle);
+        return Gateway(msgbox_action, a_handle);
     }
 }
 
@@ -961,7 +971,7 @@ void Manager::HandleFakePlacement(RE::TESObjectREFR* external_cont) {
     if (IsUnownedChest(external_cont->GetFormID())) return;
     const auto external_cont_refid = external_cont->GetFormID();
     if (!IsARegistry(external_cont_refid)) return;
-	std::vector<std::pair<RefID, RefID>> chest_locs;
+    std::vector<std::pair<RefID, RefID>> chest_locs;
     {
         SHARED_GUARD;
         for (const auto& src : sources) {
@@ -970,7 +980,7 @@ void Manager::HandleFakePlacement(RE::TESObjectREFR* external_cont) {
                     chest_locs.push_back({chest_ref, loc});
                 }
             }
-		}
+        }
     }
     for (auto& [chest_ref,loc] : chest_locs) {
         FakePlacement(loc, chest_ref, external_cont);
@@ -1027,16 +1037,15 @@ void Manager::RenameContainer(const std::string& new_name, RE::TESBoundObject* a
                             ? it->second.second->extraLists->front()
                             : nullptr;
             }
-        }
-        else {
+        } else {
             xList = &a_current_container->extraList;
         }
     }
     if (xList) xData::AddTextDisplayData(xList, new_name);
-    if (const auto ui = RE::UI::GetSingleton(); 
-        a_containermenu_owner && 
+    if (const auto ui = RE::UI::GetSingleton();
+        a_containermenu_owner &&
         (ui->IsMenuOpen(RE::InventoryMenu::MENU_NAME) || ui->IsMenuOpen(RE::ContainerMenu::MENU_NAME))) {
-        RE::SendUIMessage::SendInventoryUpdateMessage(a_containermenu_owner,nullptr);
+        RE::SendUIMessage::SendInventoryUpdateMessage(a_containermenu_owner, nullptr);
     }
 }
 
@@ -1056,10 +1065,10 @@ void Manager::OnChestExit(RE::TESObjectREFR* a_chest) {
                         [this] {
                             if (containermenu_owner && IsChest(containermenu_owner->GetFormID())) {
                                 if (!ActivateChest(containermenu_owner.get())) {
-                                    logger::error("ActivateChest failed for containermenu_owner: {:x}", containermenu_owner->GetFormID());
+                                    logger::error("ActivateChest failed for containermenu_owner: {:x}",
+                                                  containermenu_owner->GetFormID());
                                 }
-                            }
-                            else if (containermenu_owner) {
+                            } else if (containermenu_owner) {
                                 containermenu_owner->OpenContainer(0);
                             }
                             containermenu_owner.reset();
@@ -1072,20 +1081,18 @@ void Manager::OnChestExit(RE::TESObjectREFR* a_chest) {
         }
         if (fake_bound) UpdateFakeWV(fake_bound);
     }
-    if (!next_menu_is_chest){
+    if (!next_menu_is_chest) {
         const auto fake_id = GetFakeID(chest_id);
         if (const auto container_ref = GetContainerLocation(fake_id);
             container_ref && real_bound && container_ref->GetBaseObject() == real_bound) {
-            Animations::SendAnimEvent(false,container_ref);
-        }
-        else {
-            Animations::SendAnimEvent(false,real_bound);
+            Animations::SendAnimEvent(false, container_ref);
+        } else {
+            Animations::SendAnimEvent(false, real_bound);
         }
     }
 }
 
-void Manager::OnChestEnter(RE::TESObjectREFR* a_chest)
-{
+void Manager::OnChestEnter(RE::TESObjectREFR* a_chest) {
     const RefID chest_id = a_chest->GetFormID();
     queued_chests.erase(chest_id);
     if (const auto real_bound = GetRealBound(chest_id)) {
@@ -1107,9 +1114,8 @@ bool Manager::IsARegistry(const RefID registry) const {
 }
 
 void Manager::HandleCraftingExit() {
-
-	bool error = false;
-	{
+    bool error = false;
+    {
         SHARED_GUARD;
         for (const auto& src : sources) {
             if (error) {
@@ -1122,24 +1128,24 @@ void Manager::HandleCraftingExit() {
                 const auto fake_formid = it->second.innerKey;
                 const auto fake_bound = RE::TESForm::LookupByID<RE::TESBoundObject>(fake_formid);
                 if (!fake_bound) {
-				    logger::error("Fake bound not found for chest_refid: {:x}", chest_refid);
-				    error = true;
+                    logger::error("Fake bound not found for chest_refid: {:x}", chest_refid);
+                    error = true;
                     break;
                 }
                 const auto chest = RE::TESForm::LookupByID<RE::TESObjectREFR>(chest_refid);
                 if (!chest) {
-				    logger::error("Chest not found for chest_refid: {:x}", chest_refid);
-				    error = true;
-				    break;
+                    logger::error("Chest not found for chest_refid: {:x}", chest_refid);
+                    error = true;
+                    break;
                 }
-                if (Inventory::HasItem(fake_bound,player_ref)) {
+                if (Inventory::HasItem(fake_bound, player_ref)) {
                     if (!xData::UpdateExtrasInInventory(player_ref, fake_formid, chest, src.formid)) {
                         logger::error("Failed to update extras in player's inventory.");
                     }
                 }
             }
         }
-	}
+    }
 
     if (error) {
         RaiseMngrErr("Error in HandleCraftingExit");
@@ -1156,9 +1162,11 @@ void Manager::OnConsume(const FormID fake_formid, RE::TESObjectREFR* consumed_by
     {
         SHARED_GUARD;
         if (const auto src = GetContainerSource_NoLock(real_bound->GetFormID())) {
-            if (const auto it = src->data.find(a_chestID); it == src->data.end() || it->second != consumed_by->GetFormID()) {
+            if (const auto it = src->data.find(a_chestID);
+                it == src->data.end() || it->second != consumed_by->GetFormID()) {
                 if (!ModCompatibility::Mods::doppelgangers.contains(consumed_by->GetBaseObject()->GetFormID())) {
-                    logger::error("Fake object not supposed to be in consumed_by {:x} {:x}.", consumed_by->GetFormID(), consumed_by->GetBaseObject()->GetFormID());
+                    logger::error("Fake object not supposed to be in consumed_by {:x} {:x}.", consumed_by->GetFormID(),
+                                  consumed_by->GetBaseObject()->GetFormID());
                 }
                 return;
             }
@@ -1227,14 +1235,15 @@ void Manager::Reset() {
 }
 
 void Manager::Print() {
-    for (const auto& src : sources) { 
+    for (const auto& src : sources) {
         if (!src.data.empty()) {
             logger::trace("Printing............Source formid: {:x}", src.formid);
             Functions::printMap(src.data);
         }
     }
     for (const auto& [chest_ref, cont_ref] : ChestToFakeContainer) {
-        logger::trace("Chest refid: {:x}, Real container formid: {:x}, Fake container formid: {:x}", chest_ref, cont_ref.outerKey, cont_ref.innerKey);
+        logger::trace("Chest refid: {:x}, Real container formid: {:x}, Fake container formid: {:x}", chest_ref,
+                      cont_ref.outerKey, cont_ref.innerKey);
     }
 }
 
@@ -1243,17 +1252,17 @@ void Manager::SendData() {
     Print();
     Clear();
     int no_of_container = 0;
-	bool error = false;
+    bool error = false;
     {
         SHARED_GUARD;
         for (auto& src : sources) {
-			if (error) break;
+            if (error) break;
             for (const auto& [chest_ref, cont_ref] : src.data) {
                 no_of_container++;
                 if (!chest_ref) {
-				    logger::error("Chest refid is null");
-				    error = true;
-					break;
+                    logger::error("Chest refid is null");
+                    error = true;
+                    break;
                 }
                 auto itChest = ChestToFakeContainer.find(chest_ref);
                 if (itChest == ChestToFakeContainer.end()) continue;
@@ -1263,11 +1272,11 @@ void Manager::SendData() {
                 if (cont_ref == player_refid) {
                     const auto fake_bound = RE::TESForm::LookupByID<RE::TESBoundObject>(fake_formid);
                     is_equipped_x = Inventory::IsEquipped(fake_bound);
-                    is_favorited_x = Inventory::IsFavorited(fake_bound,player_ref);
+                    is_favorited_x = Inventory::IsFavorited(fake_bound, player_ref);
                     if (const auto chest = RE::TESForm::LookupByID<RE::TESObjectREFR>(chest_ref); !chest) {
                         logger::error("Chest not found");
-						error = true;
-						break;
+                        error = true;
+                        break;
                     }
                 } else if (std::ranges::find(external_favs, fake_formid) != external_favs.end()) {
                     is_favorited_x = true;
@@ -1288,7 +1297,7 @@ void Manager::SendData() {
 
 void Manager::ReceiveData() {
     logger::info("--------Receiving data---------");
-    std::map<RefID,std::pair<bool,bool>> chest_equipped_fav;
+    std::map<RefID, std::pair<bool, bool>> chest_equipped_fav;
     std::map<RefID, FormFormID> unmathced_chests;
     for (const auto& [realcontForm_chestRef, fakecontForm_contRef] : m_Data) {
         auto [realcontFormID, chestRefID] = realcontForm_chestRef;
@@ -1296,22 +1305,25 @@ void Manager::ReceiveData() {
         if (Settings::is_pre_0_10_0 && locRefID == chestRefID) locRefID = player_refid;
         if (Register_Sub(realcontFormID, fakecontForm_info.id, chestRefID, locRefID)) {
             if (!fakecontForm_info.name.empty()) renames[fakecontForm_info.id] = fakecontForm_info.name;
-            if (locRefID == player_refid) chest_equipped_fav[chestRefID] = {fakecontForm_info.equipped, fakecontForm_info.favorited};
+            if (locRefID == player_refid) chest_equipped_fav[chestRefID] = {
+                                              fakecontForm_info.equipped, fakecontForm_info.favorited};
             else if (fakecontForm_info.favorited) external_favs.push_back(fakecontForm_info.id);
         } else {
-            unmathced_chests[chestRefID] = {.outerKey= realcontFormID, .innerKey= fakecontForm_info.id};
+            unmathced_chests[chestRefID] = {.outerKey = realcontFormID, .innerKey = fakecontForm_info.id};
         }
     }
     for (const auto& [chestRef_, RealFakeForm_] : unmathced_chests) {
         auto [realcontFormID, fakecontFormID] = RealFakeForm_;
         logger::warn("FormID {:x} not found in sources.", realcontFormID);
         if (other_settings[Settings::otherstuffKeys[0]]) MsgBoxesNotifs::InGame::ProblemWithContainer(realcontFormID);
-        if (const auto fake_bound = RE::TESForm::LookupByID<RE::TESBoundObject>(fakecontFormID)) player_ref->RemoveItem(fake_bound, 1, RE::ITEM_REMOVE_REASON::kRemove, nullptr, nullptr);
+        if (const auto fake_bound = RE::TESForm::LookupByID<RE::TESBoundObject>(fakecontFormID)) player_ref->RemoveItem(
+            fake_bound, 1, RE::ITEM_REMOVE_REASON::kRemove, nullptr, nullptr);
         logger::info("Trying to retrieve items from chest");
         if (const auto chest = RE::TESForm::LookupByID<RE::TESObjectREFR>(chestRef_)) {
             for (auto& [fst,snd] : chest->GetInventory()) {
                 chest->RemoveItem(fst, snd.first, RE::ITEM_REMOVE_REASON::kRemove, nullptr, player_ref);
-                if (fst->GetFormID() == fakecontFormID) player_ref->RemoveItem(fst, snd.first, RE::ITEM_REMOVE_REASON::kRemove, nullptr, nullptr);
+                if (fst->GetFormID() == fakecontFormID) player_ref->RemoveItem(
+                    fst, snd.first, RE::ITEM_REMOVE_REASON::kRemove, nullptr, nullptr);
             }
             if (!chest->GetInventory().empty()) {
                 logger::critical("Chest still has items in it. Degistering failed");
@@ -1320,9 +1332,9 @@ void Manager::ReceiveData() {
         }
         m_Data.erase({RealFakeForm_.outerKey, chestRef_});
     }
-#ifndef NDEBUG
+    #ifndef NDEBUG
     Print();
-#endif
+    #endif
     auto* DFT = DynamicFormTracker::GetSingleton();
     std::vector<RefID> handled_already;
     std::vector<RefID> all_chestIDs;
@@ -1332,7 +1344,7 @@ void Manager::ReceiveData() {
     }
     for (const auto& a_chestID : all_chestIDs) {
         if (std::ranges::find(handled_already, a_chestID) != handled_already.end()) continue;
-        FakePlacementCeption(a_chestID,handled_already);
+        FakePlacementCeption(a_chestID, handled_already);
         auto a_realID = GetRealID(a_chestID);
         const auto real_editorid = FormReader::GetEditorID(a_realID);
         if (real_editorid.empty()) {
@@ -1346,41 +1358,45 @@ void Manager::ReceiveData() {
     handled_already.clear();
     const auto inventory_changes = player_ref->GetInventoryChanges();
     const auto entries = inventory_changes->entryList;
-    for (auto it = entries->begin(); it != entries->end(); ++it){
+    for (auto it = entries->begin(); it != entries->end(); ++it) {
         if (const auto a_entry = *it; a_entry && a_entry->object) {
             auto fake_formid = a_entry->object->GetFormID();
             if (IsFakeContainer(fake_formid)) {
                 const auto a_chestID = GetFakeContainerChestID(fake_formid);
                 if (chest_equipped_fav.contains(a_chestID)) {
-                    const auto& [is_equipped_x,is_faved_x ] = chest_equipped_fav.at(a_chestID);
+                    const auto& [is_equipped_x,is_faved_x] = chest_equipped_fav.at(a_chestID);
                     if (a_entry->IsWorn()) {
                         RE::ActorEquipManager::GetSingleton()->UnequipObject(
-                            RE::PlayerCharacter::GetSingleton(), a_entry->object, a_entry->extraLists && !a_entry->extraLists->empty() ? a_entry->extraLists->front() : nullptr, 1,
+                            RE::PlayerCharacter::GetSingleton(), a_entry->object,
+                            a_entry->extraLists && !a_entry->extraLists->empty()
+                                ? a_entry->extraLists->front()
+                                : nullptr, 1,
                             nullptr, false, false, false, false);
                     }
                     if (is_equipped_x) {
                         Inventory::EquipItem(a_entry);
                     }
                     if (is_faved_x && !a_entry->IsFavorited()) {
-                        Inventory::FavoriteItem(a_entry,inventory_changes);
+                        Inventory::FavoriteItem(a_entry, inventory_changes);
                     }
                 }
             }
         } else logger::error("Entry or object null in ReceiveData fave-equip.");
     }
 
-
     std::vector<std::tuple<FormID, RefID, float>> pendingWV;
     {
         SHARED_GUARD;
         for (auto& source : sources) {
             for (auto dyn_formid : DFT->GetFormSet(source.formid, source.editorid)) {
-                const auto editorid = source.editorid.empty() ? FormReader::GetEditorID(source.formid) : source.editorid;
-                DFT->Reserve(source.formid,editorid ,dyn_formid);
+                const auto editorid = source.editorid.empty()
+                                          ? FormReader::GetEditorID(source.formid)
+                                          : source.editorid;
+                DFT->Reserve(source.formid, editorid, dyn_formid);
             }
             for (const auto& chest_refid : source.data | std::views::keys) {
                 if (const auto fake_formid = GetFakeID_NoLock(chest_refid)) {
-					pendingWV.emplace_back(fake_formid, chest_refid, source.weight_ratio);
+                    pendingWV.emplace_back(fake_formid, chest_refid, source.weight_ratio);
                 }
             }
         }
@@ -1388,7 +1404,7 @@ void Manager::ReceiveData() {
 
     for (const auto& [fake_formid, chest_refid, weight_ratio] : pendingWV) {
         const auto fake_bound = RE::TESForm::LookupByID<RE::TESBoundObject>(fake_formid);
-        if (const auto chest_ref  = RE::TESForm::LookupByID<RE::TESObjectREFR>(chest_refid); fake_bound && chest_ref) {
+        if (const auto chest_ref = RE::TESForm::LookupByID<RE::TESObjectREFR>(chest_refid); fake_bound && chest_ref) {
             UpdateFakeWV(fake_bound, chest_ref, weight_ratio);
         } else {
             logger::error("ReceiveData: missing fake_bound or chest_ref for chest {:x}", chest_refid);
@@ -1413,18 +1429,21 @@ void Manager::ReceiveData() {
     Print();
 }
 
-std::vector<Source> Manager::GetSources() const { SHARED_GUARD; return sources; }
+std::vector<Source> Manager::GetSources() const {
+    SHARED_GUARD;
+    return sources;
+}
 
 void Manager::Uninstall() {
     if (isUninstalled.load()) return;
     bool uninstall_successful = true;
     logger::info("Uninstalling...");
     logger::info("No of chests in cell: {}", GetNoChests());
-    std::vector<std::pair<RefID,FormID>> all_chests_fakes;
+    std::vector<std::pair<RefID, FormID>> all_chests_fakes;
     {
         SHARED_GUARD;
         for (const auto& [chest_refid, real_fake_formid] : ChestToFakeContainer) {
-            all_chests_fakes.emplace_back(chest_refid,real_fake_formid.innerKey);
+            all_chests_fakes.emplace_back(chest_refid, real_fake_formid.innerKey);
         }
     }
     for (const auto& chest_refid : all_chests_fakes | std::views::keys) {
@@ -1432,8 +1451,7 @@ void Manager::Uninstall() {
             uninstall_successful = false;
             logger::error("Chest not found");
             break;
-        }
-        else if (IsChest(chest_refid) && !DeRegister(chest, player_ref)) {
+        } else if (IsChest(chest_refid) && !DeRegister(chest, player_ref)) {
             uninstall_successful = false;
             logger::error("Failed to deregister chest during uninstall.");
         }
@@ -1441,7 +1459,8 @@ void Manager::Uninstall() {
     logger::info("Removing all unowned chests");
     {
         RE::BSSpinLockGuard locker(unownedCell->GetRuntimeData().spinLock);
-        for (auto& unownedRuntimeData = unownedCell->GetRuntimeData(); const auto& ref : unownedRuntimeData.references) {
+        for (auto& unownedRuntimeData = unownedCell->GetRuntimeData(); const auto& ref : unownedRuntimeData.
+             references) {
             if (!ref) continue;
             if (ref->GetFormID() == UnownedStuff::unownedChestOGRefID) continue;
             if (ref->GetBaseObject()->GetFormID() != UnownedStuff::unownedChestFormID) continue;
@@ -1451,7 +1470,7 @@ void Manager::Uninstall() {
                 uninstall_successful = false;
                 logger::error("Failed to deregister chest during uninstall.");
             }
-            RE::GarbageCollector::GetSingleton()->Add(ref.get(),true);
+            RE::GarbageCollector::GetSingleton()->Add(ref.get(), true);
         }
     }
     logger::info("uninstall_successful: {}", uninstall_successful);
@@ -1470,32 +1489,29 @@ void Manager::Uninstall() {
     isUninstalled.store(true);
 }
 
-RE::TESBoundObject* Manager::GetFakeBound(const RE::TESObjectREFR* a_loc) const
-{
+RE::TESBoundObject* Manager::GetFakeBound(const RE::TESObjectREFR* a_loc) const {
     if (const auto chest = GetContainerChest(a_loc)) {
         return GetFakeBound(chest->GetFormID());
     }
     return nullptr;
 }
 
-std::string Manager::GetWeightText(RE::TESObjectREFR* a_container)
-{
+std::string Manager::GetWeightText(RE::TESObjectREFR* a_container) {
     if (const auto chest = GetContainerChest(a_container)) {
         return GetWeightText_(chest);
-        }
+    }
     if (const auto src = GetContainerSource(a_container->GetBaseObject()->GetFormID())) {
-        return GetWeightText(0.f,src->capacity);
+        return GetWeightText(0.f, src->capacity);
     }
     return "";
 }
 
-std::string Manager::GetWeightText(const RE::TESBoundObject* fake_or_real)
-{
+std::string Manager::GetWeightText(const RE::TESBoundObject* fake_or_real) {
     if (const auto chest = GetFakeContainerChest(fake_or_real)) {
         return GetWeightText_(chest);
     }
     if (const auto src = GetContainerSource(fake_or_real->GetFormID())) {
-        return GetWeightText(0.f,src->capacity);
+        return GetWeightText(0.f, src->capacity);
     }
     return "";
 }
@@ -1507,7 +1523,7 @@ std::string Manager::GetValueText(RE::TESObjectREFR* a_loc) {
         return std::to_string(fake->GetGoldValue() + extra_cost);
     }
     if ([[maybe_unused]] const auto src = GetContainerSource(a_real->GetFormID())) {
-        return std::to_string(FunctionsSkyrim::GetItemValue(a_real,&a_loc->extraList));
+        return std::to_string(FunctionsSkyrim::GetItemValue(a_real, &a_loc->extraList));
     }
     return "";
 }
@@ -1520,8 +1536,7 @@ void Manager::CloseMenu() {
     closed_menu = Menu::CloseMenu();
 }
 
-RE::TESBoundObject* Manager::RegisterFromMenu(RE::InventoryEntryData* a_real_entry, RE::TESObjectREFR* a_owner)
-{
+RE::TESBoundObject* Manager::RegisterFromMenu(RE::InventoryEntryData* a_real_entry, RE::TESObjectREFR* a_owner) {
     a_owner = a_owner ? a_owner : player_ref;
     if (!a_real_entry) return nullptr;
     const auto a_real = a_real_entry->GetObject();
@@ -1549,12 +1564,12 @@ RE::TESBoundObject* Manager::RegisterFromMenu(RE::InventoryEntryData* a_real_ent
     RE::ExtraDataList* xList_fake = nullptr;
     if (Inventory::EntryHasXDataList(a_real_entry)) {
         xList_fake = xData::ConstructExtraDataList();
-        if (!xData::UpdateExtras(a_real_entry->extraLists->front(),xList_fake)) {
+        if (!xData::UpdateExtras(a_real_entry->extraLists->front(), xList_fake)) {
             logger::error("Failed to update extras for fake object.");
         }
     }
     a_owner->AddObjectToContainer(fake_bound, xList_fake, 1, nullptr);
-    a_owner->RemoveItem(a_real,1,RE::ITEM_REMOVE_REASON::kStoreInContainer,nullptr,ChestObjRef);
+    a_owner->RemoveItem(a_real, 1, RE::ITEM_REMOVE_REASON::kStoreInContainer, nullptr, ChestObjRef);
     if (const auto initial_items_map = src->initial_items; !initial_items_map.empty()) {
         SKSE::GetTaskInterface()->AddTask([ChestRefID, initial_items_map] {
             const auto chest = RE::TESForm::LookupByID<RE::TESObjectREFR>(ChestRefID);
@@ -1577,13 +1592,14 @@ RE::TESBoundObject* Manager::RegisterFromMenu(RE::InventoryEntryData* a_real_ent
 void Manager::RenameCallback(RE::TESBoundObject* a_fake) {
     if (!ModCompatibility::Mods::ui_extensions_installed) return;
     const char* container_name = a_fake->GetName();
-    if (Papyrus::CallFunction("UIExtensions","SetMenuPropertyString",{},"UITextEntryMenu","text",container_name)) {
-        RE::TESForm* dummy1 = nullptr; RE::TESForm* dummy2 = nullptr; const auto smart = RE::make_smart<Papyrus::RenameCallbackFunctor>(a_fake);
-        if (!CallFunction("UIExtensions","OpenMenu",smart.get(),"UITextEntryMenu",dummy1,dummy2)) {
+    if (Papyrus::CallFunction("UIExtensions", "SetMenuPropertyString", {}, "UITextEntryMenu", "text", container_name)) {
+        RE::TESForm* dummy1 = nullptr;
+        RE::TESForm* dummy2 = nullptr;
+        const auto smart = RE::make_smart<Papyrus::RenameCallbackFunctor>(a_fake);
+        if (!CallFunction("UIExtensions", "OpenMenu", smart.get(), "UITextEntryMenu", dummy1, dummy2)) {
             logger::error("Failed to open UIExtensions menu.");
         }
-    }
-    else {
+    } else {
         logger::error("Failed to call UIExtensions functions.");
     }
 }

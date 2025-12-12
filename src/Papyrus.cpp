@@ -22,22 +22,19 @@ Papyrus::ObjectPtr Papyrus::GetObjectPtr(const RE::TESForm* a_form, const char* 
 void Papyrus::ConversationCallbackFunctor::operator()(const RE::BSScript::Variable a_result) {
     if (a_result.IsNoneObject()) {
         logger::warn("Result: None");
-    }
-    else if (a_result.IsString()) {
+    } else if (a_result.IsString()) {
         rename = a_result.GetString();
         if (!rename.empty()) {
-            Manager::GetSingleton()->RenameContainer(rename,fake);
+            Manager::GetSingleton()->RenameContainer(rename, fake);
         }
-    }
-    else {
+    } else {
         logger::info("a_result type {}", a_result.GetType().TypeAsString().c_str());
     }
 }
 
 void Papyrus::RenameCallbackFunctor::OnRename() {
     const auto smart = RE::make_smart<ConversationCallbackFunctor>(fake);
-    if (!CallFunction("UIExtensions","GetMenuResultString",smart.get(),"UITextEntryMenu")) {
-		logger::error("Failed to get menu result string from UIExtensions.");
+    if (!CallFunction("UIExtensions", "GetMenuResultString", smart.get(), "UITextEntryMenu")) {
+        logger::error("Failed to get menu result string from UIExtensions.");
     }
-    
 }

@@ -3,14 +3,14 @@
 #include "CLibUtilsQTR/Serialization.hpp"
 
 namespace Serialization {
-
     struct SaveDataRHS2 {
-        FormID id;       // fake formid
-        bool equipped;   // is equipped
-        bool favorited;  // is favorited
-        RefID refid;     // refid of unowned/realoutintheworld/externalcont
+        FormID id; // fake formid
+        bool equipped; // is equipped
+        bool favorited; // is favorited
+        RefID refid; // refid of unowned/realoutintheworld/externalcont
 
-        SaveDataRHS2() : id(0), equipped(false), favorited(false), refid(0) {}
+        SaveDataRHS2() : id(0), equipped(false), favorited(false), refid(0) {
+        }
     };
 
     using SaveDataLHS = FormRefID;
@@ -22,15 +22,14 @@ namespace Serialization {
         float acteff_elapsed = -1.f;
     };
 
-    using DFSaveDataLHS = std::pair<FormID,std::string>;
+    using DFSaveDataLHS = std::pair<FormID, std::string>;
     using DFSaveDataRHS = std::vector<DFSaveData>;
 
-    class SaveLoadData : public BaseData<SaveDataLHS,SaveDataRHS> {
+    class SaveLoadData : public BaseData<SaveDataLHS, SaveDataRHS> {
     protected:
         ~SaveLoadData() = default;
 
     public:
-
         [[nodiscard]] bool Save(SKSE::SerializationInterface* serializationInterface) override;
 
         [[nodiscard]] bool Save(SKSE::SerializationInterface* serializationInterface, std::uint32_t type,
@@ -40,13 +39,11 @@ namespace Serialization {
     };
 
 
-
     class DFSaveLoadData : public BaseData<DFSaveDataLHS, DFSaveDataRHS> {
     protected:
         ~DFSaveLoadData() = default;
 
     public:
-
         [[nodiscard]] bool Save(SKSE::SerializationInterface* serializationInterface) override;
 
         [[nodiscard]] bool Save(SKSE::SerializationInterface* serializationInterface, std::uint32_t type,
