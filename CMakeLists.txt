@@ -1,4 +1,3 @@
-
 if(NOT DEFINED ENV{COMMONLIB_SSE_FOLDER})
   message(FATAL_ERROR "Missing COMMONLIB_SSE_FOLDER environment variable")
 endif()
@@ -52,20 +51,6 @@ find_path(SKSE_MCP_INCLUDE_DIRS "SKSEMCP/utils.hpp")
 find_path(SkyPromptAPI_INCLUDE_DIRS "SkyPrompt/API.hpp")
 find_path(DAF_API_INCLUDE_DIRS "DynamicAnimationFramework/API.hpp")
 
-#YAML-CPP
-FetchContent_Declare(
-  yaml-cpp
-  GIT_REPOSITORY https://github.com/jbeder/yaml-cpp.git
-  GIT_TAG master # Can be a tag (yaml-cpp-x.x.x), a commit hash, or a branch name (master)
-)
-FetchContent_GetProperties(yaml-cpp)
-
-if(NOT yaml-cpp_POPULATED)
-  message(STATUS "Fetching yaml-cpp...")
-  FetchContent_Populate(yaml-cpp)
-  add_subdirectory(${yaml-cpp_SOURCE_DIR} ${yaml-cpp_BINARY_DIR})
-endif()
-
 file(
   GLOB_RECURSE
   sources
@@ -80,6 +65,8 @@ source_group(
 
 set(BUILD_TESTS OFF)
 include(${COMMONLIB_SRC_DIR}/cmake/CommonLibSSE.cmake)
+
+find_package(yaml-cpp CONFIG REQUIRED)
 
 add_commonlibsse_plugin(
   ${PROJECT_NAME}
@@ -97,6 +84,7 @@ target_include_directories(
     ${DAF_API_INCLUDE_DIRS}
 	${CMAKE_CURRENT_SOURCE_DIR}/include
 )
+target_link_libraries(${PROJECT_NAME} PRIVATE yaml-cpp::yaml-cpp)
 
 if (MSVC)
   # Good default
@@ -119,7 +107,6 @@ elseif (CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
     -Wunused-function) # GCC does not warn on unused member funcs
 endif()
 
-target_link_libraries(${PROJECT_NAME} PUBLIC yaml-cpp::yaml-cpp)
 target_compile_definitions(${PROJECT_NAME} PRIVATE IS_HOST_PLUGIN)
 
 set(wildlander_output false)

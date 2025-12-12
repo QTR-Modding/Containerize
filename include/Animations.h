@@ -1,5 +1,5 @@
 #pragma once
-#include "ClibUtil/singleton.hpp"
+#include <REX/REX/Singleton.h>
 #include "Hooks.h"
 #include "DynamicAnimationFramework/API.hpp"
 
@@ -19,7 +19,7 @@ namespace Animations
 
 	class AnimSink : 
 		public RE::BSTEventSink<RE::BSAnimationGraphEvent>,
-		public clib_util::singleton::ISingleton<AnimSink>
+		public REX::Singleton<AnimSink>
 	{
         RE::BSEventNotifyControl ProcessEvent(const RE::BSAnimationGraphEvent* a_event,
                                               RE::BSTEventSource<RE::BSAnimationGraphEvent>*) override {

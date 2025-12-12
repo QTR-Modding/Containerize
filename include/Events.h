@@ -1,7 +1,7 @@
 #pragma once
-#include "Manager.h"
+#include "REX/REX/Singleton.h"
 
-class EventSink final : public clib_util::singleton::ISingleton<EventSink>,
+class EventSink final : public REX::Singleton<EventSink>,
                         public RE::BSTEventSink<RE::TESFurnitureEvent>,
                         public RE::BSTEventSink<SKSE::CrosshairRefEvent>,
                         public RE::BSTEventSink<RE::TESFormDeleteEvent>,

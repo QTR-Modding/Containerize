@@ -1,4 +1,6 @@
 #include "Events.h"
+
+#include "Manager.h"
 #include "SkyPrompt.h"
 
 void EventSink::SendPrompts(RE::TESObjectREFR* a_container) {

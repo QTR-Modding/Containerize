@@ -1,5 +1,5 @@
 #pragma once
-#include "ClibUtil/singleton.hpp"
+#include <REX/REX/Singleton.h>
 #include "SkyPrompt/API.hpp"
 
 namespace SkyPrompt {
@@ -17,7 +17,7 @@ namespace SkyPrompt {
 	    } };
 
     class MyPromptSink final : public SkyPromptAPI::PromptSink,
-                               public clib_util::singleton::ISingleton<MyPromptSink>
+                               public REX::Singleton<MyPromptSink>
     {
 	    SkyPromptAPI::Prompt open_prompt{ Strings::open_bag,0,0, SkyPromptAPI::PromptType::kHold};
 	    SkyPromptAPI::Prompt rename_prompt{ Strings::rename_bag,1,0, SkyPromptAPI::PromptType::kHold};
@@ -31,7 +31,7 @@ namespace SkyPrompt {
     };
 
 	class MyPromptSink2 final : public SkyPromptAPI::PromptSink,
-                               public clib_util::singleton::ISingleton<MyPromptSink2>
+                               public REX::Singleton<MyPromptSink2>
     {
 
 		std::string weight_text;
@@ -50,7 +50,7 @@ namespace SkyPrompt {
     };
 
 	class MenuPromptSink final : public SkyPromptAPI::PromptSink,
-                               public clib_util::singleton::ISingleton<MenuPromptSink>
+                               public REX::Singleton<MenuPromptSink>
     {
 		mutable std::string weight_text;
 
@@ -70,7 +70,7 @@ namespace SkyPrompt {
     };
 
 	class RegistrationPromptSink final : public SkyPromptAPI::PromptSink,
-                               public clib_util::singleton::ISingleton<RegistrationPromptSink >
+                               public REX::Singleton<RegistrationPromptSink>
     {
 		mutable std::string weight_text;
 

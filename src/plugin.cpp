@@ -1,5 +1,6 @@
 #include "Hooks.h"
 #include "MCP.h"
+#include "Manager.h"
 #include "SkyPrompt.h"
 #include "Translations.h"
 
