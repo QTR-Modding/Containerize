@@ -12,4 +12,5 @@ set(sources ${sources}
 	src/Papyrus.cpp
 	src/SkyPrompt.cpp
 	src/Animations.cpp
+	src/QuickLootHelper.cpp
 )

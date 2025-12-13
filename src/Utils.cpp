@@ -1,6 +1,6 @@
 #include <Utils.h>
-
 #include "QuickLootAPI.h"
+#include "QuickLootHelper.h"
 #include "Translations.h"
 #include "CLibUtilsQTR/FormReader.hpp"
 
@@ -60,54 +60,6 @@ bool ModCompatibility::Mods::IsPo3Installed() {
         return false;
     }
     return true;
-}
-
-void SetupLog() {
-    const auto logsFolder = SKSE::log::log_directory();
-    if (!logsFolder) SKSE::stl::report_and_fail("SKSE log_directory not provided, logs disabled.");
-    auto pluginName = SKSE::PluginDeclaration::GetSingleton()->GetName();
-    const auto logFilePath = *logsFolder / std::format("{}.log", pluginName);
-    auto fileLoggerPtr = std::make_shared<spdlog::sinks::basic_file_sink_mt>(logFilePath.string(), true);
-    auto loggerPtr = std::make_shared<spdlog::logger>("log", std::move(fileLoggerPtr));
-    spdlog::set_default_logger(std::move(loggerPtr));
-    #ifndef NDEBUG
-    spdlog::set_level(spdlog::level::trace);
-    spdlog::flush_on(spdlog::level::trace);
-    #else
-    spdlog::set_level(spdlog::level::info);
-    spdlog::flush_on(spdlog::level::info);
-    #endif
-    logger::info("Name of the plugin is {}.", pluginName);
-    logger::info("Version of the plugin is {}.", SKSE::PluginDeclaration::GetSingleton()->GetVersion());
-}
-
-std::filesystem::path GetLogPath() {
-    const auto logsFolder = SKSE::log::log_directory();
-    if (!logsFolder) SKSE::stl::report_and_fail("SKSE log_directory not provided, logs disabled.");
-    auto pluginName = SKSE::PluginDeclaration::GetSingleton()->GetName();
-    auto logFilePath = *logsFolder / std::format("{}.log", pluginName);
-    return logFilePath;
-}
-
-std::vector<std::string> ReadLogFile() {
-    std::vector<std::string> logLines;
-
-    // Open the log file
-    std::ifstream file(GetLogPath().c_str());
-    if (!file.is_open()) {
-        // Handle error
-        return logLines;
-    }
-
-    // Read and store each line from the file
-    std::string line;
-    while (std::getline(file, line)) {
-        logLines.push_back(line);
-    }
-
-    file.close();
-
-    return logLines;
 }
 
 std::string DecodeTypeCode(const std::uint32_t typeCode) {
@@ -982,5 +934,10 @@ void ModCompatibility::Load() {
     if (Mods::quickloot_installed && !QuickLoot::API::QuickLootAPI::Init("Containerize")) {
         logger::info("QuickLootIE not found. Continuing without QuickLootIE support.");
         Mods::quickloot_installed = false;
+    }
+    if (QuickLoot::API::QuickLootAPI::IsReadyV21()) {
+        QuickLoot::API::QuickLootAPI::RegisterContainerOverrideHandler(QuickLootHelper::containerOverrideHandler);
+        QuickLoot::API::QuickLootAPI::RegisterOpeningLootMenuHandler(QuickLootHelper::openingLootMenuHandler);
+        QuickLoot::API::QuickLootAPI::RegisterCloseLootMenuHandler(QuickLootHelper::closingLootMenuHandler);
     }
 }

@@ -77,10 +77,6 @@ inline std::string problem_with_container_msgbox =
 inline std::vector<std::string> buttons = {"Open", "Take", "More...", "Close"};
 inline std::vector<std::string> buttons_more = {"Rename", "Uninstall", "Back", "Close"};
 
-void SetupLog();
-std::filesystem::path GetLogPath();
-std::vector<std::string> ReadLogFile();
-
 std::string DecodeTypeCode(std::uint32_t typeCode);
 
 std::string GetGameLanguage();

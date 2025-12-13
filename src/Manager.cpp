@@ -133,7 +133,7 @@ bool Manager::IsChest_NoLock(const RefID a_refid) const noexcept {
     return ChestToFakeContainer.contains(a_refid);
 }
 
-Source* Manager::GetChestSource_NoLock(RefID a_chestID) {
+Source* Manager::GetChestSource_NoLock(const RefID a_chestID) {
     return GetContainerSource_NoLock(GetRealID_NoLock(a_chestID));
 }
 
@@ -181,16 +181,12 @@ RE::TESObjectREFR* Manager::GetFakeContainerChest(const RE::TESBoundObject* a_fa
     return RE::TESForm::LookupByID<RE::TESObjectREFR>(GetFakeContainerChestID(a_fake->GetFormID()));
 }
 
-RE::TESObjectREFR* Manager::GetContainerLocation(const FormID a_fake_id) const {
-    SHARED_GUARD;
-    const RefID chest_id = GetFakeContainerChestID_NoLock(a_fake_id);
-    if (!chest_id) return nullptr;
-    const auto real_id = GetRealID_NoLock(chest_id);
-    const auto* src = GetContainerSource_NoLock(real_id);
-    if (!src) return nullptr;
-    const auto it = src->data.find(chest_id);
-    if (it == src->data.end()) return nullptr;
-    return RE::TESForm::LookupByID<RE::TESObjectREFR>(it->second);
+RE::TESObjectREFR* Manager::GetContainerLoc(const FormID a_fake_id) const {
+    const RefID chest_id = GetFakeContainerChestID(a_fake_id);
+    if (const auto a_locID = GetContainerLocation(chest_id); a_locID > 0) {
+        return RE::TESForm::LookupByID<RE::TESObjectREFR>(a_locID);
+    }
+    return nullptr;
 }
 
 uint32_t Manager::GetNoChests() const {
@@ -435,7 +431,7 @@ RE::TESBoundObject* Manager::FakePlacement_Sub_Sub(const RefID chestID) {
         renames.erase(fakeid_old);
     }
 
-    auto DFT = DynamicFormTracker::GetSingleton();
+    const auto DFT = DynamicFormTracker::GetSingleton();
     if (DFT->IsActive(fakeid_old)) {
         DFT->SetInactive(fakeid_old);
         DFT->Reserve(real_formid, clib_util::editorID::get_editorID(real_bound), fakeid_old);
@@ -636,7 +632,7 @@ bool Manager::DeRegister(RE::TESObjectREFR* chest, RE::TESObjectREFR* transfer_d
         logger::critical("DeRegister: fake_bound null for chest {:x}", chestID);
         return false;
     }
-    const auto fake_loc = GetContainerLocation(fake_bound->GetFormID());
+    const auto fake_loc = GetContainerLoc(fake_bound->GetFormID());
 
     if (!DeRegister_Sub(GetRealID(chestID), chestID)) {
         logger::critical("Failed to deregister chestID: {:x}", chestID);
@@ -1028,7 +1024,7 @@ void Manager::RenameContainer(const std::string& new_name, RE::TESBoundObject* a
     }
     RE::ExtraDataList* xList = nullptr;
     RE::TESObjectREFR* a_containermenu_owner = nullptr;
-    if (const auto a_current_container = GetContainerLocation(fake_formid)) {
+    if (const auto a_current_container = GetContainerLoc(fake_formid)) {
         if (a_current_container->HasContainer()) {
             a_containermenu_owner = a_current_container;
             auto inv = a_current_container->GetInventory();
@@ -1052,6 +1048,7 @@ void Manager::RenameContainer(const std::string& new_name, RE::TESBoundObject* a
 void Manager::OnChestExit(RE::TESObjectREFR* a_chest) {
     const auto chest_id = a_chest->GetFormID();
     const bool next_menu_is_chest = containermenu_owner && IsChest(containermenu_owner->GetFormID());
+    const bool was_in_menu = !closed_menu.empty();
     const auto real_bound = GetRealBound(chest_id);
     if (reals_to_takeback.contains(chest_id)) {
         TakeBackReal(real_bound, a_chest);
@@ -1081,9 +1078,9 @@ void Manager::OnChestExit(RE::TESObjectREFR* a_chest) {
         }
         if (fake_bound) UpdateFakeWV(fake_bound);
     }
-    if (!next_menu_is_chest) {
+    if (was_in_menu && !next_menu_is_chest) {
         const auto fake_id = GetFakeID(chest_id);
-        if (const auto container_ref = GetContainerLocation(fake_id);
+        if (const auto container_ref = GetContainerLoc(fake_id);
             container_ref && real_bound && container_ref->GetBaseObject() == real_bound) {
             Animations::SendAnimEvent(false, container_ref);
         } else {
@@ -1217,6 +1214,16 @@ void Manager::HandleFormDelete(const RefID refid) {
 bool Manager::IsChest(const RefID a_refid) const {
     SHARED_GUARD;
     return IsChest_NoLock(a_refid);
+}
+
+RefID Manager::GetContainerLocation(const FormID a_chestID) const {
+    SHARED_GUARD;
+    const auto real_id = GetRealID_NoLock(a_chestID);
+    const auto* src = GetContainerSource_NoLock(real_id);
+    if (!src) return 0;
+    const auto it = src->data.find(a_chestID);
+    if (it == src->data.end()) return 0;
+    return it->second;
 }
 
 void Manager::Reset() {

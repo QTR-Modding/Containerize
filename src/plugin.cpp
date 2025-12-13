@@ -1,4 +1,6 @@
+#include "Events.h"
 #include "Hooks.h"
+#include "Logger.h"
 #include "MCP.h"
 #include "Manager.h"
 #include "SkyPrompt.h"

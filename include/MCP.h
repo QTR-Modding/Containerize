@@ -1,6 +1,6 @@
 #pragma once
 #include "DynamicFormTracker.h"
-#include "Events.h"
+#include "Logger.h"
 #include "SKSEMCP/SKSEMenuFramework.hpp"
 
 

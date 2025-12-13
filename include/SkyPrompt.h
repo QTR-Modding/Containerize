@@ -8,6 +8,7 @@ namespace SkyPrompt {
         inline std::string rename_bag = "Rename";
         inline std::string weight = "W: ";
         inline std::string value = "V: ";
+        inline std::string toggle_menu = "Toggle Menu";
     };
 
     inline std::array<std::pair<RE::INPUT_DEVICE, uint32_t>, 2> akatosh_keys = {{
