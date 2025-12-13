@@ -88,55 +88,6 @@ namespace {
 // Avoid Windows GetObject macro conflicts in this file
 #undef GetObject
 
-// ================= NoLock helper implementations =================
-const Source* Manager::GetContainerSource_NoLock(const FormID real_id) const noexcept {
-    for (auto& src : sources) {
-        if (src.formid == real_id) return &src;
-    }
-    return nullptr;
-}
-
-Source* Manager::GetContainerSource_NoLock(const FormID real_id) noexcept {
-    for (auto& src : sources) {
-        if (src.formid == real_id) return &src;
-    }
-    return nullptr;
-}
-
-FormID Manager::GetRealID_NoLock(const RefID chest_id) const noexcept {
-    if (const auto it = ChestToFakeContainer.find(chest_id); it != ChestToFakeContainer.end()) return it->second.
-        outerKey;
-    return 0;
-}
-
-FormID Manager::GetFakeID_NoLock(const RefID chest_id) const noexcept {
-    if (const auto it = ChestToFakeContainer.find(chest_id); it != ChestToFakeContainer.end()) return it->second.
-        innerKey;
-    return 0;
-}
-
-RefID Manager::GetFakeContainerChestID_NoLock(const FormID fake_id) const noexcept {
-    for (auto& [chest_ref, cont_forms] : ChestToFakeContainer) {
-        if (cont_forms.innerKey == fake_id) return chest_ref;
-    }
-    return 0;
-}
-
-RE::TESBoundObject* Manager::GetFakeBound_NoLock(const RefID chest_id) const noexcept {
-    if (const auto it = ChestToFakeContainer.find(chest_id); it != ChestToFakeContainer.end()) {
-        return RE::TESForm::LookupByID<RE::TESBoundObject>(it->second.innerKey);
-    }
-    return nullptr;
-}
-
-bool Manager::IsChest_NoLock(const RefID a_refid) const noexcept {
-    return ChestToFakeContainer.contains(a_refid);
-}
-
-Source* Manager::GetChestSource_NoLock(const RefID a_chestID) {
-    return GetContainerSource_NoLock(GetRealID_NoLock(a_chestID));
-}
-
 void Manager::TakeBackReal(RE::TESBoundObject* real_obj, RE::TESObjectREFR* chest) {
     const auto unownedChestOG = RE::TESForm::LookupByID<RE::TESObjectREFR>(UnownedStuff::unownedChestOGRefID);
     if (!unownedChestOG) return RaiseMngrErr("MsgBoxCallback unownedChestOG is null");
@@ -187,6 +138,16 @@ RE::TESObjectREFR* Manager::GetContainerLoc(const FormID a_fake_id) const {
         return RE::TESForm::LookupByID<RE::TESObjectREFR>(a_locID);
     }
     return nullptr;
+}
+
+RefID Manager::GetContainerLocation(const FormID a_chestID) const {
+    SHARED_GUARD;
+    const auto real_id = GetRealID_NoLock(a_chestID);
+    const auto* src = GetContainerSource_NoLock(real_id);
+    if (!src) return 0;
+    const auto it = src->data.find(a_chestID);
+    if (it == src->data.end()) return 0;
+    return it->second;
 }
 
 uint32_t Manager::GetNoChests() const {
@@ -314,6 +275,55 @@ Source* Manager::GetChestSource(const RefID a_chestID) {
     return GetContainerSource(GetRealID(a_chestID));
 }
 
+// ================= NoLock helper implementations =================
+const Source* Manager::GetContainerSource_NoLock(const FormID real_id) const noexcept {
+    for (auto& src : sources) {
+        if (src.formid == real_id) return &src;
+    }
+    return nullptr;
+}
+
+Source* Manager::GetContainerSource_NoLock(const FormID real_id) noexcept {
+    for (auto& src : sources) {
+        if (src.formid == real_id) return &src;
+    }
+    return nullptr;
+}
+
+FormID Manager::GetRealID_NoLock(const RefID chest_id) const noexcept {
+    if (const auto it = ChestToFakeContainer.find(chest_id); it != ChestToFakeContainer.end()) return it->second.
+        outerKey;
+    return 0;
+}
+
+FormID Manager::GetFakeID_NoLock(const RefID chest_id) const noexcept {
+    if (const auto it = ChestToFakeContainer.find(chest_id); it != ChestToFakeContainer.end()) return it->second.
+        innerKey;
+    return 0;
+}
+
+RefID Manager::GetFakeContainerChestID_NoLock(const FormID fake_id) const noexcept {
+    for (auto& [chest_ref, cont_forms] : ChestToFakeContainer) {
+        if (cont_forms.innerKey == fake_id) return chest_ref;
+    }
+    return 0;
+}
+
+RE::TESBoundObject* Manager::GetFakeBound_NoLock(const RefID chest_id) const noexcept {
+    if (const auto it = ChestToFakeContainer.find(chest_id); it != ChestToFakeContainer.end()) {
+        return RE::TESForm::LookupByID<RE::TESBoundObject>(it->second.innerKey);
+    }
+    return nullptr;
+}
+
+bool Manager::IsChest_NoLock(const RefID a_refid) const noexcept {
+    return ChestToFakeContainer.contains(a_refid);
+}
+
+Source* Manager::GetChestSource_NoLock(const RefID a_chestID) {
+    return GetContainerSource_NoLock(GetRealID_NoLock(a_chestID));
+}
+
 bool Manager::HasItemPlusCleanUp(RE::TESBoundObject* item, RE::TESObjectREFR* item_owner) {
     const auto inventory = item_owner->GetInventory();
     if (const auto entry = inventory.find(item); entry == inventory.end()) return false;
@@ -322,6 +332,7 @@ bool Manager::HasItemPlusCleanUp(RE::TESBoundObject* item, RE::TESObjectREFR* it
     RemoveItem(item_owner, nullptr, item, RE::ITEM_REMOVE_REASON::kRemove);
     return false;
 }
+
 
 void Manager::UpdateFakeWV(RE::TESBoundObject* fake_form, RE::TESObjectREFR* chest_linked, const float weight_ratio) {
     if (!fake_form) return RaiseMngrErr("Fake form is null");
@@ -345,6 +356,20 @@ void Manager::UpdateFakeWV(RE::TESBoundObject* fake_form, RE::TESObjectREFR* che
     else RaiseMngrErr(std::format("Form type not supported: {}", formtype));
 }
 
+void Manager::UpdateFakeWV(RE::TESBoundObject* fake_form) {
+    const auto chestID = GetFakeContainerChestID(fake_form->GetFormID());
+    const auto chestRef = RE::TESForm::LookupByID<RE::TESObjectREFR>(chestID);
+    if (!chestRef) {
+        logger::error("Chest ref not found.");
+        return;
+    }
+    const auto src = GetChestSource(chestID);
+    if (!src) {
+        logger::error("Source not found.");
+        return;
+    }
+    UpdateFakeWV(fake_form, chestRef, src->weight_ratio);
+}
 
 void Manager::HandleFormDelete_(const RefID chest_refid) {
     auto real_formid = GetRealID(chest_refid);
@@ -468,39 +493,6 @@ void Manager::FakePlacement_Sub(RE::TESObjectREFR* chest, RE::TESObjectREFR* sav
     saved_loc->AddObjectToContainer(fake_bound_new, xList_fake, 1, nullptr);
 }
 
-void Manager::FakePlacementCeption(const RefID chest_ref, std::vector<RefID>& ha) {
-    if (std::ranges::find(ha, chest_ref) != ha.end()) return;
-    ha.push_back(chest_ref);
-    logger::info("-------------------chest_ref: {:x} -------------------", chest_ref);
-    for (const auto& connected_chest : GetChildChests(chest_ref, nullptr)) {
-        logger::info("Connected chest: {:x}", connected_chest);
-        FakePlacementCeption(connected_chest, ha);
-    }
-    RefID saved_loc = 0;
-    bool error = false;
-    {
-        SHARED_GUARD;
-        const auto src = GetChestSource_NoLock(chest_ref);
-        if (!src) {
-            logger::error("Could not find source for container {:x}", chest_ref);
-            error = true;
-        } else {
-            const auto it = src->data.find(chest_ref);
-            if (it == src->data.end()) {
-                logger::error("Source data missing chest_ref {:x}", chest_ref);
-                error = true;
-            } else {
-                saved_loc = it->second;
-            }
-        }
-    }
-
-    if (error) return RaiseMngrErr("Error in FakePlacementCeption");
-
-    FakePlacement(saved_loc, chest_ref);
-    logger::info("-------------------chest_ref: {:x} DONE -------------------", chest_ref);
-}
-
 void Manager::FakePlacement(RefID saved_loc, const RefID chest_refID, RE::TESObjectREFR* external_cont) {
     if (Settings::is_pre_0_10_0) {
         if (chest_refID == saved_loc) saved_loc = player_refid;
@@ -548,6 +540,39 @@ void Manager::FakePlacement(RefID saved_loc, const RefID chest_refID, RE::TESObj
         }
     }
     if (Settings::other_settings[Settings::otherstuffKeys[1]]) RemoveCarryWeightBoost(fakeid, saved_loc_ref);
+}
+
+void Manager::FakePlacementCeption(const RefID chest_ref, std::vector<RefID>& ha) {
+    if (std::ranges::find(ha, chest_ref) != ha.end()) return;
+    ha.push_back(chest_ref);
+    logger::info("-------------------chest_ref: {:x} -------------------", chest_ref);
+    for (const auto& connected_chest : GetChildChests(chest_ref, nullptr)) {
+        logger::info("Connected chest: {:x}", connected_chest);
+        FakePlacementCeption(connected_chest, ha);
+    }
+    RefID saved_loc = 0;
+    bool error = false;
+    {
+        SHARED_GUARD;
+        const auto src = GetChestSource_NoLock(chest_ref);
+        if (!src) {
+            logger::error("Could not find source for container {:x}", chest_ref);
+            error = true;
+        } else {
+            const auto it = src->data.find(chest_ref);
+            if (it == src->data.end()) {
+                logger::error("Source data missing chest_ref {:x}", chest_ref);
+                error = true;
+            } else {
+                saved_loc = it->second;
+            }
+        }
+    }
+
+    if (error) return RaiseMngrErr("Error in FakePlacementCeption");
+
+    FakePlacement(saved_loc, chest_ref);
+    logger::info("-------------------chest_ref: {:x} DONE -------------------", chest_ref);
 }
 
 void Manager::RemoveCarryWeightBoost(const FormID item_formid, RE::TESObjectREFR* inventory_owner) {
@@ -696,6 +721,58 @@ bool Manager::DeRegister_Sub(const FormID master_formID, const RefID chest_refID
     return true;
 }
 
+FormID Manager::GetFakeID(const RefID chest_id) const {
+    SHARED_GUARD;
+    return GetFakeID_NoLock(chest_id);
+}
+
+FormID Manager::GetRealID(const RefID chest_id) const {
+    SHARED_GUARD;
+    return GetRealID_NoLock(chest_id);
+}
+
+RefID Manager::GetContainerChestID(const RefID a_loc_refid) const {
+    SHARED_GUARD;
+    for (const auto& src : sources) {
+        for (const auto& [chest_refid, cont_refid] : src.data) {
+            if (cont_refid == a_loc_refid) return chest_refid;
+        }
+    }
+    return 0;
+}
+
+RefID Manager::GetFakeContainerChestID(const FormID fake_id) const {
+    SHARED_GUARD;
+    return GetFakeContainerChestID_NoLock(fake_id);
+}
+
+RE::TESBoundObject* Manager::GetFakeBound(const RefID chest_id) const {
+    SHARED_GUARD;
+    return GetFakeBound_NoLock(chest_id);
+}
+
+RE::TESBoundObject* Manager::GetRealBound(const RefID chest_id) const {
+    return RE::TESForm::LookupByID<RE::TESBoundObject>(GetRealID(chest_id));
+}
+
+void Manager::UpdateLoc_Private(const RefID chestID, const RefID loc_id) {
+    if (!IsChest(chestID)) {
+        logger::error("Chest ID not found in ChestToFakeContainer.");
+        return;
+    }
+    {
+        UNIQUE_GUARD;
+        const auto real_id = GetRealID_NoLock(chestID);
+        Source* src = GetContainerSource_NoLock(real_id);
+        if (!src) {
+            logger::error("UpdateLoc_Private: source null");
+            return;
+        }
+        if (src->data.contains(chestID)) src->data.at(chestID) = loc_id;
+    }
+    UpdateFakeWV(GetFakeBound(chestID));
+}
+
 void Manager::Init() {
     player_ref = RE::PlayerCharacter::GetSingleton()->As<RE::TESObjectREFR>();
     bool init_failed = false;
@@ -764,111 +841,9 @@ void Manager::Gateway(const int result, const RE::ObjectRefHandle& a_current_con
     }
 }
 
-RefID Manager::GetContainerChestID(const RefID a_loc_refid) const {
-    SHARED_GUARD;
-    for (const auto& src : sources) {
-        for (const auto& [chest_refid, cont_refid] : src.data) {
-            if (cont_refid == a_loc_refid) return chest_refid;
-        }
-    }
-    return 0;
-}
-
-RefID Manager::GetFakeContainerChestID(const FormID fake_id) const {
-    SHARED_GUARD;
-    return GetFakeContainerChestID_NoLock(fake_id);
-}
-
-RE::TESBoundObject* Manager::GetFakeBound(const RefID chest_id) const {
-    SHARED_GUARD;
-    return GetFakeBound_NoLock(chest_id);
-}
-
-RE::TESBoundObject* Manager::GetRealBound(const RefID chest_id) const {
-    return RE::TESForm::LookupByID<RE::TESBoundObject>(GetRealID(chest_id));
-}
-
-FormID Manager::GetFakeID(const RefID chest_id) const {
-    SHARED_GUARD;
-    return GetFakeID_NoLock(chest_id);
-}
-
-FormID Manager::GetRealID(const RefID chest_id) const {
-    SHARED_GUARD;
-    return GetRealID_NoLock(chest_id);
-}
-
-void Manager::BeforePickup(RE::TESObjectREFR* picked_up_by, RE::TESObjectREFR* a_object) {
-    if (const auto chest = GetContainerChest(a_object)) {
-        const auto chest_refid = chest->GetFormID();
-
-        RE::TESBoundObject* fake_bound = nullptr;
-        float weight_ratio = 0.f;
-        {
-            UNIQUE_GUARD;
-            if (const auto src = GetContainerSource_NoLock(GetRealID_NoLock(chest_refid))) {
-                weight_ratio = src->weight_ratio;
-                if (fake_bound = GetFakeBound_NoLock(chest_refid); fake_bound && src->data.contains(chest_refid)) {
-                    src->data.at(chest_refid) = picked_up_by->GetFormID();
-                } else {
-                    logger::critical("Fake bound not found.");
-                }
-            }
-        }
-
-        if (fake_bound) {
-            WorldObject::SwapObjects(a_object, fake_bound, false);
-            UpdateFakeWV(fake_bound, chest, weight_ratio);
-            if (Settings::other_settings[Settings::otherstuffKeys[1]]) {
-                auto ref_handle = picked_up_by->GetHandle();
-                const auto fake_id = fake_bound->GetFormID();
-                SKSE::GetTaskInterface()->AddTask([this, fake_id, ref_handle]() {
-                    if (const auto ref = ref_handle.get()) {
-                        RemoveCarryWeightBoost(fake_id, ref.get());
-                    }
-                });
-            }
-        }
-    }
-}
-
-void Manager::HandleDrop(RE::TESObjectREFR* fake_object) {
-    const auto fake_id = fake_object->GetBaseObject()->GetFormID();
-    if (IsFakeContainer(fake_id)) {
-        const auto chestID = GetFakeContainerChestID(fake_id);
-        const auto real_bound = GetRealBound(chestID);
-        WorldObject::SwapObjects(fake_object, real_bound, false);
-        UpdateLoc_Private(chestID, fake_object->GetFormID());
-    } else {
-        logger::warn("Fake object not found in ChestToFakeContainer.");
-        if (const auto baseform = DynamicFormTracker::GetSingleton()->GetOGFormOfDynamic(
-            fake_object->GetBaseObject()->GetFormID())) {
-            WorldObject::SwapObjects(fake_object, skyrim_cast<RE::TESBoundObject*>(baseform), false);
-        }
-    }
-}
-
 void Manager::UpdateLoc(const FormID fakeID, const RefID loc_id) {
     const auto chestID = GetFakeContainerChestID(fakeID);
     UpdateLoc_Private(chestID, loc_id);
-}
-
-void Manager::UpdateLoc_Private(const RefID chestID, const RefID loc_id) {
-    if (!IsChest(chestID)) {
-        logger::error("Chest ID not found in ChestToFakeContainer.");
-        return;
-    }
-    {
-        UNIQUE_GUARD;
-        const auto real_id = GetRealID_NoLock(chestID);
-        Source* src = GetContainerSource_NoLock(real_id);
-        if (!src) {
-            logger::error("UpdateLoc_Private: source null");
-            return;
-        }
-        if (src->data.contains(chestID)) src->data.at(chestID) = loc_id;
-    }
-    UpdateFakeWV(GetFakeBound(chestID));
 }
 
 void Manager::OnLongPressEquip(const RE::TESBoundObject* a_fake, const int delay) {
@@ -885,21 +860,6 @@ void Manager::OnLongPressEquip(const RE::TESBoundObject* a_fake, const int delay
     } else {
         SKSE::GetTaskInterface()->AddUITask([this,chest] { OpenChestFromMenu(chest); });
     }
-}
-
-void Manager::UpdateFakeWV(RE::TESBoundObject* fake_form) {
-    const auto chestID = GetFakeContainerChestID(fake_form->GetFormID());
-    const auto chestRef = RE::TESForm::LookupByID<RE::TESObjectREFR>(chestID);
-    if (!chestRef) {
-        logger::error("Chest ref not found.");
-        return;
-    }
-    const auto src = GetChestSource(chestID);
-    if (!src) {
-        logger::error("Source not found.");
-        return;
-    }
-    UpdateFakeWV(fake_form, chestRef, src->weight_ratio);
 }
 
 Count Manager::CanBeAdded(const RE::TESBoundObject* a_item, const Count a_count, RefID a_chestID) {
@@ -1149,6 +1109,56 @@ void Manager::HandleCraftingExit() {
     }
 }
 
+void Manager::HandleDrop(RE::TESObjectREFR* fake_object) {
+    const auto fake_id = fake_object->GetBaseObject()->GetFormID();
+    if (IsFakeContainer(fake_id)) {
+        const auto chestID = GetFakeContainerChestID(fake_id);
+        const auto real_bound = GetRealBound(chestID);
+        WorldObject::SwapObjects(fake_object, real_bound, false);
+        UpdateLoc_Private(chestID, fake_object->GetFormID());
+    } else {
+        logger::warn("Fake object not found in ChestToFakeContainer.");
+        if (const auto baseform = DynamicFormTracker::GetSingleton()->GetOGFormOfDynamic(
+            fake_object->GetBaseObject()->GetFormID())) {
+            WorldObject::SwapObjects(fake_object, skyrim_cast<RE::TESBoundObject*>(baseform), false);
+        }
+    }
+}
+
+void Manager::BeforePickup(RE::TESObjectREFR* picked_up_by, RE::TESObjectREFR* a_object) {
+    if (const auto chest = GetContainerChest(a_object)) {
+        const auto chest_refid = chest->GetFormID();
+
+        RE::TESBoundObject* fake_bound = nullptr;
+        float weight_ratio = 0.f;
+        {
+            UNIQUE_GUARD;
+            if (const auto src = GetContainerSource_NoLock(GetRealID_NoLock(chest_refid))) {
+                weight_ratio = src->weight_ratio;
+                if (fake_bound = GetFakeBound_NoLock(chest_refid); fake_bound && src->data.contains(chest_refid)) {
+                    src->data.at(chest_refid) = picked_up_by->GetFormID();
+                } else {
+                    logger::critical("Fake bound not found.");
+                }
+            }
+        }
+
+        if (fake_bound) {
+            WorldObject::SwapObjects(a_object, fake_bound, false);
+            UpdateFakeWV(fake_bound, chest, weight_ratio);
+            if (Settings::other_settings[Settings::otherstuffKeys[1]]) {
+                auto ref_handle = picked_up_by->GetHandle();
+                const auto fake_id = fake_bound->GetFormID();
+                SKSE::GetTaskInterface()->AddTask([this, fake_id, ref_handle]() {
+                    if (const auto ref = ref_handle.get()) {
+                        RemoveCarryWeightBoost(fake_id, ref.get());
+                    }
+                });
+            }
+        }
+    }
+}
+
 void Manager::OnConsume(const FormID fake_formid, RE::TESObjectREFR* consumed_by) {
     const auto fake_obj = RE::TESForm::LookupByID<RE::TESBoundObject>(fake_formid);
     const auto chest = GetFakeContainerChest(fake_obj);
@@ -1214,16 +1224,6 @@ void Manager::HandleFormDelete(const RefID refid) {
 bool Manager::IsChest(const RefID a_refid) const {
     SHARED_GUARD;
     return IsChest_NoLock(a_refid);
-}
-
-RefID Manager::GetContainerLocation(const FormID a_chestID) const {
-    SHARED_GUARD;
-    const auto real_id = GetRealID_NoLock(a_chestID);
-    const auto* src = GetContainerSource_NoLock(real_id);
-    if (!src) return 0;
-    const auto it = src->data.find(a_chestID);
-    if (it == src->data.end()) return 0;
-    return it->second;
 }
 
 void Manager::Reset() {
