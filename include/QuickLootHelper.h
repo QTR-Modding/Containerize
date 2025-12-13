@@ -6,7 +6,11 @@
 
 class QuickLootHelper :
     public REX::Singleton<QuickLootHelper>,
+    public RE::BSTEventSink<SKSE::CrosshairRefEvent>,
     public SkyPromptAPI::PromptSink {
+
+    mutable bool ql_menu_disabled = false;
+
 public:
     enum QL_MenuState : std::uint8_t {
         kClosed=0,
@@ -25,6 +29,9 @@ public:
     void ProcessEvent(SkyPromptAPI::PromptEvent event) const override;
     std::span<const SkyPromptAPI::Prompt> GetPrompts() const override { return prompts; }
 
+    RE::BSEventNotifyControl ProcessEvent(const SKSE::CrosshairRefEvent* a_event,
+                                          RE::BSTEventSource<SKSE::CrosshairRefEvent>* a_eventSource) override;
+
     //bool SendPrompt(RefID refid) const;
     void RemovePrompt() const;
 
@@ -41,5 +48,7 @@ private:
                                            SkyPromptAPI::PromptType::kSinglePress, 0, prompt_keys};
     
     mutable std::array<SkyPromptAPI::Prompt, 1> prompts = {ql_prompt};
-    bool SendPrompt(RefID refid) const;
+    bool SendPrompt(RE::TESObjectREFR* a_ref) const;
+
+    void ToggleQLMenu(bool a_disabled) const;
 };

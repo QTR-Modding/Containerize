@@ -939,5 +939,6 @@ void ModCompatibility::Load() {
         QuickLoot::API::QuickLootAPI::RegisterContainerOverrideHandler(QuickLootHelper::containerOverrideHandler);
         QuickLoot::API::QuickLootAPI::RegisterOpeningLootMenuHandler(QuickLootHelper::openingLootMenuHandler);
         QuickLoot::API::QuickLootAPI::RegisterCloseLootMenuHandler(QuickLootHelper::closingLootMenuHandler);
+        SKSE::GetCrosshairRefEventSource()->AddEventSink(QuickLootHelper::GetSingleton());
     }
 }
