@@ -5,7 +5,7 @@ namespace {
     template <typename T>
     int SetUpPlayAnimation_Impl(T* a_real, const bool is_worn) {
         using namespace ModCompatibility::Mods;
-        auto manager = Manager::GetSingleton();
+        const auto manager = Manager::GetSingleton();
 
         int duration = 0;
 
@@ -14,7 +14,7 @@ namespace {
             (!Settings::other_settings.at(Settings::otherstuffKeys.at(7)) || is_worn) &&
             (player_cam->IsInThirdPerson() || player_cam->IsInFirstPerson() && improved_cam_path_installed)
         ) {
-            bool should_delay = Settings::AnimationsDelayMenuOpen();
+            const bool should_delay = Settings::AnimationsDelayMenuOpen();
             if (souls_unpaused_installed || should_delay) {
                 duration = Animations::SendAnimEvent(true, a_real);
                 duration = should_delay ? duration : 0;
@@ -35,7 +35,7 @@ int Animations::SetUpPlayAnimation(RE::TESObjectREFR* a_real, const bool is_worn
 }
 
 int Animations::SendAnimEvent(const bool open, const RE::TESForm* a_real) {
-    bool is_ref = a_real->GetFormType() == RE::FormType::Reference;
+    const bool is_ref = a_real->GetFormType() == RE::FormType::Reference;
     auto& a_id = is_ref
                      ? (open ? anim_event_id_open_world : anim_event_id_close_world)
                      : (open ? anim_event_id_open : anim_event_id_close);

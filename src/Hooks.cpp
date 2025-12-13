@@ -96,7 +96,7 @@ RE::InventoryEntryData* Hooks::GetSelectedEntryInMenu() {
 
 RE::TESBoundObject* Hooks::GetSelectedItemInMenu() {
     #undef GetObject
-    if (auto selected_entry = GetSelectedEntryInMenu()) {
+    if (const auto selected_entry = GetSelectedEntryInMenu()) {
         if (const auto selected_object = selected_entry->GetObject()) {
             return selected_object;
         }

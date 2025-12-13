@@ -1,6 +1,5 @@
 ﻿#pragma once
 #include <windows.h>
-#include "ClibUtil/editorID.hpp"
 #include "SimpleIni.h"
 #include "CLibUtilsQTR/FormReader.hpp"
 

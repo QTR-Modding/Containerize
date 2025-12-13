@@ -253,7 +253,7 @@ std::vector<Source> LoadINISources() {
 
     // Sections: Containers, Capacities
     ini.GetAllKeys(InISections[0], source_names);
-    auto numSources = source_names.size();
+    const auto numSources = source_names.size();
 
     sources.reserve(numSources);
 

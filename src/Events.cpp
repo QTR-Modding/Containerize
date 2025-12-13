@@ -1,5 +1,4 @@
 #include "Events.h"
-
 #include "Manager.h"
 #include "SkyPrompt.h"
 
@@ -10,7 +9,7 @@ void EventSink::SendPrompts(RE::TESObjectREFR* a_container) {
     if (!SkyPromptAPI::SendPrompt(SkyPrompt::MyPromptSink::GetSingleton(), SkyPrompt::g_clientID)) {
         //logger::error("Prompt failed.");
     }
-    auto ps = SkyPrompt::MyPromptSink2::GetSingleton();
+    const auto ps = SkyPrompt::MyPromptSink2::GetSingleton();
     ps->Start(a_container);
     if (!SkyPromptAPI::SendPrompt(ps, SkyPrompt::g_clientID)) {
         //logger::error("Prompt failed.");

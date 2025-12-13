@@ -39,7 +39,7 @@ class Manager final : public SaveLoadData,
 
     [[nodiscard]] RE::TESObjectREFR* GetContainerChest(const RE::TESObjectREFR* a_loc) const;
     [[nodiscard]] RE::TESObjectREFR* GetFakeContainerChest(const RE::TESBoundObject* a_fake) const;
-    [[nodiscard]] RE::TESObjectREFR* GetContainerLocation(FormID a_fake_id) const;
+    [[nodiscard]] RE::TESObjectREFR* GetContainerLoc(FormID a_fake_id) const;
 
     [[nodiscard]] uint32_t GetNoChests() const;
 
@@ -186,6 +186,14 @@ public:
 
     // checks if the refid is in the ChestToFakeContainer, i.e. if it is an unownedchest
     [[nodiscard]] bool IsChest(RefID a_refid) const;
+    RefID GetContainerLocation(FormID a_chestID) const;
+
+    RE::TESObjectREFR* QL_GetChest(const RE::TESObjectREFR* a_containerized) const {
+        return GetContainerChest(a_containerized);
+    }
+
+    void QL_Opening(RE::TESObjectREFR* a_chest) { OnChestEnter(a_chest); }
+    void QL_Close(RE::TESObjectREFR* a_chest) { OnChestExit(a_chest); }
 
     void Reset();
 
