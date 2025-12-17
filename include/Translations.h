@@ -23,20 +23,6 @@ namespace Translations {
 
     const std::map<std::string, std::map<std::string, std::string*>> requiredTranslations = {
         {
-            "OnActivate",
-            {
-                {"Open", &buttons[0]},
-                {"Take", &buttons[1]},
-                {"Close", &buttons[3]},
-                {"More", &buttons[2]},
-                {"Rename", &buttons_more[0]},
-                {"Uninstall", &buttons_more[1]},
-                {"Back", &buttons_more[2]},
-                {"More_Close", &buttons_more[3]}
-            }
-        },
-
-        {
             "NotifBoxes",
             {
                 {"no_src_msgbox", &no_src_msgbox},
@@ -98,14 +84,6 @@ namespace Translations {
                 {"name", &UI::Strings::name},
                 {"location_name", &UI::Strings::location_name}
             }
-        },
-        {"SkyPrompt",
-         {
-             {"open_bag", &SkyPrompt::Strings::open_bag},
-             {"rename_bag", &SkyPrompt::Strings::rename_bag},
-             {"weight", &SkyPrompt::Strings::weight},
-             {"value", &SkyPrompt::Strings::value},
-         }
         }
     };
 

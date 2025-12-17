@@ -71,8 +71,6 @@ inline std::string uninstall_msgbox =
 inline std::string uninstall_err_msgbox = "Uninstall failed. Please contact the mod author.";
 inline std::string problem_with_container_msgbox =
     "Problem with one of the items with the form id ({:x}). This is expected if you have changed the list of containers in the INI file between saves. Corresponding items will be returned to your inventory. You can suppress this message by changing the setting in your INI.";
-inline std::vector<std::string> buttons = {"Open", "Take", "More...", "Close"};
-inline std::vector<std::string> buttons_more = {"Rename", "Uninstall", "Back", "Close"};
 
 void SetupLog();
 std::filesystem::path GetLogPath();

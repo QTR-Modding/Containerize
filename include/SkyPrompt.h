@@ -1,13 +1,13 @@
 #pragma once
-#include "ClibUtil/singleton.hpp"
+#include "REX/REX/Singleton.h"
 #include "SkyPrompt/API.hpp"
 
 namespace SkyPrompt {
     namespace Strings {
-        inline std::string open_bag = "Open";
-        inline std::string rename_bag = "Rename";
-        inline std::string weight = "W: ";
-        inline std::string value = "V: ";
+        inline std::string open_bag = "$quantCTRZOpen";
+        inline std::string rename_bag = "$quantCTRZRename";
+        inline std::string weight = "$quantCTRZWeight";
+        inline std::string value = "$quantCTRZValue";
     };
 
     inline std::array<std::pair<RE::INPUT_DEVICE, uint32_t>, 2> akatosh_keys = {{
@@ -16,37 +16,27 @@ namespace SkyPrompt {
     }};
 
     class MyPromptSink final : public SkyPromptAPI::PromptSink,
-                               public clib_util::singleton::ISingleton<MyPromptSink> {
-        SkyPromptAPI::Prompt open_prompt{Strings::open_bag, 0, 0, SkyPromptAPI::PromptType::kHold};
-        SkyPromptAPI::Prompt rename_prompt{Strings::rename_bag, 1, 0, SkyPromptAPI::PromptType::kHold};
+                               public REX::Singleton<MyPromptSink> {
+        
+        std::string weight_text;
+        std::string value_text;
+        RefID refid=0;
 
-        std::array<SkyPromptAPI::Prompt, 2> prompts = {open_prompt, rename_prompt};
+        SkyPromptAPI::Prompt open_prompt{Strings::open_bag, 0, 0, SkyPromptAPI::PromptType::kHold, refid};
+        SkyPromptAPI::Prompt rename_prompt{Strings::rename_bag, 1, 0, SkyPromptAPI::PromptType::kHold, refid};
+        SkyPromptAPI::Prompt weight_prompt{weight_text, 2, 0, SkyPromptAPI::PromptType::kSinglePress, refid, akatosh_keys};
+        SkyPromptAPI::Prompt value_prompt{value_text, 3,           0, SkyPromptAPI::PromptType::kSinglePress, refid, akatosh_keys};
+
+        std::array<SkyPromptAPI::Prompt, 4> prompts = {open_prompt, rename_prompt, weight_prompt, value_prompt};
 
     public:
+        void Start(RE::TESObjectREFR* a_ref);
         void ProcessEvent(SkyPromptAPI::PromptEvent event) const override;
         std::span<const SkyPromptAPI::Prompt> GetPrompts() const override { return prompts; }
     };
 
-    class MyPromptSink2 final : public SkyPromptAPI::PromptSink,
-                                public clib_util::singleton::ISingleton<MyPromptSink2> {
-        std::string weight_text;
-        std::string value_text;
-
-        SkyPromptAPI::Prompt weight_prompt{weight_text, 2, 0, SkyPromptAPI::PromptType::kSinglePress, 0, akatosh_keys};
-        SkyPromptAPI::Prompt value_prompt{value_text, 3, 0, SkyPromptAPI::PromptType::kSinglePress, 0, akatosh_keys};
-
-        std::array<SkyPromptAPI::Prompt, 2> prompts = {weight_prompt, value_prompt};
-
-    public:
-        void ProcessEvent(SkyPromptAPI::PromptEvent) const override {
-        }
-
-        std::span<const SkyPromptAPI::Prompt> GetPrompts() const override { return prompts; }
-        void Start(RE::TESObjectREFR* a_ref);
-    };
-
     class MenuPromptSink final : public SkyPromptAPI::PromptSink,
-                                 public clib_util::singleton::ISingleton<MenuPromptSink> {
+                                 public REX::Singleton<MenuPromptSink> {
         mutable std::string weight_text;
 
         mutable SkyPromptAPI::Prompt open_prompt{Strings::open_bag, 0, 0, SkyPromptAPI::PromptType::kHold};
@@ -65,7 +55,7 @@ namespace SkyPrompt {
     };
 
     class RegistrationPromptSink final : public SkyPromptAPI::PromptSink,
-                                         public clib_util::singleton::ISingleton<RegistrationPromptSink> {
+                                         public REX::Singleton<RegistrationPromptSink> {
         mutable std::string weight_text;
 
         mutable SkyPromptAPI::Prompt open_prompt{Strings::open_bag, 3, 0, SkyPromptAPI::PromptType::kHold};

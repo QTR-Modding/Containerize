@@ -5,10 +5,7 @@ void EventSink::SendPrompts(RE::TESObjectREFR* a_container) {
     if (SkyPrompt::IsAnyMenuOpen()) {
         return;
     }
-    if (!SkyPromptAPI::SendPrompt(SkyPrompt::MyPromptSink::GetSingleton(), SkyPrompt::g_clientID)) {
-        //logger::error("Prompt failed.");
-    }
-    const auto ps = SkyPrompt::MyPromptSink2::GetSingleton();
+    const auto ps = SkyPrompt::MyPromptSink::GetSingleton();
     ps->Start(a_container);
     if (!SkyPromptAPI::SendPrompt(ps, SkyPrompt::g_clientID)) {
         //logger::error("Prompt failed.");
@@ -17,7 +14,6 @@ void EventSink::SendPrompts(RE::TESObjectREFR* a_container) {
 
 void EventSink::RemovePrompts() {
     SkyPromptAPI::RemovePrompt(SkyPrompt::MyPromptSink::GetSingleton(), SkyPrompt::g_clientID);
-    SkyPromptAPI::RemovePrompt(SkyPrompt::MyPromptSink2::GetSingleton(), SkyPrompt::g_clientID);
 }
 
 void EventSink::RemoveMenuPrompts() {
@@ -33,25 +29,25 @@ void EventSink::Reset() {
 
 RE::BSEventNotifyControl EventSink::ProcessEvent(const SKSE::CrosshairRefEvent* a_event,
                                                  RE::BSTEventSource<SKSE::CrosshairRefEvent>*) {
-    if (!a_event->crosshairRef) {
+    const auto a_crosshairRef = a_event->crosshairRef.get();
+    if (!a_crosshairRef || RE::PlayerCharacter::GetSingleton()->GetGrabbedRef().get() == a_crosshairRef) {
         RemovePrompts();
         return RE::BSEventNotifyControl::kContinue;
     }
-    if (const auto ref = a_event->crosshairRef.get()) {
-        Manager::GetSingleton()->HandleFakePlacement(ref);
-    }
+    
+    Manager::GetSingleton()->HandleFakePlacement(a_crosshairRef);
+
     if (const auto baseform = DynamicFormTracker::GetSingleton()->GetOGFormOfDynamic(
-        a_event->crosshairRef->GetBaseObject()->GetFormID())) {
+        a_crosshairRef->GetBaseObject()->GetFormID())) {
         logger::warn("Fake object not found in ChestToFakeContainer.");
-        WorldObject::SwapObjects(a_event->crosshairRef.get(), skyrim_cast<RE::TESBoundObject*>(baseform), false);
+        WorldObject::SwapObjects(a_crosshairRef, skyrim_cast<RE::TESBoundObject*>(baseform), false);
     }
 
-    const auto M = Manager::GetSingleton();
-
-    if (M->IsChestMenuQueued() || M->IsInChestMenu()) {
+    if (const auto M = Manager::GetSingleton(); 
+        M->IsChestMenuQueued() || M->IsInChestMenu()) {
         RemovePrompts();
-    } else if (M->IsRealContainer(a_event->crosshairRef.get())) {
-        SendPrompts(a_event->crosshairRef.get());
+    } else if (M->IsRealContainer(a_crosshairRef)) {
+        SendPrompts(a_crosshairRef);
     } else {
         RemovePrompts();
     }

@@ -21,6 +21,7 @@ void OnMessage(SKSE::MessagingInterface::Message* message) {
             logger::error("Failed to get client ID from SkyPrompt API. Plugin will not work properly.");
         }
         ModCompatibility::Load();
+        SKSE::Translation::ParseTranslation("Containerize");
     }
     if (message->type == SKSE::MessagingInterface::kPostLoadGame ||
         message->type == SKSE::MessagingInterface::kNewGame) {

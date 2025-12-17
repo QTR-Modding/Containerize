@@ -6,6 +6,34 @@
 
 using namespace SkyPrompt;
 
+void SkyPrompt::MyPromptSink::Start(RE::TESObjectREFR* a_ref) {
+    weight_text.clear();
+    value_text.clear();
+
+    const auto manager = Manager::GetSingleton();
+    const auto a_weight_text = manager->GetWeightText(a_ref);
+
+    const auto a_value_text = manager->GetValueText(a_ref);
+    if (a_weight_text.empty() || a_value_text.empty()) {
+        return;
+    }
+
+    weight_text.append(Strings::weight).append(" ").append(a_weight_text);
+    value_text.append(Strings::value).append(" ").append(a_value_text);
+
+    weight_prompt.text = weight_text;
+    value_prompt.text = value_text;
+
+    constexpr auto a_refid = 0; //a_ref->GetFormID();
+    open_prompt.refid = a_refid;
+    rename_prompt.refid = a_refid;
+    weight_prompt.refid = a_refid;
+    value_prompt.refid = a_refid;
+
+
+    prompts = {open_prompt, rename_prompt, weight_prompt, value_prompt};
+}
+
 void MyPromptSink::ProcessEvent(const SkyPromptAPI::PromptEvent event) const {
     if (event.type) {
         return;
@@ -23,27 +51,6 @@ void MyPromptSink::ProcessEvent(const SkyPromptAPI::PromptEvent event) const {
             }
         }
     }
-}
-
-void MyPromptSink2::Start(RE::TESObjectREFR* a_ref) {
-    weight_text.clear();
-    value_text.clear();
-
-    const auto manager = Manager::GetSingleton();
-    const auto a_weight_text = manager->GetWeightText(a_ref);
-
-    const auto a_value_text = manager->GetValueText(a_ref);
-    if (a_weight_text.empty() || a_value_text.empty()) {
-        return;
-    }
-
-    weight_text.append(Strings::weight).append(a_weight_text);
-    value_text.append(Strings::value).append(a_value_text);
-
-    weight_prompt.text = weight_text;
-    value_prompt.text = value_text;
-
-    prompts = {weight_prompt, value_prompt};
 }
 
 bool SkyPrompt::IsAnyMenuOpen() {
@@ -84,7 +91,7 @@ void MenuPromptSink::Show(const RE::TESBoundObject* a_fake) const {
         weight_prompt.refid = refid;
 
         const auto a_weight_text = Manager::GetSingleton()->GetWeightText(a_fake);
-        weight_text.append(Strings::weight).append(a_weight_text);
+        weight_text.append(Strings::weight).append(" ").append(a_weight_text);
         weight_prompt.text = weight_text;
     } else {
         open_prompt.refid = 0;
@@ -166,7 +173,7 @@ void RegistrationPromptSink::Show(const RE::TESBoundObject* a_item) const {
         weight_prompt.refid = refid;
 
         const auto a_weight_text = Manager::GetSingleton()->GetWeightText(a_item);
-        weight_text.append(Strings::weight).append(a_weight_text);
+        weight_text.append(Strings::weight).append(" ").append(a_weight_text);
         weight_prompt.text = weight_text;
     } else {
         open_prompt.refid = 0;
