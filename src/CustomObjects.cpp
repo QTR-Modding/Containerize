@@ -18,8 +18,8 @@ bool FormFormID::operator<(const FormFormID& other) const {
     return outerKey < other.outerKey || (outerKey == other.outerKey && innerKey < other.innerKey);
 }
 
-Source::Source(const std::uint32_t id, std::string id_str, const float capacity, const float cs):
-    weight_ratio(1 - cs), capacity(capacity), formid(id), editorid(std::move(id_str)) {
+Source::Source(const std::uint32_t id, std::string id_str, const float capacity, const float cs, const bool a_transfer_on_use):
+    weight_ratio(1 - cs), capacity(capacity), transfer_on_use(a_transfer_on_use), formid(id), editorid(std::move(id_str)) {
     if (!formid) {
         if (const auto form = RE::TESForm::LookupByEditorID(editorid)) formid = form->GetFormID();
         else logger::info("Could not find formid for editorid {}", editorid);

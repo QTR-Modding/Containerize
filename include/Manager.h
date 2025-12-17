@@ -30,6 +30,8 @@ public clib_util::singleton::ISingleton<Manager>
 
     std::set<std::pair<RefID,FormID>> bypass_CanBeAdded;
 
+    mutable std::unordered_map<RefID, std::vector<std::pair<FormID, Count>>> transfer_cache;
+
     void TakeBackReal(RE::TESBoundObject* real_obj, RE::TESObjectREFR* chest);
 
     std::string GetChestName(const RE::TESObjectREFR* chest) const;
@@ -141,6 +143,9 @@ public clib_util::singleton::ISingleton<Manager>
     RE::TESBoundObject* GetRealBound(RefID chest_id) const;
 
     void UpdateLoc_Private(RefID chestID, RefID loc_id);
+
+    void TransferOnUse(RefID a_chestID) const;
+
 public:
 
 	std::atomic<bool> isUninstalled = false;
@@ -160,7 +165,7 @@ public:
     // places fake objects in external containers after load game
     void HandleFakePlacement(RE::TESObjectREFR* external_cont);
 
-    [[nodiscard]] bool IsFakeContainer(FormID formid);
+    [[nodiscard]] bool IsFakeContainer(FormID formid) const;
 
     // Checks if realcontainer_formid is in the sources
     [[nodiscard]] bool IsRealContainer(FormID formid) const;
@@ -174,6 +179,7 @@ public:
 
     [[nodiscard]] bool IsARegistry(RefID registry) const;
 
+    void HandleCraftingEnter(RefID a_furn) const;
     void HandleCraftingExit();
 
 	void HandleDrop(RE::TESObjectREFR* fake_object);

@@ -64,6 +64,8 @@ namespace Settings {
         //"AMMO",  //	2A AMMO	TESAmmo
         "SLGM",  // 34 SLGM	TESSoulGem
         "ALCH",  //	2E ALCH	AlchemyItem
+        "FURN",  // 28 FURN	TESFurniture
+        "STAT",  // 22 STAT	TESObjectSTAT
 	};
 
     inline bool problems_in_YAML_sources = false;
@@ -75,7 +77,6 @@ namespace Settings {
 
 std::vector<Source> LoadSources();
 void LoadOtherSettings();
-std::vector<Source> parseSources(const YAML::Node& config);
 void LoadFormGroups();
 std::vector<Source> LoadYAMLSources();
 std::vector<Source> LoadINISources();

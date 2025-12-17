@@ -46,11 +46,12 @@ struct Source {
 	float weight_ratio; // 1 - cloud storage, i.e. how much of the weight actually counts in percentage
     std::map<FormID,Count> initial_items;
     float capacity;
+    bool transfer_on_use;
     FormID formid;
     std::string editorid;
     SourceData data; // ChestRefID -> LocRefID
 
-    Source(FormID id, std::string id_str, float capacity, float cs);
+    Source(FormID id, std::string id_str, float capacity, float cs, bool a_transfer_on_use);
 
     [[nodiscard]] std::string_view GetName() const;
 

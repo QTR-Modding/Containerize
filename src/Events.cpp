@@ -8,7 +8,7 @@ void EventSink::SendPrompts(RE::TESObjectREFR* a_container) {
     if (!SkyPromptAPI::SendPrompt(SkyPrompt::MyPromptSink::GetSingleton(), SkyPrompt::g_clientID)) {
 		//logger::error("Prompt failed.");
 	}
-    auto ps = SkyPrompt::MyPromptSink2::GetSingleton();
+    const auto ps = SkyPrompt::MyPromptSink2::GetSingleton();
     ps->Start(a_container);
     if (!SkyPromptAPI::SendPrompt(ps, SkyPrompt::g_clientID)) {
 		//logger::error("Prompt failed.");
@@ -66,27 +66,21 @@ RE::BSEventNotifyControl EventSink::ProcessEvent(const SKSE::CrosshairRefEvent* 
 RE::BSEventNotifyControl EventSink::ProcessEvent(const RE::TESFurnitureEvent* event,
     RE::BSTEventSource<RE::TESFurnitureEvent>*) {
         
-    if (!event) return RE::BSEventNotifyControl::kContinue;
-    if (!event->actor->IsPlayerRef()) return RE::BSEventNotifyControl::kContinue;
+    if (!event || !event->actor->IsPlayerRef()) return RE::BSEventNotifyControl::kContinue;
     if (furniture_entered && event->type == RE::TESFurnitureEvent::FurnitureEventType::kEnter)
         return RE::BSEventNotifyControl::kContinue;
     if (!furniture_entered && event->type == RE::TESFurnitureEvent::FurnitureEventType::kExit)
         return RE::BSEventNotifyControl::kContinue;
-    if (event->targetFurniture->GetBaseObject()->formType.underlying() != 40) return RE::BSEventNotifyControl::kContinue;
 
-    logger::trace("Furniture event");
-
-    const auto bench = event->targetFurniture->GetBaseObject()->As<RE::TESFurniture>();
-    if (!bench) return RE::BSEventNotifyControl::kContinue;
-    if (const auto bench_type = static_cast<std::uint8_t>(bench->workBenchData.benchType.get()); bench_type != 2 && bench_type != 3 && bench_type != 7) return RE::BSEventNotifyControl::kContinue;
+    const auto furn_base = event->targetFurniture->GetBaseObject();
+    if (!furn_base->Is(RE::TESFurniture::FORMTYPE)) return RE::BSEventNotifyControl::kContinue;
 
     if (event->type == RE::TESFurnitureEvent::FurnitureEventType::kEnter) {
-        logger::trace("Furniture event: Enter {}", event->targetFurniture->GetName());
         furniture_entered = true;
         furniture = event->targetFurniture;
+        Manager::GetSingleton()->HandleCraftingEnter(furniture->GetFormID());
     }
     else if (event->type == RE::TESFurnitureEvent::FurnitureEventType::kExit) {
-        logger::trace("Furniture event: Exit {}", event->targetFurniture->GetName());
         if (event->targetFurniture == furniture) {
             Manager::GetSingleton()->HandleCraftingExit();
             furniture_entered = false;

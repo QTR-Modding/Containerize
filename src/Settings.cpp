@@ -24,8 +24,17 @@ namespace {
             }
         }
 
-        logger::trace("FormEditorID: {}, FormID: {}, WeightLimit: {}, CloudStorage: {}", editorid, formid, temp_weight_limit, cloud_storage);
-        Source source(formid, editorid, temp_weight_limit, cloud_storage);
+        bool transfer_on_use = false;
+        if (config["transfer_on_use"] && !config["transfer_on_use"].IsNull()) {
+            try {
+                transfer_on_use = config["transfer_on_use"].as<bool>();
+            }
+            catch (const std::exception&) {
+                logger::warn("transfer_on_use value is invalid. Using default value.");
+            }
+        }
+
+        Source source(formid, editorid, temp_weight_limit, cloud_storage, transfer_on_use);
 
         // add initial items
         if (config["initial_items"] && config["initial_items"].size() > 0) {
@@ -51,6 +60,33 @@ namespace {
         }
 
         return source;
+    }
+
+    std::vector<Source> parseSources(const YAML::Node& config) {
+        std::vector<Source> sources;
+        const auto formeditorid =
+            config["FormEditorID"] && !config["FormEditorID"].IsNull() ? config["FormEditorID"].as<std::string>() : "";
+        const auto candidates = PresetHelpers::YAML_Helpers::StringToFormIDs(formeditorid);
+        size_t i = 0;
+        for (const auto formid : candidates) {
+            if (const auto form = FormReader::GetFormByID(formid)) {
+                const auto editorid = clib_util::editorID::get_editorID(form);
+                sources.push_back(parseSource_(config, formid, editorid));
+                break;
+            }
+            ++i;
+        }
+        for (auto k = i + 1; k < candidates.size(); ++k) {
+            const auto formid = candidates[k];
+            if (const auto form = FormReader::GetFormByID(formid)) {
+                const auto editorid = clib_util::editorID::get_editorID(form);
+                Source new_source = sources[0];
+                new_source.formid = formid;
+                new_source.editorid = editorid;
+                sources.push_back(new_source);
+            }
+        }
+        return sources;
     }
 }
 
@@ -124,32 +160,6 @@ void LoadOtherSettings()
         const bool val = ini.GetBoolValue(InISections[2], key);
         other_settings[key] = val;
     }
-}
-
-std::vector<Source> parseSources(const YAML::Node& config) {
-    std::vector<Source> sources;
-    const auto formeditorid = config["FormEditorID"] && !config["FormEditorID"].IsNull() ? config["FormEditorID"].as<std::string>() : "";
-    const auto candidates = PresetHelpers::YAML_Helpers::StringToFormIDs(formeditorid);
-    size_t i = 0;
-    for (const auto formid : candidates) {
-        if (const auto form = FormReader::GetFormByID(formid)) {
-            const auto editorid = clib_util::editorID::get_editorID(form);
-            sources.push_back(parseSource_(config, formid, editorid));
-            break;
-        }
-        ++i;
-    }
-    for (auto k = i + 1; k < candidates.size(); ++k) {
-        const auto formid = candidates[k];
-        if (const auto form = FormReader::GetFormByID(formid)) {
-            const auto editorid = clib_util::editorID::get_editorID(form);
-            Source new_source = sources[0];
-            new_source.formid = formid;
-            new_source.editorid = editorid;
-            sources.push_back(new_source);
-        }
-    }
-    return sources;
 }
 
 void LoadFormGroups()
@@ -248,6 +258,7 @@ std::vector<Source> LoadINISources()
     sources.reserve(numSources);
 
     cloud_storage_enabled = ini.GetBoolValue(InISections[2], otherstuffKeys[4]);
+    constexpr bool transfer_on_use = false;
 
     for (CSimpleIniA::TNamesDepend::const_iterator it = source_names.begin(); it != source_names.end(); ++it) {
         const char* val1 = ini.GetValue(InISections[0], it->pItem);
@@ -263,14 +274,16 @@ std::vector<Source> LoadINISources()
 
         // if both formid is valid hex, use it
         if (FormReader::isValidHexWithLength7or8(val1)) {
-            sources.emplace_back(id, "", std::stof(val2), cloud_storage_enabled);
+            sources.emplace_back(id, "", std::stof(val2), cloud_storage_enabled, transfer_on_use);
         }
         else if (!po3installed) {
             logger::error("No formid AND powerofthree's Tweaks is not installed.", val1);
             MsgBoxesNotifs::Windows::Po3ErrMsg();
             return sources;
         } 
-        else sources.emplace_back(0, id_str, std::stof(std::string(val2)), cloud_storage_enabled);
+        else {
+            sources.emplace_back(0, id_str, std::stof(std::string(val2)), cloud_storage_enabled, transfer_on_use);
+        }
 
         logger::trace("Source {} has a value of {}", it->pItem, val1);
         ini.SetValue(InISections[0], it->pItem, val1);
