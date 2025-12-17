@@ -44,7 +44,7 @@ namespace SkyPrompt {
         mutable SkyPromptAPI::Prompt rename_prompt{Strings::rename_bag, 1, 0, SkyPromptAPI::PromptType::kHold};
         mutable SkyPromptAPI::Prompt weight_prompt{weight_text, 2, 0, SkyPromptAPI::PromptType::kSinglePress, 0,
                                                    akatosh_keys};
-        mutable std::array<SkyPromptAPI::Prompt, 3> prompts = {open_prompt, rename_prompt, weight_prompt};
+        mutable std::vector<SkyPromptAPI::Prompt> prompts;
 
     public:
         void ProcessEvent(SkyPromptAPI::PromptEvent event) const override;
@@ -63,7 +63,7 @@ namespace SkyPrompt {
         mutable SkyPromptAPI::Prompt rename_prompt{Strings::rename_bag, 4, 0, SkyPromptAPI::PromptType::kHold};
         mutable SkyPromptAPI::Prompt weight_prompt{weight_text, 5, 0, SkyPromptAPI::PromptType::kSinglePress, 0,
                                                    akatosh_keys};
-        mutable std::array<SkyPromptAPI::Prompt, 3> prompts = {open_prompt, rename_prompt, weight_prompt};
+        mutable std::vector<SkyPromptAPI::Prompt> prompts;
 
         mutable RE::TESObjectREFRPtr containermenu_owner = nullptr;
 
