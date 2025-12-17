@@ -4,13 +4,12 @@
 #include "DynamicAnimationFramework/API.hpp"
 
 namespace Animations {
-
-    constexpr std::array<std::string_view,4> anim_events = {
+    constexpr std::array<std::string_view, 4> anim_events = {
         "ContainerizeOpen", "ContainerizeClose", "ContainerizeOpenWorld", "ContainerizeCloseWorld"
     };
-    
-    inline std::array<DAF_API::AnimEventID,4> anim_ids = {0, 0, 0, 0};
-    
+
+    inline std::array<DAF_API::AnimEventID, 4> anim_ids = {0, 0, 0, 0};
+
     int SendAnimEvent(int animIDindex, const RE::TESForm* a_form);
 
     class AnimSink :

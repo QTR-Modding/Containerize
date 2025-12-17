@@ -36,7 +36,7 @@ RE::BSEventNotifyControl EventSink::ProcessEvent(const SKSE::CrosshairRefEvent* 
         RemovePrompts();
         return RE::BSEventNotifyControl::kContinue;
     }
-    
+
     Manager::GetSingleton()->HandleFakePlacement(a_crosshairRef);
 
     if (const auto baseform = DynamicFormTracker::GetSingleton()->GetOGFormOfDynamic(
@@ -45,7 +45,7 @@ RE::BSEventNotifyControl EventSink::ProcessEvent(const SKSE::CrosshairRefEvent* 
         WorldObject::SwapObjects(a_crosshairRef, skyrim_cast<RE::TESBoundObject*>(baseform), false);
     }
 
-    if (const auto M = Manager::GetSingleton(); 
+    if (const auto M = Manager::GetSingleton();
         M->IsChestMenuQueued() || M->IsInChestMenu()) {
         RemovePrompts();
     } else if (M->IsRealContainer(a_crosshairRef)) {

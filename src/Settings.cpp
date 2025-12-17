@@ -130,7 +130,7 @@ std::vector<Source> Settings::LoadYAMLSources() {
                     }
                 } catch (const std::exception& e) {
                     logger::error("Error parsing source: {}", e.what());
-                    Settings::problems_in_YAML_sources |= true;
+                    problems_in_YAML_sources |= true;
                 }
             }
         }
@@ -236,13 +236,13 @@ std::vector<Source> Settings::LoadSources() {
         if (!source.IsHealthy()) {
             logger::error("Source is not healthy. Skipping. formid {:x} / editorid {} / capacity {}", source.formid,
                           source.editorid, source.capacity);
-            Settings::problems_in_YAML_sources |= true;
+            problems_in_YAML_sources |= true;
             continue;
         }
         if (formids.contains(source.formid)) {
             logger::warn("Duplicate formid found. Skipping. formid {:x} / editorid {} / capacity {}", source.formid,
                          source.editorid, source.capacity);
-            Settings::duplicate_sources |= true;
+            duplicate_sources |= true;
             continue;
         }
         formids.insert(source.formid);
@@ -253,13 +253,13 @@ std::vector<Source> Settings::LoadSources() {
         if (!source.IsHealthy()) {
             logger::error("Source is not healthy. Skipping. formid {:x} / editorid {} / capacity {}", source.formid,
                           source.editorid, source.capacity);
-            Settings::problems_in_INI_sources |= true;
+            problems_in_INI_sources |= true;
             continue;
         }
         if (formids.contains(source.formid)) {
             logger::warn("Duplicate formid found. Skipping. formid {:x} / editorid {} / capacity {}", source.formid,
                          source.editorid, source.capacity);
-            Settings::duplicate_sources |= true;
+            duplicate_sources |= true;
             continue;
         }
         formids.insert(source.formid);

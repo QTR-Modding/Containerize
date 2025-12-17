@@ -23,13 +23,13 @@ namespace {
             assert(m && "DebugSharedLock: mutex pointer is null");
             // Cannot take shared if this thread already holds unique
             assert(DebugLockState::uniqueDepth == 0 &&
-                "Attempt to acquire shared lock while holding unique lock on Manager::mutex_ (undefined behavior). Release unique lock first.");
+                   "Attempt to acquire shared lock while holding unique lock on Manager::mutex_ (undefined behavior). Release unique lock first.");
             // Prevent re-entrant shared acquisition
             if (DebugLockState::sharedDepth++ == 0) {
                 m->lock_shared();
             } else {
                 assert(false &&
-                    "Re-entrant shared lock acquisition detected on Manager::mutex_ (undefined behavior). Refactor using NoLock helpers.");
+                       "Re-entrant shared lock acquisition detected on Manager::mutex_ (undefined behavior). Refactor using NoLock helpers.");
             }
         }
 
@@ -55,10 +55,10 @@ namespace {
             assert(m && "DebugUniqueLock: mutex pointer is null");
             // Cannot take unique if shared is currently held
             assert(DebugLockState::sharedDepth == 0 &&
-                "Attempt to acquire unique lock while holding shared lock on Manager::mutex_ (illegal upgrade). Release shared first.");
+                   "Attempt to acquire unique lock while holding shared lock on Manager::mutex_ (illegal upgrade). Release shared first.");
             // Prevent unique re-entrancy
             assert(DebugLockState::uniqueDepth == 0 &&
-                "Re-entrant unique lock acquisition detected on Manager::mutex_. Refactor to avoid nested mutations.");
+                   "Re-entrant unique lock acquisition detected on Manager::mutex_. Refactor to avoid nested mutations.");
             m->lock();
             owns = true;
             DebugLockState::uniqueDepth = 1;
@@ -104,14 +104,16 @@ Source* Manager::GetContainerSource_NoLock(const FormID real_id) noexcept {
 }
 
 FormID Manager::GetRealID_NoLock(const RefID chest_id) const noexcept {
-    if (const auto it = ChestToFakeContainer.find(chest_id); it != ChestToFakeContainer.end()) return it->second.
-        outerKey;
+    if (const auto it = ChestToFakeContainer.find(chest_id); it != ChestToFakeContainer.end())
+        return it->second.
+                   outerKey;
     return 0;
 }
 
 FormID Manager::GetFakeID_NoLock(const RefID chest_id) const noexcept {
-    if (const auto it = ChestToFakeContainer.find(chest_id); it != ChestToFakeContainer.end()) return it->second.
-        innerKey;
+    if (const auto it = ChestToFakeContainer.find(chest_id); it != ChestToFakeContainer.end())
+        return it->second.
+                   innerKey;
     return 0;
 }
 
@@ -331,21 +333,29 @@ void Manager::UpdateFakeWV(RE::TESBoundObject* fake_form, RE::TESObjectREFR* che
     if (!fake_form) return RaiseMngrErr("Fake form is null");
     std::string formtype(RE::FormTypeToString(fake_form->GetFormType()));
     if (formtype == "SCRL") UpdateFakeWV<RE::ScrollItem>(fake_form->As<RE::ScrollItem>(), chest_linked, weight_ratio);
-    else if (formtype == "ARMO") UpdateFakeWV<RE::TESObjectARMO>(fake_form->As<RE::TESObjectARMO>(), chest_linked,
-                                                                 weight_ratio);
-    else if (formtype == "BOOK") UpdateFakeWV<RE::TESObjectBOOK>(fake_form->As<RE::TESObjectBOOK>(), chest_linked,
-                                                                 weight_ratio);
-    else if (formtype == "INGR") UpdateFakeWV<RE::IngredientItem>(fake_form->As<RE::IngredientItem>(), chest_linked,
-                                                                  weight_ratio);
-    else if (formtype == "MISC") UpdateFakeWV<RE::TESObjectMISC>(fake_form->As<RE::TESObjectMISC>(), chest_linked,
-                                                                 weight_ratio);
-    else if (formtype == "WEAP") UpdateFakeWV<RE::TESObjectWEAP>(fake_form->As<RE::TESObjectWEAP>(), chest_linked,
-                                                                 weight_ratio);
-    else if (formtype == "SLGM") UpdateFakeWV<RE::TESSoulGem>(fake_form->As<RE::TESSoulGem>(), chest_linked,
-                                                              weight_ratio);
-    else if (formtype == "ALCH") UpdateFakeWV<RE::AlchemyItem>(fake_form->As<RE::AlchemyItem>(), chest_linked,
-                                                               weight_ratio);
-    else if (formtype == "FURN") UpdateFakeWV<RE::TESFurniture>(fake_form->As<RE::TESFurniture>(), chest_linked, weight_ratio);
+    else if (formtype == "ARMO")
+        UpdateFakeWV<RE::TESObjectARMO>(fake_form->As<RE::TESObjectARMO>(), chest_linked,
+                                        weight_ratio);
+    else if (formtype == "BOOK")
+        UpdateFakeWV<RE::TESObjectBOOK>(fake_form->As<RE::TESObjectBOOK>(), chest_linked,
+                                        weight_ratio);
+    else if (formtype == "INGR")
+        UpdateFakeWV<RE::IngredientItem>(fake_form->As<RE::IngredientItem>(), chest_linked,
+                                         weight_ratio);
+    else if (formtype == "MISC")
+        UpdateFakeWV<RE::TESObjectMISC>(fake_form->As<RE::TESObjectMISC>(), chest_linked,
+                                        weight_ratio);
+    else if (formtype == "WEAP")
+        UpdateFakeWV<RE::TESObjectWEAP>(fake_form->As<RE::TESObjectWEAP>(), chest_linked,
+                                        weight_ratio);
+    else if (formtype == "SLGM")
+        UpdateFakeWV<RE::TESSoulGem>(fake_form->As<RE::TESSoulGem>(), chest_linked,
+                                     weight_ratio);
+    else if (formtype == "ALCH")
+        UpdateFakeWV<RE::AlchemyItem>(fake_form->As<RE::AlchemyItem>(), chest_linked,
+                                      weight_ratio);
+    else if (formtype == "FURN") UpdateFakeWV<RE::TESFurniture>(fake_form->As<RE::TESFurniture>(), chest_linked,
+                                                                weight_ratio);
     else RaiseMngrErr(std::format("Form type not supported: {}", formtype));
 }
 
@@ -742,8 +752,9 @@ void Manager::Init() {
     if (Settings::is_pre_0_7_1 && unownedChestOG) {
         for (auto& [fst,snd] : unownedChestOG->GetInventory()) {
             unownedChestOG->RemoveItem(fst, snd.first, RE::ITEM_REMOVE_REASON::kRemove, nullptr, player_ref);
-            if (fst->IsDynamicForm()) player_ref->RemoveItem(fst, snd.first, RE::ITEM_REMOVE_REASON::kRemove, nullptr,
-                                                             nullptr);
+            if (fst->IsDynamicForm())
+                player_ref->RemoveItem(fst, snd.first, RE::ITEM_REMOVE_REASON::kRemove, nullptr,
+                                       nullptr);
         }
     }
     if (init_failed) return InitFailed();
@@ -1353,8 +1364,9 @@ void Manager::ReceiveData() {
         if (Settings::is_pre_0_10_0 && locRefID == chestRefID) locRefID = player_refid;
         if (Register_Sub(realcontFormID, fakecontForm_info.id, chestRefID, locRefID)) {
             if (!fakecontForm_info.name.empty()) renames[fakecontForm_info.id] = fakecontForm_info.name;
-            if (locRefID == player_refid) chest_equipped_fav[chestRefID] = {
-                                              fakecontForm_info.equipped, fakecontForm_info.favorited};
+            if (locRefID == player_refid)
+                chest_equipped_fav[chestRefID] = {
+                    fakecontForm_info.equipped, fakecontForm_info.favorited};
             else if (fakecontForm_info.favorited) external_favs.push_back(fakecontForm_info.id);
         } else {
             unmathced_chests[chestRefID] = {.outerKey = realcontFormID, .innerKey = fakecontForm_info.id};
@@ -1373,8 +1385,9 @@ void Manager::ReceiveData() {
         if (const auto chest = RE::TESForm::LookupByID<RE::TESObjectREFR>(chestRef_)) {
             for (auto& [fst,snd] : chest->GetInventory()) {
                 chest->RemoveItem(fst, snd.first, RE::ITEM_REMOVE_REASON::kRemove, nullptr, player_ref);
-                if (fst->GetFormID() == fakecontFormID) player_ref->RemoveItem(
-                    fst, snd.first, RE::ITEM_REMOVE_REASON::kRemove, nullptr, nullptr);
+                if (fst->GetFormID() == fakecontFormID)
+                    player_ref->RemoveItem(
+                        fst, snd.first, RE::ITEM_REMOVE_REASON::kRemove, nullptr, nullptr);
             }
             if (!chest->GetInventory().empty()) {
                 logger::critical("Chest still has items in it. Degistering failed");

@@ -6,7 +6,7 @@
 
 using namespace SkyPrompt;
 
-void SkyPrompt::RefPromptSink::Start(RE::TESObjectREFR* a_ref) {
+void RefPromptSink::Start(RE::TESObjectREFR* a_ref) {
     weight_text.clear();
     value_text.clear();
     prompts = {open_prompt, rename_prompt};

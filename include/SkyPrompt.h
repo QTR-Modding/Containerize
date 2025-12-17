@@ -16,16 +16,16 @@ namespace SkyPrompt {
     }};
 
     class RefPromptSink final : public SkyPromptAPI::PromptSink,
-                               public REX::Singleton<RefPromptSink> {
-        
+                                public REX::Singleton<RefPromptSink> {
         std::string weight_text;
         std::string value_text;
-        RefID refid=0;
 
-        SkyPromptAPI::Prompt open_prompt{Strings::open_bag, 0, 0, SkyPromptAPI::PromptType::kHold, refid};
-        SkyPromptAPI::Prompt rename_prompt{Strings::rename_bag, 1, 0, SkyPromptAPI::PromptType::kHold, refid};
-        SkyPromptAPI::Prompt weight_prompt{weight_text, 2, 0, SkyPromptAPI::PromptType::kSinglePress, refid, akatosh_keys};
-        SkyPromptAPI::Prompt value_prompt{value_text, 3,           0, SkyPromptAPI::PromptType::kSinglePress, refid, akatosh_keys};
+        SkyPromptAPI::Prompt open_prompt{Strings::open_bag, 0, 0, SkyPromptAPI::PromptType::kHold, 0};
+        SkyPromptAPI::Prompt rename_prompt{Strings::rename_bag, 1, 0, SkyPromptAPI::PromptType::kHold, 0};
+        SkyPromptAPI::Prompt weight_prompt{weight_text, 2, 0, SkyPromptAPI::PromptType::kSinglePress, 0,
+                                           akatosh_keys};
+        SkyPromptAPI::Prompt value_prompt{value_text, 3, 0, SkyPromptAPI::PromptType::kSinglePress, 0,
+                                          akatosh_keys};
 
         std::vector<SkyPromptAPI::Prompt> prompts;
 

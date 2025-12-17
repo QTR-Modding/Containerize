@@ -71,7 +71,7 @@ namespace Settings {
     inline bool duplicate_sources = false;
 
     bool AnimationsDelayMenuOpen();
-    
+
     void LoadFormGroups();
     std::vector<Source> LoadYAMLSources();
     std::vector<Source> LoadINISources();

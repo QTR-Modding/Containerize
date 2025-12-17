@@ -35,10 +35,9 @@ int Animations::SetUpAnimationOnOpen(RE::TESObjectREFR* a_real, const bool is_wo
 }
 
 int Animations::SendAnimEvent(const int animIDindex, const RE::TESForm* a_form) {
-
     auto a_id = anim_ids[animIDindex];
     if (a_id == 0) {
-        a_id = DAF_API::RequestEventID(Animations::anim_events[animIDindex].data());
+        a_id = DAF_API::RequestEventID(anim_events[animIDindex].data());
         anim_ids[animIDindex] = a_id;
     }
     if (a_id > 0) {
