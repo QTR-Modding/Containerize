@@ -12,7 +12,7 @@ void OnMessage(SKSE::MessagingInterface::Message* message) {
         }
         if (SkyPrompt::g_clientID > 0) {
             Manager::GetSingleton()->Init();
-            LoadTranslations();
+            Settings::LoadTranslations();
             UI::Register();
 
             EventSink::GetSingleton()->Install();
@@ -45,7 +45,7 @@ SKSEPluginLoad(const SKSE::LoadInterface *skse) {
         return false;
     }
     Hooks::Install();
-    LoadOtherSettings();
+    Settings::LoadOtherSettings();
     InitializeSerialization();
     SKSE::GetMessagingInterface()->RegisterListener(OnMessage);
     return true;

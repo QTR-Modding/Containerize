@@ -94,81 +94,12 @@ bool Settings::AnimationsDelayMenuOpen() {
     return other_settings.at(otherstuffKeys.at(6));
 }
 
-std::vector<Source> LoadSources() {
-    LoadFormGroups();
-    std::vector<Source> sources;
-    const auto IniSources = LoadINISources();
-    logger::trace("IniSources size: {}", IniSources.size());
-    //sources.insert(sources.end(), IniSources.begin(), IniSources.end());
-    const auto YamlSources = LoadYAMLSources();
-    logger::trace("YamlSources size: {}", YamlSources.size());
-    //sources.insert(sources.end(), YamlSources.begin(), YamlSources.end());
-    std::set<FormID> formids;
-    for (const auto& source : YamlSources) {
-        if (!source.IsHealthy()) {
-            logger::error("Source is not healthy. Skipping. formid {:x} / editorid {} / capacity {}", source.formid,
-                          source.editorid, source.capacity);
-            Settings::problems_in_YAML_sources |= true;
-            continue;
-        }
-        if (formids.contains(source.formid)) {
-            logger::warn("Duplicate formid found. Skipping. formid {:x} / editorid {} / capacity {}", source.formid,
-                         source.editorid, source.capacity);
-            Settings::duplicate_sources |= true;
-            continue;
-        }
-        formids.insert(source.formid);
-        sources.push_back(source);
-    }
-
-    for (const auto& source : IniSources) {
-        if (!source.IsHealthy()) {
-            logger::error("Source is not healthy. Skipping. formid {:x} / editorid {} / capacity {}", source.formid,
-                          source.editorid, source.capacity);
-            Settings::problems_in_INI_sources |= true;
-            continue;
-        }
-        if (formids.contains(source.formid)) {
-            logger::warn("Duplicate formid found. Skipping. formid {:x} / editorid {} / capacity {}", source.formid,
-                         source.editorid, source.capacity);
-            Settings::duplicate_sources |= true;
-            continue;
-        }
-        formids.insert(source.formid);
-        sources.push_back(source);
-    }
-    return sources;
-}
-
-void LoadOtherSettings() {
-    using namespace Settings;
-
-    std::unordered_map<std::string, bool> others;
-
-    CSimpleIniA ini;
-    CSimpleIniA::TNamesDepend otherkeys;
-
-    ini.SetUnicode();
-    ini.LoadFile(path);
-
-    // other stuff section
-    for (size_t i = 0; i < otherstuffSize; ++i) {
-        if (i == 3) {
-            // Skip BatchSell key (index 3). It's always enabled and not configurable.
-            continue;
-        }
-        const auto key = otherstuffKeys[i];
-        const bool val = ini.GetBoolValue(InISections[2], key);
-        other_settings[key] = val;
-    }
-}
-
-void LoadFormGroups() {
+void Settings::LoadFormGroups() {
     const auto folder_path = std::format("Data/SKSE/Plugins/{}", mod_name) + "/formGroups";
     PresetHelpers::TXT_Helpers::GatherForms(folder_path);
 }
 
-std::vector<Source> LoadYAMLSources() {
+std::vector<Source> Settings::LoadYAMLSources() {
     std::vector<Source> sources;
     std::set<FormID> source_formids;
     const auto folder_path = std::format("Data/SKSE/Plugins/{}", mod_name) + "/presets";
@@ -207,7 +138,7 @@ std::vector<Source> LoadYAMLSources() {
     return sources;
 }
 
-std::vector<Source> LoadINISources() {
+std::vector<Source> Settings::LoadINISources() {
     using namespace Settings;
 
     std::vector<Source> sources;
@@ -291,7 +222,76 @@ std::vector<Source> LoadINISources() {
     return sources;
 }
 
-void LoadTranslations() {
+std::vector<Source> Settings::LoadSources() {
+    LoadFormGroups();
+    std::vector<Source> sources;
+    const auto IniSources = LoadINISources();
+    logger::trace("IniSources size: {}", IniSources.size());
+    // sources.insert(sources.end(), IniSources.begin(), IniSources.end());
+    const auto YamlSources = LoadYAMLSources();
+    logger::trace("YamlSources size: {}", YamlSources.size());
+    // sources.insert(sources.end(), YamlSources.begin(), YamlSources.end());
+    std::set<FormID> formids;
+    for (const auto& source : YamlSources) {
+        if (!source.IsHealthy()) {
+            logger::error("Source is not healthy. Skipping. formid {:x} / editorid {} / capacity {}", source.formid,
+                          source.editorid, source.capacity);
+            Settings::problems_in_YAML_sources |= true;
+            continue;
+        }
+        if (formids.contains(source.formid)) {
+            logger::warn("Duplicate formid found. Skipping. formid {:x} / editorid {} / capacity {}", source.formid,
+                         source.editorid, source.capacity);
+            Settings::duplicate_sources |= true;
+            continue;
+        }
+        formids.insert(source.formid);
+        sources.push_back(source);
+    }
+
+    for (const auto& source : IniSources) {
+        if (!source.IsHealthy()) {
+            logger::error("Source is not healthy. Skipping. formid {:x} / editorid {} / capacity {}", source.formid,
+                          source.editorid, source.capacity);
+            Settings::problems_in_INI_sources |= true;
+            continue;
+        }
+        if (formids.contains(source.formid)) {
+            logger::warn("Duplicate formid found. Skipping. formid {:x} / editorid {} / capacity {}", source.formid,
+                         source.editorid, source.capacity);
+            Settings::duplicate_sources |= true;
+            continue;
+        }
+        formids.insert(source.formid);
+        sources.push_back(source);
+    }
+    return sources;
+}
+
+void Settings::LoadOtherSettings() {
+    using namespace Settings;
+
+    std::unordered_map<std::string, bool> others;
+
+    CSimpleIniA ini;
+    CSimpleIniA::TNamesDepend otherkeys;
+
+    ini.SetUnicode();
+    ini.LoadFile(path);
+
+    // other stuff section
+    for (size_t i = 0; i < otherstuffSize; ++i) {
+        if (i == 3) {
+            // Skip BatchSell key (index 3). It's always enabled and not configurable.
+            continue;
+        }
+        const auto key = otherstuffKeys[i];
+        const bool val = ini.GetBoolValue(InISections[2], key);
+        other_settings[key] = val;
+    }
+}
+
+void Settings::LoadTranslations() {
     logger::info("Loading translations");
     const auto lang = Translations::GetValidLanguage();
     logger::info("Game language: {}", lang);

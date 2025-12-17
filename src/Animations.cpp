@@ -11,7 +11,7 @@ namespace {
 
         if (const auto player_cam = RE::PlayerCamera::GetSingleton();
             !manager->IsInChestMenu() &&
-            (!other_settings.at(Settings::otherstuffKeys.at(7)) || is_worn) &&
+            (!Settings::other_settings.at(Settings::otherstuffKeys.at(7)) || is_worn) &&
             (player_cam->IsInThirdPerson() || player_cam->IsInFirstPerson() && improved_cam_path_installed)
         ) {
             bool should_delay = Settings::AnimationsDelayMenuOpen();

@@ -551,7 +551,7 @@ void Manager::FakePlacement(RefID saved_loc, const RefID chest_refID, RE::TESObj
             }
         }
     }
-    if (other_settings[Settings::otherstuffKeys[1]]) RemoveCarryWeightBoost(fakeid, saved_loc_ref);
+    if (Settings::other_settings[Settings::otherstuffKeys[1]]) RemoveCarryWeightBoost(fakeid, saved_loc_ref);
 }
 
 void Manager::RemoveCarryWeightBoost(const FormID item_formid, RE::TESObjectREFR* inventory_owner) {
@@ -703,7 +703,7 @@ bool Manager::DeRegister_Sub(const FormID master_formID, const RefID chest_refID
 void Manager::Init() {
     player_ref = RE::PlayerCharacter::GetSingleton()->As<RE::TESObjectREFR>();
     bool init_failed = false;
-    sources = LoadSources();
+    sources = Settings::LoadSources();
     if (sources.empty()) {
         logger::error("No sources found.");
         return InitFailed();
@@ -824,7 +824,7 @@ void Manager::BeforePickup(RE::TESObjectREFR* picked_up_by, RE::TESObjectREFR* a
         if (fake_bound) {
             WorldObject::SwapObjects(a_object, fake_bound, false);
             UpdateFakeWV(fake_bound, chest, weight_ratio);
-            if (other_settings[Settings::otherstuffKeys[1]]) {
+            if (Settings::other_settings[Settings::otherstuffKeys[1]]) {
                 auto ref_handle = picked_up_by->GetHandle();
                 const auto fake_id = fake_bound->GetFormID();
                 SKSE::GetTaskInterface()->AddTask([this, fake_id, ref_handle]() {
@@ -1083,7 +1083,7 @@ void Manager::OnChestExit(RE::TESObjectREFR* a_chest) {
         reals_to_takeback.erase(chest_id);
         const auto fake_bound = GetFakeBound(chest_id);
         if (fake_bound && real_bound) fake_bound->formFlags = real_bound->formFlags;
-        if (other_settings.at(Settings::otherstuffKeys[2]) && queued_chests.empty()) {
+        if (Settings::other_settings.at(Settings::otherstuffKeys[2]) && queued_chests.empty()) {
             if (closed_menu == RE::ContainerMenu::MENU_NAME) {
                 if (containermenu_owner) {
                     SKSE::GetTaskInterface()->AddUITask(
@@ -1362,7 +1362,7 @@ void Manager::ReceiveData() {
     for (const auto& [chestRef_, RealFakeForm_] : unmathced_chests) {
         auto [realcontFormID, fakecontFormID] = RealFakeForm_;
         logger::warn("FormID {:x} not found in sources.", realcontFormID);
-        if (other_settings[Settings::otherstuffKeys[0]]) MsgBoxesNotifs::InGame::ProblemWithContainer(realcontFormID);
+        if (Settings::other_settings[Settings::otherstuffKeys[0]]) MsgBoxesNotifs::InGame::ProblemWithContainer(realcontFormID);
         if (const auto fake_bound = RE::TESForm::LookupByID<RE::TESBoundObject>(fakecontFormID)) player_ref->RemoveItem(
             fake_bound, 1, RE::ITEM_REMOVE_REASON::kRemove, nullptr, nullptr);
         logger::info("Trying to retrieve items from chest");

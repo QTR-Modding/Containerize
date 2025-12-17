@@ -332,7 +332,7 @@ FormID Manager::CreateFakeContainer(T* realcontainer, const RefID connected_ches
     const auto real_container_formid = realcontainer->GetFormID();
     const auto real_container_editorid = clib_util::editorID::get_editorID(realcontainer);
     if (real_container_editorid.empty()) {
-        RaiseMngrErr(std::format("Failed to get editorid of real container {} with formid {}.",
+        RaiseMngrErr(std::format("Failed to get editorid of real container {} with formid {:x}.",
                                  realcontainer->GetName(), real_container_formid));
         return 0;
     }

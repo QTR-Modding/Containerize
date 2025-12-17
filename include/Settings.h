@@ -72,17 +72,18 @@ namespace Settings {
     inline bool duplicate_sources = false;
 
     bool AnimationsDelayMenuOpen();
+    
+    void LoadFormGroups();
+    std::vector<Source> LoadYAMLSources();
+    std::vector<Source> LoadINISources();
+
+    std::vector<Source> LoadSources();
+
+    inline std::unordered_map<std::string, bool> other_settings;
+    void LoadOtherSettings();
+
+    void LoadTranslations();
 };
-
-std::vector<Source> LoadSources();
-void LoadOtherSettings();
-void LoadFormGroups();
-std::vector<Source> LoadYAMLSources();
-std::vector<Source> LoadINISources();
-void LoadTranslations();
-
-inline std::unordered_map<std::string, bool> other_settings;
-
 
 namespace LogSettings {
     #ifndef NDEBUG

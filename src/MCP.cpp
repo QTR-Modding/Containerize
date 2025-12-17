@@ -51,7 +51,7 @@ void __stdcall UI::RenderStatus() {
 
 void __stdcall UI::RenderSettings() {
     bool settings_changed = false;
-    for (auto& [setting_name, setting] : other_settings) {
+    for (auto& [setting_name, setting] : Settings::other_settings) {
         // Skip BatchSell (always enabled and not user-configurable)
         if (setting_name == Settings::otherstuffKeys[3]) {
             continue;
