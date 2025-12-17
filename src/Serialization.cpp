@@ -2,7 +2,7 @@
 #include "Events.h"
 #include "Manager.h"
 
-bool Serialization::SaveLoadData::Save(SKSE::SerializationInterface* serializationInterface) {
+bool SaveLoadData::Save(SKSE::SerializationInterface* serializationInterface) {
     assert(serializationInterface);
     Locker locker(m_Lock);
 
@@ -37,8 +37,8 @@ bool Serialization::SaveLoadData::Save(SKSE::SerializationInterface* serializati
     return true;
 }
 
-bool Serialization::SaveLoadData::Save(SKSE::SerializationInterface* serializationInterface, const std::uint32_t type,
-    const std::uint32_t version) {
+bool SaveLoadData::Save(SKSE::SerializationInterface* serializationInterface, const std::uint32_t type,
+                        const std::uint32_t version) {
     if (!serializationInterface->OpenRecord(type, version)) {
         logger::error("Failed to open record for Data Serialization!");
         return false;
@@ -47,8 +47,8 @@ bool Serialization::SaveLoadData::Save(SKSE::SerializationInterface* serializati
     return Save(serializationInterface);
 }
 
-bool Serialization::SaveLoadData::Load(SKSE::SerializationInterface* serializationInterface,
-    const bool is_older_version) {
+bool SaveLoadData::Load(SKSE::SerializationInterface* serializationInterface,
+                        const bool is_older_version) {
     assert(serializationInterface);
 
     std::size_t recordDataSize;
@@ -57,7 +57,6 @@ bool Serialization::SaveLoadData::Load(SKSE::SerializationInterface* serializati
 
     Locker locker(m_Lock);
     m_Data.clear();
-
 
     for (size_t i = 0; i < recordDataSize; i++) {
         SaveDataLHS formId;
@@ -70,28 +69,26 @@ bool Serialization::SaveLoadData::Load(SKSE::SerializationInterface* serializati
             logger::error("Failed to resolve form ID, 0x{:X}.", formId.outerKey);
             continue;
         }
-                
+
         if (is_older_version && !serializationInterface->ReadRecordData(value)) {
             logger::error("Failed to load value data for FormRefID: ({},{})", formId.outerKey,
                           formId.innerKey);
             return false;
-        } 
-        else {
-            SaveDataRHS2 saveDataRHS;
-            logger::trace("Reading value...");
-            if (!serializationInterface->ReadRecordData(saveDataRHS)) {
-                logger::error("Failed to load value data for FormRefID: ({},{})", formId.outerKey, formId.innerKey);
-                return false;
-            }
+        }
+        SaveDataRHS2 saveDataRHS;
+        logger::trace("Reading value...");
+        if (!serializationInterface->ReadRecordData(saveDataRHS)) {
+            logger::error("Failed to load value data for FormRefID: ({},{})", formId.outerKey, formId.innerKey);
+            return false;
+        }
 
-            value.outerKey.id = saveDataRHS.id;
-            value.outerKey.equipped = saveDataRHS.equipped;
-            value.outerKey.favorited = saveDataRHS.favorited;
-            value.innerKey = saveDataRHS.refid;
+        value.outerKey.id = saveDataRHS.id;
+        value.outerKey.equipped = saveDataRHS.equipped;
+        value.outerKey.favorited = saveDataRHS.favorited;
+        value.innerKey = saveDataRHS.refid;
 
-            if (!read_string(serializationInterface, value.outerKey.name)) {
-                logger::error("Failed to load name data for FormRefID: ({},{})", formId.outerKey, formId.innerKey);
-            }
+        if (!read_string(serializationInterface, value.outerKey.name)) {
+            logger::error("Failed to load name data for FormRefID: ({},{})", formId.outerKey, formId.innerKey);
         }
 
         m_Data[formId] = value;
@@ -100,7 +97,7 @@ bool Serialization::SaveLoadData::Load(SKSE::SerializationInterface* serializati
     return true;
 }
 
-bool Serialization::DFSaveLoadData::Save(SKSE::SerializationInterface* serializationInterface) {
+bool DFSaveLoadData::Save(SKSE::SerializationInterface* serializationInterface) {
     assert(serializationInterface);
     Locker locker(m_Lock);
 
@@ -141,8 +138,8 @@ bool Serialization::DFSaveLoadData::Save(SKSE::SerializationInterface* serializa
     return true;
 }
 
-bool Serialization::DFSaveLoadData::Save(SKSE::SerializationInterface* serializationInterface, const std::uint32_t type,
-    const std::uint32_t version) {
+bool DFSaveLoadData::Save(SKSE::SerializationInterface* serializationInterface, const std::uint32_t type,
+                          const std::uint32_t version) {
     if (!serializationInterface->OpenRecord(type, version)) {
         logger::error("Failed to open record for Data Serialization!");
         return false;
@@ -151,7 +148,7 @@ bool Serialization::DFSaveLoadData::Save(SKSE::SerializationInterface* serializa
     return Save(serializationInterface);
 }
 
-bool Serialization::DFSaveLoadData::Load(SKSE::SerializationInterface* serializationInterface, [[maybe_unused]] const bool cond) {
+bool DFSaveLoadData::Load(SKSE::SerializationInterface* serializationInterface, [[maybe_unused]] const bool cond) {
     assert(serializationInterface);
 
     std::size_t recordDataSize;
@@ -208,8 +205,8 @@ bool Serialization::DFSaveLoadData::Load(SKSE::SerializationInterface* serializa
 #define DISABLE_IF_UNINSTALLED if (Manager::GetSingleton()->isUninstalled) return;
 
 void Serialization::SaveCallback(SKSE::SerializationInterface* serializationInterface) {
-    DISABLE_IF_UNINSTALLED 
-        logger::trace("Saving Data to skse co-save.");
+    DISABLE_IF_UNINSTALLED
+    logger::trace("Saving Data to skse co-save.");
     const auto M = Manager::GetSingleton();
     M->SendData();
     if (!M->Save(serializationInterface, Settings::kDataKey, Settings::kSerializationVersion)) {
@@ -225,9 +222,9 @@ void Serialization::SaveCallback(SKSE::SerializationInterface* serializationInte
 
 void Serialization::LoadCallback(SKSE::SerializationInterface* serializationInterface) {
     DISABLE_IF_UNINSTALLED
-    
+
     logger::info("Loading Data from skse co-save.");
-    
+
     EventSink::GetSingleton()->Reset();
     Manager::GetSingleton()->Reset();
     auto* DFT = DynamicFormTracker::GetSingleton();
@@ -239,12 +236,13 @@ void Serialization::LoadCallback(SKSE::SerializationInterface* serializationInte
 
     while (serializationInterface->GetNextRecordInfo(type, version, length)) {
         bool is_before_0_7 = false;
-        
+
         auto temp = DecodeTypeCode(type);
 
-        if (version == Settings::kSerializationVersion-3) {
-            logger::warn("Loading data is from an older version < v0.7. Received ({}) - Expected ({}) for Data Key ({})",
-                         version, Settings::kSerializationVersion, temp);
+        if (version == Settings::kSerializationVersion - 3) {
+            logger::warn(
+                "Loading data is from an older version < v0.7. Received ({}) - Expected ({}) for Data Key ({})",
+                version, Settings::kSerializationVersion, temp);
 
             is_before_0_7 = true;
             Settings::is_pre_0_7_1 = true;
@@ -255,21 +253,20 @@ void Serialization::LoadCallback(SKSE::SerializationInterface* serializationInte
                 "Please refer to the mod page for the latest instructions. "
                 "In case of a failure you will see an error message box displayed after this one. If not, you are probably fine.";
             MsgBoxesNotifs::InGame::CustomMsg(err_message);
-        }
-        else if (version == Settings::kSerializationVersion - 2) {
-            logger::warn("Loading data is from an older version < v0.7.1. Received ({}) - Expected ({}) for Data Key ({})",
-                         version, Settings::kSerializationVersion, temp);
+        } else if (version == Settings::kSerializationVersion - 2) {
+            logger::warn(
+                "Loading data is from an older version < v0.7.1. Received ({}) - Expected ({}) for Data Key ({})",
+                version, Settings::kSerializationVersion, temp);
 
             Settings::is_pre_0_7_1 = true;
             Settings::is_pre_0_10_0 = true;
-        }
-        else if (version == Settings::kSerializationVersion - 1) {
-            logger::warn("Loading data is from an older version < v0.10.0 Received ({}) - Expected ({}) for Data Key ({})",
-                         version, Settings::kSerializationVersion, temp);
+        } else if (version == Settings::kSerializationVersion - 1) {
+            logger::warn(
+                "Loading data is from an older version < v0.10.0 Received ({}) - Expected ({}) for Data Key ({})",
+                version, Settings::kSerializationVersion, temp);
 
             Settings::is_pre_0_10_0 = true;
-        }
-        else if (version != Settings::kSerializationVersion) {
+        } else if (version != Settings::kSerializationVersion) {
             logger::critical("Loaded data has incorrect version. Received ({}) - Expected ({}) for Data Key ({})",
                              version, Settings::kSerializationVersion, temp);
             continue;
@@ -281,11 +278,13 @@ void Serialization::LoadCallback(SKSE::SerializationInterface* serializationInte
                     logger::critical("Failed to Load Data");
                     return MsgBoxesNotifs::InGame::CustomMsg("Failed to Load Data.");
                 }
-            } break;
+            }
+            break;
             case Settings::kDFDataKey: {
                 logger::trace("Loading Record: {} - Version: {} - Length: {}", temp, version, length);
                 if (!DFT->Load(serializationInterface, is_before_0_7)) logger::critical("Failed to Load Data for DFT");
-            } break;
+            }
+            break;
             default:
                 logger::critical("Unrecognized Record Type: {}", temp);
                 break;
@@ -294,7 +293,7 @@ void Serialization::LoadCallback(SKSE::SerializationInterface* serializationInte
 
     logger::info("Receiving Data.");
     DFT->ReceiveData();
-    Manager::GetSingleton()->ReceiveData(); 
+    Manager::GetSingleton()->ReceiveData();
     logger::info("Data loaded from skse co-save.");
 }
 

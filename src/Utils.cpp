@@ -3,19 +3,18 @@
 #include "CLibUtilsQTR/FormReader.hpp"
 
 
-bool GetDllVersion(const std::wstring& dllPath, DWORD& major, DWORD& minor, DWORD& build, DWORD& revision)
-{
+bool GetDllVersion(const std::wstring& dllPath, DWORD& major, DWORD& minor, DWORD& build, DWORD& revision) {
     DWORD handle = 0;
     const DWORD versionInfoSize = GetFileVersionInfoSize(dllPath.c_str(), &handle);
     if (versionInfoSize == 0) {
-		//logger::error("Failed to get version info size for {}", dllPath);
+        //logger::error("Failed to get version info size for {}", dllPath);
         return false;
     }
 
     // Allocate a buffer for version info data
     std::vector<char> versionInfo(versionInfoSize);
     if (!GetFileVersionInfo(dllPath.c_str(), handle, versionInfoSize, versionInfo.data())) {
-		//logger::error("Failed to get version info for {}", dllPath);
+        //logger::error("Failed to get version info for {}", dllPath);
         return false;
     }
 
@@ -23,7 +22,7 @@ bool GetDllVersion(const std::wstring& dllPath, DWORD& major, DWORD& minor, DWOR
     VS_FIXEDFILEINFO* fileInfo = nullptr;
     UINT fileInfoSize = 0;
     if (!VerQueryValue(versionInfo.data(), L"\\", reinterpret_cast<LPVOID*>(&fileInfo), &fileInfoSize)) {
-		//logger::error("Failed to query version value for {}", dllPath);
+        //logger::error("Failed to query version value for {}", dllPath);
         return false;
     }
 
@@ -36,35 +35,32 @@ bool GetDllVersion(const std::wstring& dllPath, DWORD& major, DWORD& minor, DWOR
     return true;
 }
 
-std::wstring s2ws(const std::string& str)
-{
+std::wstring s2ws(const std::string& str) {
     const int size_needed = MultiByteToWideChar(CP_UTF8, 0, &str[0], static_cast<int>(str.size()), nullptr, 0);
-    std::wstring wstrTo( size_needed, 0 );
+    std::wstring wstrTo(size_needed, 0);
     MultiByteToWideChar(CP_UTF8, 0, str.data(), static_cast<int>(str.size()), wstrTo.data(), size_needed);
     return wstrTo;
 }
 
-bool ModCompatibility::Mods::IsPo3Installed()
-{
+bool ModCompatibility::Mods::IsPo3Installed() {
     using namespace ModCompatibility::Mods;
     if (!std::filesystem::exists(po3path)) {
         return false;
     }
-	// check version of the dll. its major version should be larger equal to 1 and minor version should be larger equal to 12.
-	DWORD major, minor, build, revision;
+    // check version of the dll. its major version should be larger equal to 1 and minor version should be larger equal to 12.
+    DWORD major, minor, build, revision;
     if (!GetDllVersion(s2ws(std::string(po3path)), major, minor, build, revision)) {
-		logger::error("Failed to get version info for {}", po3path);
+        logger::error("Failed to get version info for {}", po3path);
         return false;
     }
     if (major < 1 || (major == 1 && minor < 9)) {
-		logger::error("Po3's Tweaks version is lower than the required version. Major: {}, Minor: {}", major, minor);
+        logger::error("Po3's Tweaks version is lower than the required version. Major: {}, Minor: {}", major, minor);
         return false;
     }
-	return true;
+    return true;
 }
 
-void SetupLog()
-{
+void SetupLog() {
     const auto logsFolder = SKSE::log::log_directory();
     if (!logsFolder) SKSE::stl::report_and_fail("SKSE log_directory not provided, logs disabled.");
     auto pluginName = SKSE::PluginDeclaration::GetSingleton()->GetName();
@@ -72,19 +68,18 @@ void SetupLog()
     auto fileLoggerPtr = std::make_shared<spdlog::sinks::basic_file_sink_mt>(logFilePath.string(), true);
     auto loggerPtr = std::make_shared<spdlog::logger>("log", std::move(fileLoggerPtr));
     spdlog::set_default_logger(std::move(loggerPtr));
-#ifndef NDEBUG
+    #ifndef NDEBUG
     spdlog::set_level(spdlog::level::trace);
     spdlog::flush_on(spdlog::level::trace);
-#else
+    #else
     spdlog::set_level(spdlog::level::info);
     spdlog::flush_on(spdlog::level::info);
-#endif
+    #endif
     logger::info("Name of the plugin is {}.", pluginName);
     logger::info("Version of the plugin is {}.", SKSE::PluginDeclaration::GetSingleton()->GetVersion());
 }
 
-std::filesystem::path GetLogPath()
-{
+std::filesystem::path GetLogPath() {
     const auto logsFolder = SKSE::log::log_directory();
     if (!logsFolder) SKSE::stl::report_and_fail("SKSE log_directory not provided, logs disabled.");
     auto pluginName = SKSE::PluginDeclaration::GetSingleton()->GetName();
@@ -92,8 +87,7 @@ std::filesystem::path GetLogPath()
     return logFilePath;
 }
 
-std::vector<std::string> ReadLogFile()
-{
+std::vector<std::string> ReadLogFile() {
     std::vector<std::string> logLines;
 
     // Open the log file
@@ -114,35 +108,32 @@ std::vector<std::string> ReadLogFile()
     return logLines;
 }
 
-std::string DecodeTypeCode(const std::uint32_t typeCode)
-{
-	char buf[4];
-    buf[3] = char(typeCode);
-    buf[2] = char(typeCode >> 8);
-    buf[1] = char(typeCode >> 16);
-    buf[0] = char(typeCode >> 24);
+std::string DecodeTypeCode(const std::uint32_t typeCode) {
+    char buf[4];
+    buf[3] = static_cast<char>(typeCode);
+    buf[2] = static_cast<char>(typeCode >> 8);
+    buf[1] = static_cast<char>(typeCode >> 16);
+    buf[0] = static_cast<char>(typeCode >> 24);
     return std::string(buf, buf + 4);
 }
 
 
-std::string GetGameLanguage()
-{
-	if (const RE::Setting* languageSetting = RE::GetINISetting("sLanguage:General")) {
+std::string GetGameLanguage() {
+    if (const RE::Setting* languageSetting = RE::GetINISetting("sLanguage:General")) {
         std::string lang = languageSetting->GetString();
-        std::ranges::transform(lang, lang.begin(), ::toupper);
+        std::ranges::transform(lang, lang.begin(), toupper);
         if (const auto it = Translations::languageMap.find(lang); it != Translations::languageMap.end()) {
             return it->first;
         }
-		logger::warn("Detected language is not supported: {}", lang);
-	}
-	else {
-		logger::error("Failed to get sLanguage setting.");
-	}
-	return "ENGLISH";
+        logger::warn("Detected language is not supported: {}", lang);
+    } else {
+        logger::error("Failed to get sLanguage setting.");
+    }
+    return "ENGLISH";
 }
 
 int32_t FunctionsSkyrim::GetEnchantmentCostOverride(const RE::EnchantmentItem* enchantment) {
-	int32_t extra_costs = 0;
+    int32_t extra_costs = 0;
     auto temp_costoverride = enchantment->data.costOverride;
     if (temp_costoverride < 0) temp_costoverride = static_cast<int32_t>(enchantment->CalculateTotalGoldValue());
     if (temp_costoverride < 0)
@@ -152,17 +143,17 @@ int32_t FunctionsSkyrim::GetEnchantmentCostOverride(const RE::EnchantmentItem* e
         extra_costs += temp_costoverride;
     }
 
-	return extra_costs;
+    return extra_costs;
 }
 
 int32_t FunctionsSkyrim::GetItemValue(RE::TESBoundObject* item, const RE::ExtraDataList* a_xlist) {
     int32_t value = 0;
     if (const auto val_form = item->As<RE::TESValueForm>()) {
-		value += val_form->value;
+        value += val_form->value;
     }
     if (const auto ench_form = item->As<RE::TESEnchantableForm>()) {
         if (const auto ench = ench_form->formEnchanting) {
-		    value += FunctionsSkyrim::GetEnchantmentCostOverride(ench);
+            value += GetEnchantmentCostOverride(ench);
         }
     }
     value += xData::GetXDataCostOverride(a_xlist);
@@ -180,8 +171,7 @@ bool xData::UpdateExtras(RE::TESObjectREFR* copy_from, RE::TESObjectREFR* copy_t
 }
 
 
-bool xData::UpdateExtras(RE::ExtraDataList* copy_from, RE::ExtraDataList* copy_to)
-{
+bool xData::UpdateExtras(RE::ExtraDataList* copy_from, RE::ExtraDataList* copy_to) {
     if (!copy_from || !copy_to) return false;
     // Enchantment
     if (copy_from->HasType(RE::ExtraDataType::kEnchantment)) {
@@ -378,23 +368,23 @@ bool xData::UpdateExtras(RE::ExtraDataList* copy_from, RE::ExtraDataList* copy_t
     }
     // Flags
     //if (copy_from->HasType(RE::ExtraDataType::kFlags)) {
-        //logger::trace("Flags found");
-        //if (const auto flags = skyrim_cast<RE::ExtraFlags*>(copy_from->GetByType(RE::ExtraDataType::kFlags))) {
-        //    SKSE::stl::enumeration<RE::ExtraFlags::Flag, std::uint32_t> flags_fake;
-        //    if (flags->flags.all(RE::ExtraFlags::Flag::kBlockActivate))
-        //        flags_fake.set(RE::ExtraFlags::Flag::kBlockActivate);
-        //    if (flags->flags.all(RE::ExtraFlags::Flag::kBlockPlayerActivate))
-        //        flags_fake.set(RE::ExtraFlags::Flag::kBlockPlayerActivate);
-        //    if (flags->flags.all(RE::ExtraFlags::Flag::kBlockLoadEvents))
-        //        flags_fake.set(RE::ExtraFlags::Flag::kBlockLoadEvents);
-        //    if (flags->flags.all(RE::ExtraFlags::Flag::kBlockActivateText))
-        //        flags_fake.set(RE::ExtraFlags::Flag::kBlockActivateText);
-        //    if (flags->flags.all(RE::ExtraFlags::Flag::kPlayerHasTaken))
-        //        flags_fake.set(RE::ExtraFlags::Flag::kPlayerHasTaken);
-            // RE::ExtraFlags* flags_fake = RE::BSExtraData::Create<RE::ExtraFlags>();
-            // flags_fake->flags = flags->flags;
-            // copy_to->Add(flags_fake);
-        //} else return false;
+    //logger::trace("Flags found");
+    //if (const auto flags = skyrim_cast<RE::ExtraFlags*>(copy_from->GetByType(RE::ExtraDataType::kFlags))) {
+    //    SKSE::stl::enumeration<RE::ExtraFlags::Flag, std::uint32_t> flags_fake;
+    //    if (flags->flags.all(RE::ExtraFlags::Flag::kBlockActivate))
+    //        flags_fake.set(RE::ExtraFlags::Flag::kBlockActivate);
+    //    if (flags->flags.all(RE::ExtraFlags::Flag::kBlockPlayerActivate))
+    //        flags_fake.set(RE::ExtraFlags::Flag::kBlockPlayerActivate);
+    //    if (flags->flags.all(RE::ExtraFlags::Flag::kBlockLoadEvents))
+    //        flags_fake.set(RE::ExtraFlags::Flag::kBlockLoadEvents);
+    //    if (flags->flags.all(RE::ExtraFlags::Flag::kBlockActivateText))
+    //        flags_fake.set(RE::ExtraFlags::Flag::kBlockActivateText);
+    //    if (flags->flags.all(RE::ExtraFlags::Flag::kPlayerHasTaken))
+    //        flags_fake.set(RE::ExtraFlags::Flag::kPlayerHasTaken);
+    // RE::ExtraFlags* flags_fake = RE::BSExtraData::Create<RE::ExtraFlags>();
+    // flags_fake->flags = flags->flags;
+    // copy_to->Add(flags_fake);
+    //} else return false;
     //}
     // Lock (Disabled)
     /*if (copy_from->HasType(RE::ExtraDataType::kLock)) {
@@ -457,7 +447,8 @@ bool xData::UpdateExtras(RE::ExtraDataList* copy_from, RE::ExtraDataList* copy_t
     // Ownership (OK)
     if (copy_from->HasType(RE::ExtraDataType::kOwnership)) {
         logger::trace("Ownership found");
-        if (const auto ownership = skyrim_cast<RE::ExtraOwnership*>(copy_from->GetByType(RE::ExtraDataType::kOwnership))) {
+        if (const auto ownership = skyrim_cast<RE::ExtraOwnership
+            *>(copy_from->GetByType(RE::ExtraDataType::kOwnership))) {
             logger::trace("length of fake extradatalist: {}", copy_to->GetCount());
             RE::ExtraOwnership* ownership_fake = RE::BSExtraData::Create<RE::ExtraOwnership>();
             Copy::CopyOwnership(ownership, ownership_fake);
@@ -475,7 +466,7 @@ int32_t xData::GetXDataCostOverride(const RE::ExtraDataList* xList) {
     if (const auto xench = xList->GetByType<RE::ExtraEnchantment>()) {
         if (const auto ench = xench->enchantment) {
             extra_costs += FunctionsSkyrim::GetEnchantmentCostOverride(ench);
-		}
+        }
     }
     return extra_costs;
 }
@@ -514,7 +505,7 @@ RE::ExtraDataList* xData::GetOrCreateExtraList(RE::InventoryEntryData* data, con
     if (!a_create) {
         return nullptr;
     }
-        
+
     auto* newList = ConstructExtraDataList();
 
     data->AddExtraList(newList);
@@ -522,7 +513,7 @@ RE::ExtraDataList* xData::GetOrCreateExtraList(RE::InventoryEntryData* data, con
 }
 
 bool xData::UpdateExtrasInInventory(RE::TESObjectREFR* from_ref, const FormID from_item_formid,
-    RE::TESObjectREFR* to_ref, const FormID to_item_formid) {
+                                    RE::TESObjectREFR* to_ref, const FormID to_item_formid) {
     const auto from_item = RE::TESForm::LookupByID<RE::TESBoundObject>(from_item_formid);
     const auto to_item = RE::TESForm::LookupByID<RE::TESBoundObject>(to_item_formid);
     if (!from_item || !to_item || !from_ref || !to_ref) {
@@ -579,10 +570,11 @@ bool Inventory::EntryHasXDataList(const RE::InventoryEntryData* entry) {
 bool Inventory::HasItemEntry(RE::TESBoundObject* item,
                              const RE::TESObjectREFR::InventoryItemMap& inventory,
                              const bool nonzero_entry_check) {
-    if (inventory.contains(item)) return nonzero_entry_check
-                                             ? inventory.at(item).first > 0
-                                             : true;
-	return false;
+    if (inventory.contains(item))
+        return nonzero_entry_check
+                   ? inventory.at(item).first > 0
+                   : true;
+    return false;
 }
 
 std::int32_t Inventory::GetItemCount(RE::TESBoundObject* item,
@@ -597,8 +589,7 @@ std::int32_t Inventory::GetItemValue(RE::TESBoundObject* item, const RE::TESObje
     return inventory.find(item)->second.second->GetValue();
 }
 
-bool Inventory::IsQuestItem(const FormID formid, RE::TESObjectREFR* inv_owner)
-{
+bool Inventory::IsQuestItem(const FormID formid, RE::TESObjectREFR* inv_owner) {
     const auto inventory = inv_owner->GetInventory();
     if (const auto item = FormReader::GetFormByID<RE::TESBoundObject>(formid)) {
         if (const auto it = inventory.find(item); it != inventory.end()) {
@@ -624,7 +615,7 @@ int Inventory::GetValueInContainer(RE::TESObjectREFR* container) {
     }
     int total_value = 0;
     for (auto inventory = container->GetInventory(); auto& [fst, snd] : inventory) {
-		if (snd.first <= 0) continue;
+        if (snd.first <= 0) continue;
         const auto gold_value = fst->GetGoldValue();
         total_value += gold_value * snd.first;
         int extra_costs = 0;
@@ -638,9 +629,9 @@ void Inventory::FavoriteItem(RE::InventoryEntryData* entry_data, RE::InventoryCh
     const auto xLists = entry_data->extraLists;
     bool no_extra_ = false;
     if (!xLists || xLists->empty()) {
-		logger::trace("No extraLists");
+        logger::trace("No extraLists");
         no_extra_ = true;
-	}
+    }
     if (no_extra_) {
         logger::trace("No extraLists");
         //inventory_changes->SetFavorite((*it), nullptr);
@@ -649,8 +640,7 @@ void Inventory::FavoriteItem(RE::InventoryEntryData* entry_data, RE::InventoryCh
     }
 }
 
-bool Inventory::IsFavorited(RE::TESBoundObject* item, RE::TESObjectREFR* inventory_owner)
-{
+bool Inventory::IsFavorited(RE::TESBoundObject* item, RE::TESObjectREFR* inventory_owner) {
     if (!item) {
         logger::warn("Item is null");
         return false;
@@ -673,8 +663,8 @@ namespace {
         }
         );*/
         RE::ActorEquipManager::GetSingleton()->EquipObject(
-                a_actor, a_item, a_xlist, 1,
-                nullptr, true, false, false, false);
+            a_actor, a_item, a_xlist, 1,
+            nullptr, true, false, false, false);
     }
 
     void UnequipItem_(RE::Actor* a_actor, RE::TESBoundObject* a_item, RE::ExtraDataList* a_xlist) {
@@ -682,29 +672,27 @@ namespace {
         }
         );*/
         RE::ActorEquipManager::GetSingleton()->UnequipObject(
-                a_actor, a_item, a_xlist, 1,
-                nullptr, true, false, false, false);
+            a_actor, a_item, a_xlist, 1,
+            nullptr, true, false, false, false);
     }
 }
 
-void Inventory::EquipItem(const RE::InventoryEntryData* entry_data, const bool unequip)
-{
-	const auto xLists = entry_data->extraLists;
+void Inventory::EquipItem(const RE::InventoryEntryData* entry_data, const bool unequip) {
+    const auto xLists = entry_data->extraLists;
     if (!entry_data || !xLists) {
-	    logger::error("Item extraLists is null");
-	    return;
+        logger::error("Item extraLists is null");
+        return;
     }
 
-	const auto player_ref = RE::PlayerCharacter::GetSingleton();
-	const auto a_bound = entry_data->object;
-	const auto a_func_ptr = unequip ? &UnequipItem_ : &EquipItem_;
-	const auto a_list = xLists->empty() ? nullptr : xLists->front();
+    const auto player_ref = RE::PlayerCharacter::GetSingleton();
+    const auto a_bound = entry_data->object;
+    const auto a_func_ptr = unequip ? &UnequipItem_ : &EquipItem_;
+    const auto a_list = xLists->empty() ? nullptr : xLists->front();
 
-	a_func_ptr(player_ref, a_bound, a_list);
+    a_func_ptr(player_ref, a_bound, a_list);
 }
 
-bool Inventory::IsEquipped(RE::TESBoundObject* item)
-{
+bool Inventory::IsEquipped(RE::TESBoundObject* item) {
     logger::trace("IsEquipped");
 
     if (!item) {
@@ -721,19 +709,16 @@ bool Inventory::IsEquipped(RE::TESBoundObject* item)
     return false;
 }
 
-void Inventory::ToggleEquip(RE::TESBoundObject* item)
-{
-	const auto player = RE::PlayerCharacter::GetSingleton();
-    if (Inventory::IsEquipped(item)) {
-		RE::ActorEquipManager::GetSingleton()->UnequipObject(player,item);
-	}
-	else {
-		RE::ActorEquipManager::GetSingleton()->EquipObject(player, item);
-	}
+void Inventory::ToggleEquip(RE::TESBoundObject* item) {
+    const auto player = RE::PlayerCharacter::GetSingleton();
+    if (IsEquipped(item)) {
+        RE::ActorEquipManager::GetSingleton()->UnequipObject(player, item);
+    } else {
+        RE::ActorEquipManager::GetSingleton()->EquipObject(player, item);
+    }
 }
 
-void WorldObject::SwapObjects(RE::TESObjectREFR* a_from, RE::TESBoundObject* a_to, const bool apply_havok)
-{
+void WorldObject::SwapObjects(RE::TESObjectREFR* a_from, RE::TESBoundObject* a_to, const bool apply_havok) {
     if (!a_from) {
         logger::error("Ref is null.");
         return;
@@ -741,140 +726,122 @@ void WorldObject::SwapObjects(RE::TESObjectREFR* a_from, RE::TESBoundObject* a_t
     const auto ref_base = a_from->GetBaseObject();
     if (!ref_base) {
         logger::error("Ref base is null.");
-		return;
+        return;
     }
     if (!a_to) {
-		logger::error("Base is null.");
-		return;
-	}
+        logger::error("Base is null.");
+        return;
+    }
     if (ref_base->GetFormID() == a_to->GetFormID()) {
-		logger::trace("Ref and base are the same.");
-		return;
-	}
+        logger::trace("Ref and base are the same.");
+        return;
+    }
     a_from->SetObjectReference(a_to);
     if (!apply_havok) return;
     SKSE::GetTaskInterface()->AddTask([a_from]() {
-		a_from->Disable();
-		a_from->Enable(false);
-	});
+        a_from->Disable();
+        a_from->Enable(false);
+    });
 }
 
-void Math::LinAlg::R3::rotateX(RE::NiPoint3& v, const float angle)
-{
+void Math::LinAlg::R3::rotateX(RE::NiPoint3& v, const float angle) {
     const float y = v.y * cos(angle) - v.z * sin(angle);
     const float z = v.y * sin(angle) + v.z * cos(angle);
     v.y = y;
     v.z = z;
 }
 
-void Math::LinAlg::R3::rotateY(RE::NiPoint3& v, const float angle)
-{
+void Math::LinAlg::R3::rotateY(RE::NiPoint3& v, const float angle) {
     const float x = v.x * cos(angle) + v.z * sin(angle);
     const float z = -v.x * sin(angle) + v.z * cos(angle);
     v.x = x;
     v.z = z;
 }
 
-void Math::LinAlg::R3::rotateZ(RE::NiPoint3& v, const float angle)
-{
+void Math::LinAlg::R3::rotateZ(RE::NiPoint3& v, const float angle) {
     const float x = v.x * cos(angle) - v.y * sin(angle);
     const float y = v.x * sin(angle) + v.y * cos(angle);
     v.x = x;
     v.y = y;
 }
 
-void Math::LinAlg::R3::rotate(RE::NiPoint3& v, const float angleX, const float angleY, const float angleZ)
-{
+void Math::LinAlg::R3::rotate(RE::NiPoint3& v, const float angleX, const float angleY, const float angleZ) {
     rotateX(v, angleX);
-	rotateY(v, angleY);
-	rotateZ(v, angleZ);
+    rotateY(v, angleY);
+    rotateZ(v, angleZ);
 }
 
 
-void xData::Copy::CopyEnchantment(const RE::ExtraEnchantment* from, RE::ExtraEnchantment* to)
-{
+void xData::Copy::CopyEnchantment(const RE::ExtraEnchantment* from, RE::ExtraEnchantment* to) {
     logger::trace("CopyEnchantment");
-	to->enchantment = from->enchantment;
-	to->charge = from->charge;
-	to->removeOnUnequip = from->removeOnUnequip;
+    to->enchantment = from->enchantment;
+    to->charge = from->charge;
+    to->removeOnUnequip = from->removeOnUnequip;
 }
 
-void xData::Copy::CopyHealth(const RE::ExtraHealth* from, RE::ExtraHealth* to)
-{
+void xData::Copy::CopyHealth(const RE::ExtraHealth* from, RE::ExtraHealth* to) {
     logger::trace("CopyHealth");
     to->health = from->health;
 }
 
-void xData::Copy::CopyRank(const RE::ExtraRank* from, RE::ExtraRank* to)
-{
+void xData::Copy::CopyRank(const RE::ExtraRank* from, RE::ExtraRank* to) {
     logger::trace("CopyRank");
-	to->rank = from->rank;
+    to->rank = from->rank;
 }
 
-void xData::Copy::CopyTimeLeft(const RE::ExtraTimeLeft* from, RE::ExtraTimeLeft* to)
-{
+void xData::Copy::CopyTimeLeft(const RE::ExtraTimeLeft* from, RE::ExtraTimeLeft* to) {
     logger::trace("CopyTimeLeft");
     to->time = from->time;
 }
 
-void xData::Copy::CopyCharge(const RE::ExtraCharge* from, RE::ExtraCharge* to)
-{
+void xData::Copy::CopyCharge(const RE::ExtraCharge* from, RE::ExtraCharge* to) {
     logger::trace("CopyCharge");
-	to->charge = from->charge;
+    to->charge = from->charge;
 }
 
-void xData::Copy::CopyScale(const RE::ExtraScale* from, RE::ExtraScale* to)
-{
+void xData::Copy::CopyScale(const RE::ExtraScale* from, RE::ExtraScale* to) {
     logger::trace("CopyScale");
-	to->scale = from->scale;
+    to->scale = from->scale;
 }
 
-void xData::Copy::CopyUniqueID(const RE::ExtraUniqueID* from, RE::ExtraUniqueID* to)
-{
+void xData::Copy::CopyUniqueID(const RE::ExtraUniqueID* from, RE::ExtraUniqueID* to) {
     logger::trace("CopyUniqueID");
     to->baseID = from->baseID;
     to->uniqueID = from->uniqueID;
 }
 
-void xData::Copy::CopyPoison(const RE::ExtraPoison* from, RE::ExtraPoison* to)
-{
+void xData::Copy::CopyPoison(const RE::ExtraPoison* from, RE::ExtraPoison* to) {
     logger::trace("CopyPoison");
-	to->poison = from->poison;
-	to->count = from->count;
+    to->poison = from->poison;
+    to->count = from->count;
 }
 
-void xData::Copy::CopyObjectHealth(const RE::ExtraObjectHealth* from, RE::ExtraObjectHealth* to)
-{
+void xData::Copy::CopyObjectHealth(const RE::ExtraObjectHealth* from, RE::ExtraObjectHealth* to) {
     logger::trace("CopyObjectHealth");
-	to->health = from->health;
+    to->health = from->health;
 }
 
-void xData::Copy::CopyLight(const RE::ExtraLight* from, RE::ExtraLight* to)
-{
+void xData::Copy::CopyLight(const RE::ExtraLight* from, RE::ExtraLight* to) {
     logger::trace("CopyLight");
     to->lightData = from->lightData;
 }
 
-void xData::Copy::CopyRadius(const RE::ExtraRadius* from, RE::ExtraRadius* to)
-{
+void xData::Copy::CopyRadius(const RE::ExtraRadius* from, RE::ExtraRadius* to) {
     logger::trace("CopyRadius");
-	to->radius = from->radius;
+    to->radius = from->radius;
 }
 
-void xData::Copy::CopyHorse(const RE::ExtraHorse* from, RE::ExtraHorse* to)
-{
+void xData::Copy::CopyHorse(const RE::ExtraHorse* from, RE::ExtraHorse* to) {
     logger::trace("CopyHorse");
     to->horseRef = from->horseRef;
 }
 
-void xData::Copy::CopyHotkey(const RE::ExtraHotkey* from, RE::ExtraHotkey* to)
-{
+void xData::Copy::CopyHotkey(const RE::ExtraHotkey* from, RE::ExtraHotkey* to) {
     logger::trace("CopyHotkey");
-	to->hotkey = from->hotkey;
+    to->hotkey = from->hotkey;
 }
 
-void xData::Copy::CopyTextDisplayData(const RE::ExtraTextDisplayData* from, RE::ExtraTextDisplayData* to)
-{
+void xData::Copy::CopyTextDisplayData(const RE::ExtraTextDisplayData* from, RE::ExtraTextDisplayData* to) {
     to->displayName = from->displayName;
     to->displayNameText = from->displayNameText;
     to->ownerQuest = from->ownerQuest;
@@ -883,53 +850,55 @@ void xData::Copy::CopyTextDisplayData(const RE::ExtraTextDisplayData* from, RE::
     to->customNameLength = from->customNameLength;
 }
 
-void xData::Copy::CopySoul(const RE::ExtraSoul* from, RE::ExtraSoul* to)
-{
+void xData::Copy::CopySoul(const RE::ExtraSoul* from, RE::ExtraSoul* to) {
     logger::trace("CopySoul");
     to->soul = from->soul;
 }
 
-void xData::Copy::CopyOwnership(const RE::ExtraOwnership* from, RE::ExtraOwnership* to)
-{
+void xData::Copy::CopyOwnership(const RE::ExtraOwnership* from, RE::ExtraOwnership* to) {
     logger::trace("CopyOwnership");
-	to->owner = from->owner;
+    to->owner = from->owner;
 }
 
-void MsgBoxesNotifs::SkyrimMessageBox::Show(const std::string& bodyText, const std::vector<std::string>& buttonTextValues, std::function<void(unsigned int)> callback)
-{
+void MsgBoxesNotifs::SkyrimMessageBox::Show(const std::string& bodyText,
+                                            const std::vector<std::string>& buttonTextValues,
+                                            std::function<void(unsigned int)> callback) {
     const auto* factoryManager = RE::MessageDataFactoryManager::GetSingleton();
     const auto* uiStringHolder = RE::InterfaceStrings::GetSingleton();
     auto* factory = factoryManager->GetCreator<RE::MessageBoxData>(
         uiStringHolder->messageBoxData);
     auto* messagebox = factory->Create();
-    const RE::BSTSmartPointer<RE::IMessageBoxCallback> messageCallback = RE::make_smart<MessageBoxResultCallback>(callback);
+    const RE::BSTSmartPointer<RE::IMessageBoxCallback> messageCallback = RE::make_smart<
+        MessageBoxResultCallback>(callback);
     messagebox->callback = messageCallback;
     messagebox->bodyText = bodyText;
     for (auto& text : buttonTextValues) messagebox->buttonText.push_back(text.c_str());
     messagebox->QueueMessage();
 }
 
-std::string_view Menu::CloseMenu()
-{
-	const auto uiManager = RE::UI::GetSingleton();
+std::string_view Menu::CloseMenu() {
+    const auto uiManager = RE::UI::GetSingleton();
     if (const auto inventoryMenu = uiManager->GetMenu<RE::InventoryMenu>()) {
-        RE::UIMessageQueue::GetSingleton()->AddMessage( RE::InventoryMenu::MENU_NAME, RE::UI_MESSAGE_TYPE::kHide, nullptr);
+        RE::UIMessageQueue::GetSingleton()->AddMessage(RE::InventoryMenu::MENU_NAME, RE::UI_MESSAGE_TYPE::kHide,
+                                                       nullptr);
         RE::UIMessageQueue::GetSingleton()->AddMessage(RE::TweenMenu::MENU_NAME, RE::UI_MESSAGE_TYPE::kHide, nullptr);
-		return RE::InventoryMenu::MENU_NAME;
+        return RE::InventoryMenu::MENU_NAME;
     }
 
     if (const auto favoritesMenu = uiManager->GetMenu<RE::FavoritesMenu>()) {
-        RE::UIMessageQueue::GetSingleton()->AddMessage(RE::FavoritesMenu::MENU_NAME, RE::UI_MESSAGE_TYPE::kHide, nullptr);
-		return RE::FavoritesMenu::MENU_NAME;
+        RE::UIMessageQueue::GetSingleton()->AddMessage(RE::FavoritesMenu::MENU_NAME, RE::UI_MESSAGE_TYPE::kHide,
+                                                       nullptr);
+        return RE::FavoritesMenu::MENU_NAME;
     }
 
     if (const auto containerMenu = uiManager->GetMenu<RE::ContainerMenu>()) {
-        RE::UIMessageQueue::GetSingleton()->AddMessage(RE::ContainerMenu::MENU_NAME, RE::UI_MESSAGE_TYPE::kHide, nullptr);
+        RE::UIMessageQueue::GetSingleton()->AddMessage(RE::ContainerMenu::MENU_NAME, RE::UI_MESSAGE_TYPE::kHide,
+                                                       nullptr);
         //RE::UIMessageQueue::GetSingleton()->AddMessage(RE::DialogueMenu::MENU_NAME, RE::UI_MESSAGE_TYPE::kHide, nullptr);
-		return RE::ContainerMenu::MENU_NAME;
+        return RE::ContainerMenu::MENU_NAME;
     }
     static std::string_view empty_menuname;
-	return empty_menuname;
+    return empty_menuname;
 }
 
 bool Menu::IsOpen(const RE::BSFixedString& menu_name) {
@@ -940,7 +909,7 @@ bool Menu::IsOpen(const RE::BSFixedString& menu_name) {
 }
 
 void Menu::OpenMenu(const std::string_view menuname) {
-	if (menuname.empty()) return;
+    if (menuname.empty()) return;
     if (IsOpen(menuname)) return;
     const RE::BSFixedString menuName(menuname);
     if (const auto queue = RE::UIMessageQueue::GetSingleton()) {
@@ -948,17 +917,16 @@ void Menu::OpenMenu(const std::string_view menuname) {
     }
 }
 
-bool Menu::GetContainerMenuOwner(RE::TESObjectREFRPtr& a_out)
-{
+bool Menu::GetContainerMenuOwner(RE::TESObjectREFRPtr& a_out) {
     if (const auto ui = RE::UI::GetSingleton(); ui->IsMenuOpen(RE::ContainerMenu::MENU_NAME)) {
-		return RE::LookupReferenceByHandle(RE::ContainerMenu::GetTargetRefHandle(), a_out);
+        return RE::LookupReferenceByHandle(RE::ContainerMenu::GetTargetRefHandle(), a_out);
     }
     return false;
 }
 
 RE::RefHandle Menu::GetOwnerInContainerMenu(const RE::FormID a_itemid) {
-#undef GetObject
-	const auto ui = RE::UI::GetSingleton();
+    #undef GetObject
+    const auto ui = RE::UI::GetSingleton();
     if (const auto container_menu = ui->GetMenu<RE::ContainerMenu>()) {
         if (const auto itemlist = container_menu->GetRuntimeData().itemList) {
             for (const auto& a_item : itemlist->items) {
@@ -975,42 +943,37 @@ RE::RefHandle Menu::GetOwnerInContainerMenu(const RE::FormID a_itemid) {
     return {};
 }
 
-bool Menu::IsPickpocketingOrStealing()
-{
-	if (const auto container_menu = RE::UI::GetSingleton()->GetMenu<RE::ContainerMenu>()) {
-		if (static_cast<int>(container_menu->GetContainerMode()) % 3) {
-			return true;
-		}
-	}
+bool Menu::IsPickpocketingOrStealing() {
+    if (const auto container_menu = RE::UI::GetSingleton()->GetMenu<RE::ContainerMenu>()) {
+        if (static_cast<int>(container_menu->GetContainerMode()) % 3) {
+            return true;
+        }
+    }
     return false;
 }
 
 void Menu::UpdateItemList() {
     if (const auto ui = RE::UI::GetSingleton(); ui->IsMenuOpen(RE::InventoryMenu::MENU_NAME)) {
         UpdateItemList<RE::InventoryMenu>();
-    }
-    else if (ui->IsMenuOpen(RE::BarterMenu::MENU_NAME)) {
+    } else if (ui->IsMenuOpen(RE::BarterMenu::MENU_NAME)) {
         UpdateItemList<RE::BarterMenu>();
-    }
-    else if (ui->IsMenuOpen(RE::ContainerMenu::MENU_NAME)) {
+    } else if (ui->IsMenuOpen(RE::ContainerMenu::MENU_NAME)) {
         UpdateItemList<RE::ContainerMenu>();
     }
 }
 
-void ModCompatibility::MakeChecks()
-{
+void ModCompatibility::MakeChecks() {
     Settings::po3installed = Mods::IsPo3Installed();
 }
 
-void ModCompatibility::Load()
-{
+void ModCompatibility::Load() {
     if (const auto data_handler = RE::TESDataHandler::GetSingleton()) {
-		Mods::ui_extensions_installed = data_handler->LookupModByName("UIExtensions.esp") != nullptr;
+        Mods::ui_extensions_installed = data_handler->LookupModByName("UIExtensions.esp") != nullptr;
 
         for (const auto local_id : Mods::doppelgangers_local) {
-		    if (const auto a_form = data_handler->LookupForm(local_id, Mods::doppelgangers_path)) {
+            if (const auto a_form = data_handler->LookupForm(local_id, Mods::doppelgangers_path)) {
                 Mods::doppelgangers.insert(a_form->GetFormID());
-		    }
-	    }
+            }
+        }
     }
 }
