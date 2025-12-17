@@ -4,16 +4,19 @@
 namespace {
     template <typename T>
     int SetUpAnimationOnOpen_Impl(T* a_real, const bool is_worn, int animID_index) {
+        if (REL::Module::IsVR()) {
+            return 0;
+        }
         using namespace ModCompatibility::Mods;
         const auto manager = Manager::GetSingleton();
 
         int duration = 0;
 
-        if (const auto player_cam = RE::PlayerCamera::GetSingleton();
-            !manager->IsInChestMenu() &&
-            (!Settings::other_settings.at(Settings::otherstuffKeys.at(7)) || is_worn) &&
-            (player_cam->IsInThirdPerson() || player_cam->IsInFirstPerson() && improved_cam_path_installed)
-        ) {
+        const bool play_only_if_equipped = Settings::other_settings.at(Settings::otherstuffKeys.at(7));
+        const bool is_in_third_person =
+            RE::PlayerCharacter::GetSingleton()->GetPlayerRuntimeData().playerFlags.isInThirdPersonMode;
+        if (!manager->IsInChestMenu() && (!play_only_if_equipped || is_worn) &&
+            (is_in_third_person || improved_cam_path_installed)) {
             const bool should_delay = Settings::AnimationsDelayMenuOpen();
             if (souls_unpaused_installed || should_delay) {
                 duration = Animations::SendAnimEvent(animID_index, a_real);
@@ -35,6 +38,9 @@ int Animations::SetUpAnimationOnOpen(RE::TESObjectREFR* a_real, const bool is_wo
 }
 
 int Animations::SendAnimEvent(const int animIDindex, const RE::TESForm* a_form) {
+    if (REL::Module::IsVR()) {
+        return 0;
+    }
     auto a_id = anim_ids[animIDindex];
     if (a_id == 0) {
         a_id = DAF_API::RequestEventID(anim_events[animIDindex].data());
