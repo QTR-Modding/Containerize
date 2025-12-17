@@ -1,24 +1,21 @@
 #pragma once
-#include "ClibUtil/singleton.hpp"
+#include <REX/REX/Singleton.h>
 #include "Hooks.h"
 #include "DynamicAnimationFramework/API.hpp"
 
 namespace Animations {
-    inline DAF_API::AnimEventID anim_event_id_open = 0;
-    inline DAF_API::AnimEventID anim_event_id_open_world = 0;
-    inline DAF_API::AnimEventID anim_event_id_close = 0;
-    inline DAF_API::AnimEventID anim_event_id_close_world = 0;
 
-    inline auto anim_event_open = "ContainerizeOpen";
-    inline auto anim_event_open_world = "ContainerizeOpenWorld";
-    inline auto anim_event_close = "ContainerizeClose";
-    inline auto anim_event_close_world = "ContainerizeCloseWorld";
-
-    int SendAnimEvent(bool open, const RE::TESForm* a_real);
+    constexpr std::array<std::string_view,4> anim_events = {
+        "ContainerizeOpen", "ContainerizeClose", "ContainerizeOpenWorld", "ContainerizeCloseWorld"
+    };
+    
+    inline std::array<DAF_API::AnimEventID,4> anim_ids = {0, 0, 0, 0};
+    
+    int SendAnimEvent(int animIDindex, const RE::TESForm* a_form);
 
     class AnimSink :
         public RE::BSTEventSink<RE::BSAnimationGraphEvent>,
-        public clib_util::singleton::ISingleton<AnimSink> {
+        public REX::Singleton<AnimSink> {
         RE::BSEventNotifyControl ProcessEvent(const RE::BSAnimationGraphEvent* a_event,
                                               RE::BSTEventSource<RE::BSAnimationGraphEvent>*) override {
             const bool playing_open = !opened && a_event->tag == "AnimObjLoad";
@@ -48,5 +45,5 @@ namespace Animations {
 
     template <typename T>
     // ReSharper disable once CppFunctionIsNotImplemented
-    int SetUpPlayAnimation(T* a_real, bool is_worn);
+    int SetUpAnimationOnOpen(T* a_real, bool is_worn);
 }

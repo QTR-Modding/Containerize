@@ -15,8 +15,8 @@ namespace SkyPrompt {
         std::make_pair(RE::INPUT_DEVICE::kGamepad, SkyPromptAPI::kSkyrim)
     }};
 
-    class MyPromptSink final : public SkyPromptAPI::PromptSink,
-                               public REX::Singleton<MyPromptSink> {
+    class RefPromptSink final : public SkyPromptAPI::PromptSink,
+                               public REX::Singleton<RefPromptSink> {
         
         std::string weight_text;
         std::string value_text;
@@ -27,10 +27,11 @@ namespace SkyPrompt {
         SkyPromptAPI::Prompt weight_prompt{weight_text, 2, 0, SkyPromptAPI::PromptType::kSinglePress, refid, akatosh_keys};
         SkyPromptAPI::Prompt value_prompt{value_text, 3,           0, SkyPromptAPI::PromptType::kSinglePress, refid, akatosh_keys};
 
-        std::array<SkyPromptAPI::Prompt, 4> prompts = {open_prompt, rename_prompt, weight_prompt, value_prompt};
+        std::vector<SkyPromptAPI::Prompt> prompts;
 
     public:
         void Start(RE::TESObjectREFR* a_ref);
+        void Stop();
         void ProcessEvent(SkyPromptAPI::PromptEvent event) const override;
         std::span<const SkyPromptAPI::Prompt> GetPrompts() const override { return prompts; }
     };
@@ -51,7 +52,7 @@ namespace SkyPrompt {
         void Show(const RE::TESBoundObject* a_fake) const;
         void Hide() const;
 
-        static void OpenBag(RE::TESBoundObject* a_fake, bool is_worn);
+        static void OnOpen(RE::TESBoundObject* a_fake, bool is_worn);
     };
 
     class RegistrationPromptSink final : public SkyPromptAPI::PromptSink,

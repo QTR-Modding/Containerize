@@ -341,11 +341,11 @@ void Manager::UpdateFakeWV(RE::TESBoundObject* fake_form, RE::TESObjectREFR* che
                                                                  weight_ratio);
     else if (formtype == "WEAP") UpdateFakeWV<RE::TESObjectWEAP>(fake_form->As<RE::TESObjectWEAP>(), chest_linked,
                                                                  weight_ratio);
-    else if (formtype == "AMMO") UpdateFakeWV<RE::TESAmmo>(fake_form->As<RE::TESAmmo>(), chest_linked, weight_ratio);
     else if (formtype == "SLGM") UpdateFakeWV<RE::TESSoulGem>(fake_form->As<RE::TESSoulGem>(), chest_linked,
                                                               weight_ratio);
     else if (formtype == "ALCH") UpdateFakeWV<RE::AlchemyItem>(fake_form->As<RE::AlchemyItem>(), chest_linked,
                                                                weight_ratio);
+    else if (formtype == "FURN") UpdateFakeWV<RE::TESFurniture>(fake_form->As<RE::TESFurniture>(), chest_linked, weight_ratio);
     else RaiseMngrErr(std::format("Form type not supported: {}", formtype));
 }
 
@@ -397,6 +397,7 @@ FormID Manager::CreateFakeContainer(RE::TESBoundObject* container, const RefID c
     if (formtype == "WEAP") { return CreateFakeContainer(container->As<RE::TESObjectWEAP>(), connected_chest, el); }
     if (formtype == "SLGM") { return CreateFakeContainer(container->As<RE::TESSoulGem>(), connected_chest, el); }
     if (formtype == "ALCH") { return CreateFakeContainer(container->As<RE::AlchemyItem>(), connected_chest, el); }
+    if (formtype == "FURN") { return CreateFakeContainer(container->As<RE::TESFurniture>(), connected_chest, el); }
     logger::error("Form type not supported: {}", formtype);
     return 0;
 }
@@ -659,8 +660,7 @@ bool Manager::DeRegister(RE::TESObjectREFR* chest, RE::TESObjectREFR* transfer_d
 
 std::string Manager::GetWeightText_(RE::TESObjectREFR* a_chest) {
     const auto chest_id = a_chest->GetFormID();
-    const auto a_real_id = GetRealID(chest_id);
-    if (a_real_id) {
+    if (const auto a_real_id = GetRealID(chest_id)) {
         const auto real = RE::TESForm::LookupByID<RE::TESBoundObject>(a_real_id);
         const auto src = GetContainerSource(a_real_id);
         if (real && src && src->capacity > 0) {
@@ -764,7 +764,7 @@ void Manager::Gateway(const int result, const RE::ObjectRefHandle& a_current_con
     } else if (!ActivateChest(a_chest)) {
         reals_to_takeback.clear();
         queued_chests.clear();
-        Animations::SendAnimEvent(false, nullptr);
+        Animations::SendAnimEvent(3, nullptr);
         logger::warn("Chest not found.");
     }
 }
@@ -965,6 +965,7 @@ Count Manager::CanBeAdded(const RE::TESBoundObject* a_item, const Count a_count,
         return 0;
     }
     if (src->weight_ratio < 0.00001f) return a_count;
+    if (src->capacity == 0.f) return a_count;
     const auto remaining_capacity = src->capacity - chestRef->GetWeightInContainer() * src->weight_ratio;
     const auto item_weight = a_item->GetWeight() * src->weight_ratio;
     const auto can_be_added = static_cast<Count>(remaining_capacity / (item_weight + EPSILON));
@@ -1043,9 +1044,9 @@ void Manager::RenameContainer(const std::string& new_name, RE::TESBoundObject* a
     else if (formtype == "INGR") Rename(new_name, a_fake->As<RE::IngredientItem>());
     else if (formtype == "MISC") Rename(new_name, a_fake->As<RE::TESObjectMISC>());
     else if (formtype == "WEAP") Rename(new_name, a_fake->As<RE::TESObjectWEAP>());
-    else if (formtype == "AMMO") Rename(new_name, a_fake->As<RE::TESAmmo>());
     else if (formtype == "SLGM") Rename(new_name, a_fake->As<RE::TESSoulGem>());
     else if (formtype == "ALCH") Rename(new_name, a_fake->As<RE::AlchemyItem>());
+    else if (formtype == "FURN") Rename(new_name, a_fake->As<RE::TESFurniture>());
     else logger::warn("Form type not supported: {}", formtype);
     {
         UNIQUE_GUARD;
@@ -1110,9 +1111,9 @@ void Manager::OnChestExit(RE::TESObjectREFR* a_chest) {
         const auto fake_id = GetFakeID(chest_id);
         if (const auto container_ref = GetContainerLocation(fake_id);
             container_ref && real_bound && container_ref->GetBaseObject() == real_bound) {
-            Animations::SendAnimEvent(false, container_ref);
+            Animations::SendAnimEvent(3, container_ref);
         } else {
-            Animations::SendAnimEvent(false, real_bound);
+            Animations::SendAnimEvent(1, real_bound);
         }
     }
 }
@@ -1362,9 +1363,12 @@ void Manager::ReceiveData() {
     for (const auto& [chestRef_, RealFakeForm_] : unmathced_chests) {
         auto [realcontFormID, fakecontFormID] = RealFakeForm_;
         logger::warn("FormID {:x} not found in sources.", realcontFormID);
-        if (Settings::other_settings[Settings::otherstuffKeys[0]]) MsgBoxesNotifs::InGame::ProblemWithContainer(realcontFormID);
-        if (const auto fake_bound = RE::TESForm::LookupByID<RE::TESBoundObject>(fakecontFormID)) player_ref->RemoveItem(
-            fake_bound, 1, RE::ITEM_REMOVE_REASON::kRemove, nullptr, nullptr);
+        if (Settings::other_settings[Settings::otherstuffKeys[0]]) {
+            MsgBoxesNotifs::InGame::ProblemWithContainer(realcontFormID);
+        }
+        if (const auto fake_bound = RE::TESForm::LookupByID<RE::TESBoundObject>(fakecontFormID)) {
+            player_ref->RemoveItem(fake_bound, 1, RE::ITEM_REMOVE_REASON::kRemove, nullptr, nullptr);
+        }
         logger::info("Trying to retrieve items from chest");
         if (const auto chest = RE::TESForm::LookupByID<RE::TESObjectREFR>(chestRef_)) {
             for (auto& [fst,snd] : chest->GetInventory()) {
@@ -1548,7 +1552,9 @@ std::string Manager::GetWeightText(RE::TESObjectREFR* a_container) {
         return GetWeightText_(chest);
     }
     if (const auto src = GetContainerSource(a_container->GetBaseObject()->GetFormID())) {
-        return GetWeightText(0.f, src->capacity);
+        if (const auto a_capacity = src->capacity; a_capacity > 0.f) {
+            return GetWeightText(0.f, a_capacity);
+        }
     }
     return "";
 }
@@ -1558,7 +1564,9 @@ std::string Manager::GetWeightText(const RE::TESBoundObject* fake_or_real) {
         return GetWeightText_(chest);
     }
     if (const auto src = GetContainerSource(fake_or_real->GetFormID())) {
-        return GetWeightText(0.f, src->capacity);
+        if (const auto a_capacity = src->capacity; a_capacity > 0.f) {
+            return GetWeightText(0.f, a_capacity);
+        }
     }
     return "";
 }
@@ -1567,10 +1575,14 @@ std::string Manager::GetValueText(RE::TESObjectREFR* a_loc) {
     RE::TESBoundObject* a_real = a_loc->GetBaseObject();
     if (const auto fake = GetFakeBound(a_loc)) {
         const auto extra_cost = xData::GetXDataCostOverride(&a_loc->extraList);
-        return std::to_string(fake->GetGoldValue() + extra_cost);
+        if (const auto a_value = fake->GetGoldValue() + extra_cost; a_value > 0) {
+            return std::to_string(a_value);
+        }
     }
     if ([[maybe_unused]] const auto src = GetContainerSource(a_real->GetFormID())) {
-        return std::to_string(FunctionsSkyrim::GetItemValue(a_real, &a_loc->extraList));
+        if (const auto a_value = FunctionsSkyrim::GetItemValue(a_real, &a_loc->extraList); a_value > 0) {
+            return std::to_string(a_value);
+        }
     }
     return "";
 }

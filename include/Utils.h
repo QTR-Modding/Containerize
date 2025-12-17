@@ -145,27 +145,20 @@ namespace FunctionsSkyrim {
         }
     };
 
-    // Specialization for TESAmmo
     template <>
-    struct FormTraits<RE::TESAmmo> {
-        static float GetWeight(RE::TESAmmo*) {
-            // Handle TESAmmo case where 'weight' is not a member
-            // You might return a default value or calculate it based on other factors
-            return 0.0f; // For example, returning 0 as a default value
+    struct FormTraits<RE::TESFurniture> {
+        static float GetWeight(const RE::TESFurniture* form) {
+            return form->GetWeight();
         }
 
-        static void SetWeight(RE::TESAmmo*, float) {
-            // Handle setting the weight for TESAmmo
-            // (implementation based on your requirements)
-            // For example, if TESAmmo had a SetWeight method, you would call it here
+        static void SetWeight(RE::TESFurniture*, float) {
         }
 
-        static int GetValue(const RE::TESAmmo* form) {
-            return form->value;
+        static int GetValue(const RE::TESFurniture* form) {
+            return form->GetGoldValue();
         }
 
-        static void SetValue(RE::TESAmmo* form, const int value) {
-            form->value = value;
+        static void SetValue(RE::TESFurniture*, int) {
         }
     };
 

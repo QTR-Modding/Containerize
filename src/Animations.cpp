@@ -3,9 +3,9 @@
 
 namespace {
     template <typename T>
-    int SetUpPlayAnimation_Impl(T* a_real, const bool is_worn) {
+    int SetUpAnimationOnOpen_Impl(T* a_real, const bool is_worn, int animID_index) {
         using namespace ModCompatibility::Mods;
-        auto manager = Manager::GetSingleton();
+        const auto manager = Manager::GetSingleton();
 
         int duration = 0;
 
@@ -14,9 +14,9 @@ namespace {
             (!Settings::other_settings.at(Settings::otherstuffKeys.at(7)) || is_worn) &&
             (player_cam->IsInThirdPerson() || player_cam->IsInFirstPerson() && improved_cam_path_installed)
         ) {
-            bool should_delay = Settings::AnimationsDelayMenuOpen();
+            const bool should_delay = Settings::AnimationsDelayMenuOpen();
             if (souls_unpaused_installed || should_delay) {
-                duration = Animations::SendAnimEvent(true, a_real);
+                duration = Animations::SendAnimEvent(animID_index, a_real);
                 duration = should_delay ? duration : 0;
             }
         }
@@ -25,31 +25,25 @@ namespace {
 }
 
 template <>
-int Animations::SetUpPlayAnimation(RE::TESBoundObject* a_real, const bool is_worn) {
-    return SetUpPlayAnimation_Impl(a_real, is_worn);
+int Animations::SetUpAnimationOnOpen(RE::TESBoundObject* a_real, const bool is_worn) {
+    return SetUpAnimationOnOpen_Impl(a_real, is_worn, 0);
 }
 
 template <>
-int Animations::SetUpPlayAnimation(RE::TESObjectREFR* a_real, const bool is_worn) {
-    return SetUpPlayAnimation_Impl(a_real, is_worn);
+int Animations::SetUpAnimationOnOpen(RE::TESObjectREFR* a_real, const bool is_worn) {
+    return SetUpAnimationOnOpen_Impl(a_real, is_worn, 2);
 }
 
-int Animations::SendAnimEvent(const bool open, const RE::TESForm* a_real) {
-    bool is_ref = a_real->GetFormType() == RE::FormType::Reference;
-    auto& a_id = is_ref
-                     ? (open ? anim_event_id_open_world : anim_event_id_close_world)
-                     : (open ? anim_event_id_open : anim_event_id_close);
-    const char* a_event = is_ref
-                              ? (open ? anim_event_open_world : anim_event_close_world)
-                              : (open ? anim_event_open : anim_event_close);
+int Animations::SendAnimEvent(const int animIDindex, const RE::TESForm* a_form) {
 
+    auto a_id = anim_ids[animIDindex];
     if (a_id == 0) {
-        a_id = DAF_API::RequestEventID(a_event);
+        a_id = DAF_API::RequestEventID(Animations::anim_events[animIDindex].data());
+        anim_ids[animIDindex] = a_id;
     }
-
     if (a_id > 0) {
         RE::PlayerCharacter::GetSingleton()->AddAnimationGraphEventSink(AnimSink::GetSingleton());
-        return DAF_API::SendEvent(a_id, 0x14, a_real ? a_real->GetFormID() : 0);
+        return DAF_API::SendEvent(a_id, 0x14, a_form ? a_form->GetFormID() : 0);
     }
     return 0;
 }

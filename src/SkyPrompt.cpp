@@ -6,35 +6,28 @@
 
 using namespace SkyPrompt;
 
-void SkyPrompt::MyPromptSink::Start(RE::TESObjectREFR* a_ref) {
+void SkyPrompt::RefPromptSink::Start(RE::TESObjectREFR* a_ref) {
     weight_text.clear();
     value_text.clear();
+    prompts = {open_prompt, rename_prompt};
 
     const auto manager = Manager::GetSingleton();
-    const auto a_weight_text = manager->GetWeightText(a_ref);
 
-    const auto a_value_text = manager->GetValueText(a_ref);
-    if (a_weight_text.empty() || a_value_text.empty()) {
-        return;
+    if (const auto a_weight_text = manager->GetWeightText(a_ref); !a_weight_text.empty()) {
+        weight_text.append(Strings::weight).append(" ").append(a_weight_text);
+        weight_prompt.text = weight_text;
+        prompts.push_back(weight_prompt);
     }
-
-    weight_text.append(Strings::weight).append(" ").append(a_weight_text);
-    value_text.append(Strings::value).append(" ").append(a_value_text);
-
-    weight_prompt.text = weight_text;
-    value_prompt.text = value_text;
-
-    constexpr auto a_refid = 0; //a_ref->GetFormID();
-    open_prompt.refid = a_refid;
-    rename_prompt.refid = a_refid;
-    weight_prompt.refid = a_refid;
-    value_prompt.refid = a_refid;
-
-
-    prompts = {open_prompt, rename_prompt, weight_prompt, value_prompt};
+    if (const auto a_value_text = manager->GetValueText(a_ref); !a_value_text.empty()) {
+        value_text.append(Strings::value).append(" ").append(a_value_text);
+        value_prompt.text = value_text;
+        prompts.push_back(value_prompt);
+    }
 }
 
-void MyPromptSink::ProcessEvent(const SkyPromptAPI::PromptEvent event) const {
+void RefPromptSink::Stop() { prompts.clear(); }
+
+void RefPromptSink::ProcessEvent(const SkyPromptAPI::PromptEvent event) const {
     if (event.type) {
         return;
     }
@@ -42,9 +35,8 @@ void MyPromptSink::ProcessEvent(const SkyPromptAPI::PromptEvent event) const {
 
     if (const auto crosshairref = RE::CrosshairPickData::GetSingleton()->target) {
         if (const auto a_ref = crosshairref->get().get()) {
-            if (const auto prompt_eventid = event.prompt.eventID;
-                prompt_eventid == 0) {
-                const auto duration = Animations::SetUpPlayAnimation(a_ref, true);
+            if (const auto prompt_eventid = event.prompt.eventID; prompt_eventid == 0) {
+                const auto duration = Animations::SetUpAnimationOnOpen(a_ref, true);
                 Manager::GetSingleton()->OnActivateContainer(a_ref, 0, duration);
             } else if (prompt_eventid == 1) {
                 Manager::GetSingleton()->OnActivateContainer(a_ref, 1);
@@ -76,7 +68,7 @@ void MenuPromptSink::ProcessEvent(const SkyPromptAPI::PromptEvent event) const {
                 Manager::RenameCallback(a_fake);
                 return;
             }
-            OpenBag(a_fake, RE::UI::GetSingleton()->IsMenuOpen(RE::InventoryMenu::MENU_NAME) && a_entry->IsWorn());
+            OnOpen(a_fake, RE::UI::GetSingleton()->IsMenuOpen(RE::InventoryMenu::MENU_NAME) && a_entry->IsWorn());
         }
     }
 }
@@ -108,7 +100,7 @@ void MenuPromptSink::Hide() const {
     SkyPromptAPI::RemovePrompt(this, g_clientID);
 }
 
-void MenuPromptSink::OpenBag(RE::TESBoundObject* a_fake, const bool is_worn) {
+void MenuPromptSink::OnOpen(RE::TESBoundObject* a_fake, const bool is_worn) {
     using namespace ModCompatibility::Mods;
 
     const auto manager = Manager::GetSingleton();
@@ -121,7 +113,7 @@ void MenuPromptSink::OpenBag(RE::TESBoundObject* a_fake, const bool is_worn) {
 
     manager->CloseMenu();
 
-    Manager::GetSingleton()->OnLongPressEquip(a_fake, Animations::SetUpPlayAnimation(a_real, is_worn));
+    Manager::GetSingleton()->OnLongPressEquip(a_fake, Animations::SetUpAnimationOnOpen(a_real, is_worn));
 }
 
 void RegistrationPromptSink::ProcessEvent(const SkyPromptAPI::PromptEvent event) const {
@@ -158,7 +150,7 @@ void RegistrationPromptSink::ProcessEvent(const SkyPromptAPI::PromptEvent event)
                 Manager::RenameCallback(a_fake);
                 return;
             }
-            MenuPromptSink::OpenBag(a_fake, is_worn);
+            MenuPromptSink::OnOpen(a_fake, is_worn);
         }
     }
 }

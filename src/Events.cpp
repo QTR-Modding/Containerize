@@ -5,7 +5,7 @@ void EventSink::SendPrompts(RE::TESObjectREFR* a_container) {
     if (SkyPrompt::IsAnyMenuOpen()) {
         return;
     }
-    const auto ps = SkyPrompt::MyPromptSink::GetSingleton();
+    const auto ps = SkyPrompt::RefPromptSink::GetSingleton();
     ps->Start(a_container);
     if (!SkyPromptAPI::SendPrompt(ps, SkyPrompt::g_clientID)) {
         //logger::error("Prompt failed.");
@@ -13,7 +13,9 @@ void EventSink::SendPrompts(RE::TESObjectREFR* a_container) {
 }
 
 void EventSink::RemovePrompts() {
-    SkyPromptAPI::RemovePrompt(SkyPrompt::MyPromptSink::GetSingleton(), SkyPrompt::g_clientID);
+    const auto ps = SkyPrompt::RefPromptSink::GetSingleton();
+    SkyPromptAPI::RemovePrompt(ps, SkyPrompt::g_clientID);
+    ps->Stop();
 }
 
 void EventSink::RemoveMenuPrompts() {

@@ -344,7 +344,6 @@ FormID Manager::CreateFakeContainer(T* realcontainer, const RefID connected_ches
         RaiseMngrErr("Failed to create new form.");
         return 0;
     }
-    new_form->fullName = realcontainer->GetFullName();
     logger::info("Created form with type: {}, Base ID: {:x}, Name: {}",
                  RE::FormTypeToString(new_form->GetFormType()), new_form_id, new_form->GetName());
     return new_form_id;

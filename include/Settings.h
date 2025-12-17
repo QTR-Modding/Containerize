@@ -64,7 +64,6 @@ namespace Settings {
         "SLGM", // 34 SLGM	TESSoulGem
         "ALCH", //	2E ALCH	AlchemyItem
         "FURN", // 28 FURN	TESFurniture
-        "STAT", // 22 STAT	TESObjectSTAT
     };
 
     inline bool problems_in_YAML_sources = false;
