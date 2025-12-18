@@ -11,30 +11,31 @@ std::wstring s2ws(const std::string& str);
 const auto mod_name = static_cast<std::string>(SKSE::PluginDeclaration::GetSingleton()->GetName());
 
 namespace ModCompatibility {
-    inline bool IsModInstalled(const char* mod_path) {return std::filesystem::exists(mod_path);}
-    namespace Mods {
+    inline bool IsModInstalled(const char* mod_path) { return std::filesystem::exists(mod_path); }
 
+    namespace Mods {
         constexpr auto po3path = "Data/SKSE/Plugins/po3_Tweaks.dll";
         bool IsPo3Installed();
 
         constexpr auto po3_UoTpath = "Data/SKSE/Plugins/po3_UseOrTake.dll";
-		const auto po3_use_or_take = IsModInstalled(po3_UoTpath);
+        const auto po3_use_or_take = IsModInstalled(po3_UoTpath);
 
         constexpr auto obj_manipu_path = "Data/SKSE/Plugins/ObjectManipulationOverhaul.dll";
-		const auto obj_manipu_installed = IsModInstalled(obj_manipu_path);
+        const auto obj_manipu_installed = IsModInstalled(obj_manipu_path);
 
         constexpr auto souls_unpaused_path = "Data/SKSE/Plugins/SkyrimSoulsRE.dll";
-		const auto souls_unpaused_installed = IsModInstalled(souls_unpaused_path);
+        const auto souls_unpaused_installed = IsModInstalled(souls_unpaused_path);
 
         constexpr auto improved_cam_path = "Data/SKSE/Plugins/ImprovedCameraSE.dll";
-		const auto improved_cam_path_installed = IsModInstalled(improved_cam_path);
+        const auto improved_cam_path_installed = IsModInstalled(improved_cam_path);
 
         constexpr auto ui_extensions_path = "UIExtensions.esp";
-		inline bool ui_extensions_installed = false;
+        inline bool ui_extensions_installed = false;
 
         // CC content
         constexpr auto doppelgangers_path = "ccbgssse018-shadowrend.esl";
-        inline const std::set<FormID> doppelgangers_local = {0x832,0x833,0x834,0x835,0x836,0x837,0x838,0x839,0x83a,0x83b};
+        inline const std::set<FormID> doppelgangers_local = {0x832, 0x833, 0x834, 0x835, 0x836, 0x837, 0x838, 0x839,
+                                                             0x83a, 0x83b};
         inline std::set<FormID> doppelgangers;
     }
 
@@ -63,12 +64,13 @@ inline std::string po3_err_msgbox = std::format(
 
 inline std::string general_err_msgbox = "Something went wrong. Please contact the mod author.";
 inline std::string init_err_msgbox = "The mod failed to initialize and will be terminated.";
-inline std::string form_type_err_msgbox = "The form type of the item with FormID ({:x}) is not supported. Please contact the mod author.";
-inline std::string uninstall_msgbox = "Uninstall successful. You can now remove the mod. Please save and quit the game.";
+inline std::string form_type_err_msgbox =
+    "The form type of the item with FormID ({:x}) is not supported. Please contact the mod author.";
+inline std::string uninstall_msgbox =
+    "Uninstall successful. You can now remove the mod. Please save and quit the game.";
 inline std::string uninstall_err_msgbox = "Uninstall failed. Please contact the mod author.";
-inline std::string problem_with_container_msgbox = "Problem with one of the items with the form id ({:x}). This is expected if you have changed the list of containers in the INI file between saves. Corresponding items will be returned to your inventory. You can suppress this message by changing the setting in your INI.";
-inline std::vector<std::string> buttons = {"Open", "Take", "More...", "Close"};
-inline std::vector<std::string> buttons_more = {"Rename", "Uninstall", "Back", "Close"};
+inline std::string problem_with_container_msgbox =
+    "Problem with one of the items with the form id ({:x}). This is expected if you have changed the list of containers in the INI file between saves. Corresponding items will be returned to your inventory. You can suppress this message by changing the setting in your INI.";
 
 void SetupLog();
 std::filesystem::path GetLogPath();
@@ -79,7 +81,6 @@ std::string DecodeTypeCode(std::uint32_t typeCode);
 std::string GetGameLanguage();
 
 namespace Functions {
-
     template <typename Key, typename Value>
     bool containsValue(const std::map<Key, Value>& myMap, const Value& valueToFind) {
         for (const auto& pair : myMap) {
@@ -93,13 +94,12 @@ namespace Functions {
     template <typename Key, typename Value>
     void printMap(const std::map<Key, Value>& myMap) {
         for (const auto& pair : myMap) {
-			logger::trace("Key: {}, Value: {}", pair.first, pair.second);
-		}
-	}
+            logger::trace("Key: {}, Value: {}", pair.first, pair.second);
+        }
+    }
 }
 
 namespace Math {
-
     /*float Round(float value, int n);
     float Ceil(float value, int n);*/
 
@@ -119,11 +119,9 @@ namespace Math {
 };
 
 
-
 namespace FunctionsSkyrim {
-
     int32_t GetEnchantmentCostOverride(const RE::EnchantmentItem* enchantment);
-	int32_t GetItemValue(RE::TESBoundObject* item, const RE::ExtraDataList* a_xlist=nullptr);
+    int32_t GetItemValue(RE::TESBoundObject* item, const RE::ExtraDataList* a_xlist = nullptr);
 
     template <typename T>
     struct FormTraits {
@@ -138,61 +136,54 @@ namespace FunctionsSkyrim {
         }
 
         static int GetValue(T* form) {
-			// Default implementation, assuming T has a member variable 'value'
-			return form->value;
-		}
+            // Default implementation, assuming T has a member variable 'value'
+            return form->value;
+        }
 
         static void SetValue(T* form, int value) {
             form->value = value;
         }
     };
 
-    // Specialization for TESAmmo
     template <>
-    struct FormTraits<RE::TESAmmo> {
-        static float GetWeight(RE::TESAmmo*) {
-            // Handle TESAmmo case where 'weight' is not a member
-            // You might return a default value or calculate it based on other factors
-            return 0.0f;  // For example, returning 0 as a default value
+    struct FormTraits<RE::TESFurniture> {
+        static float GetWeight(const RE::TESFurniture* form) {
+            return form->GetWeight();
         }
 
-        static void SetWeight(RE::TESAmmo*, float) {
-            // Handle setting the weight for TESAmmo
-            // (implementation based on your requirements)
-            // For example, if TESAmmo had a SetWeight method, you would call it here
+        static void SetWeight(RE::TESFurniture*, float) {
         }
 
-        static int GetValue(const RE::TESAmmo* form) {
-			return form->value;
-		}
-        static void SetValue(RE::TESAmmo* form, const int value) {
-			form->value = value;
-		}
+        static int GetValue(const RE::TESFurniture* form) {
+            return form->GetGoldValue();
+        }
+
+        static void SetValue(RE::TESFurniture*, int) {
+        }
     };
 
     template <>
     struct FormTraits<RE::AlchemyItem> {
-        static float GetWeight(const RE::AlchemyItem* form) { 
+        static float GetWeight(const RE::AlchemyItem* form) {
             return form->weight;
         }
 
-        static void SetWeight(RE::AlchemyItem* form, const float weight) { 
+        static void SetWeight(RE::AlchemyItem* form, const float weight) {
             form->weight = weight;
         }
 
         static int GetValue(const RE::AlchemyItem* form) {
-        	return form->GetGoldValue();
+            return form->GetGoldValue();
         }
-        static void SetValue(RE::AlchemyItem* form, const int value) { 
+
+        static void SetValue(RE::AlchemyItem* form, const int value) {
             logger::trace("CostOverride: {}", form->data.costOverride);
             form->data.costOverride = value;
         }
     };
-
 }
 
 namespace MsgBoxesNotifs {
-
     // https://github.com/SkyrimScripting/MessageBox/blob/ac0ea32af02766582209e784689eb0dd7d731d57/include/SkyrimScripting/MessageBox.h#L9
     class SkyrimMessageBox {
         class MessageBoxResultCallback final : public RE::IMessageBoxCallback {
@@ -200,8 +191,11 @@ namespace MsgBoxesNotifs {
 
         public:
             ~MessageBoxResultCallback() override = default;
-            explicit MessageBoxResultCallback(const std::function<void(unsigned int)>& callback) : _callback(callback) {}
-            void Run(RE::IMessageBoxCallback::Message message) override {
+
+            explicit MessageBoxResultCallback(const std::function<void(unsigned int)>& callback) : _callback(callback) {
+            }
+
+            void Run(Message message) override {
                 _callback(static_cast<unsigned int>(message));
             }
         };
@@ -217,26 +211,26 @@ namespace MsgBoxesNotifs {
     }
 
     namespace Windows {
-
         inline int Po3ErrMsg() {
             MessageBoxA(nullptr, po3_err_msgbox.c_str(), "Error", MB_OK | MB_ICONERROR);
             return 1;
         };
     };
 
-    namespace InGame{
+    namespace InGame {
         inline void CustomMsg(const std::string& msg) { RE::DebugMessageBox((mod_name + ": " + msg).c_str()); };
-		inline void GeneralErr() {
+
+        inline void GeneralErr() {
             const std::string message = std::format("{}: {}", mod_name, general_err_msgbox);
             RE::DebugMessageBox(message.c_str());
         }
 
-		inline void InitErr() {
-			const std::string message = std::format("{}: {}", mod_name, init_err_msgbox);
-			RE::DebugMessageBox(message.c_str());
-		}
+        inline void InitErr() {
+            const std::string message = std::format("{}: {}", mod_name, init_err_msgbox);
+            RE::DebugMessageBox(message.c_str());
+        }
 
-		inline void FormTypeErr(RE::FormID id) {
+        inline void FormTypeErr(RE::FormID id) {
             std::string message = std::format("{}: {}", mod_name, form_type_err_msgbox);
             message = fmt::vformat(message, fmt::make_format_args(id));
             RE::DebugMessageBox(message.c_str());
@@ -253,14 +247,12 @@ namespace MsgBoxesNotifs {
         }
 
         inline void ProblemWithContainer(RE::FormID id) {
-            std::string message = fmt::vformat("{}: {}", fmt::make_format_args(mod_name, problem_with_container_msgbox));
+            std::string message =
+                fmt::vformat("{}: {}", fmt::make_format_args(mod_name, problem_with_container_msgbox));
             message = fmt::vformat(message, fmt::make_format_args(id));
             RE::DebugMessageBox(message.c_str());
         }
-
-
     };
-    
 };
 
 namespace Inventory {
@@ -294,30 +286,27 @@ namespace Inventory {
     [[nodiscard]] bool IsEquipped(RE::TESBoundObject* item);
 
     [[nodiscard]] inline bool IsEquipped(const FormID formid) {
-	    return IsEquipped(FormReader::GetFormByID<RE::TESBoundObject>(formid));
+        return IsEquipped(FormReader::GetFormByID<RE::TESBoundObject>(formid));
     }
 
     void ToggleEquip(RE::TESBoundObject* item);
-
 };
 
 namespace WorldObject {
-
-    void SwapObjects(RE::TESObjectREFR* a_from, RE::TESBoundObject* a_to, bool apply_havok=true);
+    void SwapObjects(RE::TESObjectREFR* a_from, RE::TESBoundObject* a_to, bool apply_havok = true);
 
     inline void StartDraggingObject(RE::TESObjectREFR* ref) {
         using func_t = void(*)(RE::TESObjectREFR*);
         static auto ObjectManipulationOverhaul = GetModuleHandle(L"ObjectManipulationOverhaul");
-        const auto func = reinterpret_cast<func_t>(GetProcAddress(ObjectManipulationOverhaul, "StartDraggingObject"));  // NOLINT(clang-diagnostic-cast-function-type-strict)
+        const auto func = reinterpret_cast<func_t>(GetProcAddress(ObjectManipulationOverhaul, "StartDraggingObject")); // NOLINT(clang-diagnostic-cast-function-type-strict)
         return func(ref);
     }
 };
 
 namespace xData {
-
     namespace Copy {
         void CopyEnchantment(const RE::ExtraEnchantment* from, RE::ExtraEnchantment* to);
-            
+
         void CopyHealth(const RE::ExtraHealth* from, RE::ExtraHealth* to);
 
         void CopyRank(const RE::ExtraRank* from, RE::ExtraRank* to);
@@ -350,7 +339,7 @@ namespace xData {
     };
 
     template <typename T>
-    void CopyExtraData(T* from, T* to){
+    void CopyExtraData(T* from, T* to) {
         if (!from || !to) return;
         switch (T::EXTRADATATYPE) {
             case RE::ExtraDataType::kEnchantment:
@@ -388,15 +377,15 @@ namespace xData {
                 break;
             case RE::ExtraDataType::kHorse:
                 CopyHorse(from, to);
-				break;
+                break;
             case RE::ExtraDataType::kHotkey:
                 CopyHotkey(from, to);
-				break;
+                break;
             case RE::ExtraDataType::kTextDisplayData:
-				CopyTextDisplayData(from, to);
-				break;
+                CopyTextDisplayData(from, to);
+                break;
             case RE::ExtraDataType::kSoul:
-				CopySoul(from, to);
+                CopySoul(from, to);
                 break;
             case RE::ExtraDataType::kOwnership:
                 CopyOwnership(from, to);
@@ -415,23 +404,21 @@ namespace xData {
 
     void AddTextDisplayData(RE::ExtraDataList* extraDataList, const std::string& displayName);
 
-    inline RE::ExtraDataList* ConstructExtraDataList(void* a_this)
-    {
+    inline RE::ExtraDataList* ConstructExtraDataList(void* a_this) {
         using func_t = decltype(&ConstructExtraDataList);
-        REL::Relocation<func_t> func{ RELOCATION_ID(11437, 11583) };
+        REL::Relocation<func_t> func{RELOCATION_ID(11437, 11583)};
         return func(a_this);
     }
 
     RE::ExtraDataList* ConstructExtraDataList();
 
-    RE::ExtraDataList* GetOrCreateExtraList(RE::InventoryEntryData* data, bool a_create=true);
+    RE::ExtraDataList* GetOrCreateExtraList(RE::InventoryEntryData* data, bool a_create = true);
 
     bool UpdateExtrasInInventory(RE::TESObjectREFR* from_ref, FormID from_item_formid,
-                                      RE::TESObjectREFR* to_ref, FormID to_item_formid);
+                                 RE::TESObjectREFR* to_ref, FormID to_item_formid);
 };
 
 namespace DynamicForm {
-
     void copyBookAppearence(RE::TESForm* source, RE::TESForm* target);
 
     template <class T>
@@ -452,7 +439,6 @@ namespace DynamicForm {
     void copyMagicEffect(RE::TESForm* source, RE::TESForm* target);
 
     void copyAppearence(RE::TESForm* source, RE::TESForm* target);
-
 };
 
 namespace Menu {
@@ -462,7 +448,7 @@ namespace Menu {
 
     void OpenMenu(std::string_view menuname);
 
-	bool GetContainerMenuOwner(RE::TESObjectREFRPtr& a_out);
+    bool GetContainerMenuOwner(RE::TESObjectREFRPtr& a_out);
 
     RE::RefHandle GetOwnerInContainerMenu(RE::FormID a_itemid);
 
@@ -485,17 +471,19 @@ namespace Menu {
 
 
 class SpeedProfiler {
-	std::chrono::time_point<std::chrono::steady_clock> start_time;
-	std::chrono::time_point<std::chrono::steady_clock> end_time;
-	std::string name;
+    std::chrono::time_point<std::chrono::steady_clock> start_time;
+    std::chrono::time_point<std::chrono::steady_clock> end_time;
+    std::string name;
+
 public:
     explicit SpeedProfiler(const std::string& name) {
-		start_time = std::chrono::steady_clock::now();
-		this->name = name;
-	}
-	~SpeedProfiler() {
-		end_time = std::chrono::steady_clock::now();
-		std::chrono::duration<double> elapsed_seconds = end_time - start_time;
-		logger::info("{}: Elapsed time: {}", name, elapsed_seconds.count());
-	}
+        start_time = std::chrono::steady_clock::now();
+        this->name = name;
+    }
+
+    ~SpeedProfiler() {
+        end_time = std::chrono::steady_clock::now();
+        std::chrono::duration<double> elapsed_seconds = end_time - start_time;
+        logger::info("{}: Elapsed time: {}", name, elapsed_seconds.count());
+    }
 };

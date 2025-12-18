@@ -1,7 +1,7 @@
 {
   "$schema": "https://raw.githubusercontent.com/microsoft/vcpkg-tool/main/docs/vcpkg.schema.json",
   "name": "containerize",
-  "version-string": "1.0.5.0",
+  "version-string": "1.0.6.0",
   "dependencies": [
     "rapidjson",
     "fast-cpp-csv-parser",
@@ -15,7 +15,8 @@
     "skse-mcp",
     "skyprompt-api",
     "daf-api",
-    "directxtk"
+    "directxtk",
+    "yaml-cpp"
   ],
   "overrides": [
     {
@@ -23,5 +24,5 @@
       "version": "9.1.0"
     }
   ],
-  "builtin-baseline": "78b61582c9e093fda56a01ebb654be15a0033897"
+  "builtin-baseline": "ee12231b20c95013c6638d845d04c91559a1d1ff"
 }
