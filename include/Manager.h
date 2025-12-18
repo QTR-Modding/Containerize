@@ -10,10 +10,6 @@ class Manager final : public SaveLoadData,
     RE::TESObjectREFR* player_ref = nullptr;
     //RE::EffectSetting* empty_mgeff = nullptr;
 
-    // runtime specific
-    std::map<RefID, FormFormID> ChestToFakeContainer;
-    // chest refid -> {real container formid (outerKey), fake container formid (innerKey)}
-
     // unowned stuff
     RE::TESObjectCELL* unownedCell = nullptr;
     RE::TESObjectCONT* unownedChest = nullptr;
@@ -90,8 +86,6 @@ class Manager final : public SaveLoadData,
 
     void HandleFormDelete_(RefID chest_refid);
 
-    std::vector<Source> sources;
-
     void RaiseMngrErr(const std::string& err_msg_ = "Error");
 
     void InitFailed();
@@ -121,7 +115,6 @@ class Manager final : public SaveLoadData,
     [[nodiscard]] bool DeRegister(RE::TESObjectREFR* chest, RE::TESObjectREFR* transfer_dest);
 
     std::string GetWeightText_(RE::TESObjectREFR* a_chest);
-
     static std::string GetWeightText(float weight, float capacity);
 
     // [locks source_mutex_ and chest2fake_mutex_ (unique)]
@@ -149,6 +142,10 @@ class Manager final : public SaveLoadData,
 
     [[nodiscard]] bool IsARegistry(RefID registry) const;
     void Gateway(int result, const RE::ObjectRefHandle& a_current_container);
+
+    // chest refid -> {real container formid (outerKey), fake container formid (innerKey)}
+    std::map<RefID, FormFormID> ChestToFakeContainer;
+    std::vector<Source> sources;
 
 public:
 
@@ -293,11 +290,8 @@ void Manager::UpdateFakeWV(T* fake_form, RE::TESObjectREFR* chest_linked, const 
 
     while (static_cast<float>(std::abs(f_search - target_value)) > tolerance_val && curr_iter > 0) {
         FunctionsSkyrim::FormTraits<T>::SetValue(fake_form, x_search);
-        logger::trace("Setting fake value to: {}", x_search);
         f_search = fake_bound->GetGoldValue() + extracost;
         //player_has_item ? Inventory::GetItemValue(fake_bound, player_ref->GetInventory()) : container_location->GetGoldValue();
-
-        logger::trace("x_search: {}, f_search: {}", x_search, f_search);
 
         if (f_search > target_value) upper_bound = x_search;
         else lower_bound = x_search;
