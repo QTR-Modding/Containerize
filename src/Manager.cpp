@@ -105,7 +105,8 @@ std::string Manager::GetChestName(const RE::TESObjectREFR* chest) const {
     auto chest_id = chest->GetFormID();
     const auto fake_id = GetFakeID(chest_id);
     if (const auto real_bound = FakeToRealContainer(fake_id)) {
-        return renames.contains(fake_id) ? renames.at(fake_id) : real_bound->GetName();
+        auto a_rename = GetRename(fake_id);
+        return !a_rename.empty() ? a_rename : real_bound->GetName();
     }
     logger::error("Fake to real container failed for chest ID: {:x}", chest_id);
     return "";
@@ -230,8 +231,8 @@ RE::TESObjectREFR* Manager::FindNotMatchedChest() const {
     RE::BSSpinLockGuard locker(runtimeData.spinLock);
     for (const auto& ref : runtimeData.references) {
         if (!ref) continue;
-        if (ref->GetFormID() == UnownedStuff::unownedChestOGRefID) continue;
         if (ref->GetBaseObject()->GetFormID() != unownedChest->GetFormID()) continue;
+        if (ref->GetFormID() == UnownedStuff::unownedChestOGRefID) continue;
         if (!IsChest(ref->GetFormID()) && ref->GetInventory().empty()) {
             return ref.get();
         }
@@ -456,9 +457,9 @@ RE::TESBoundObject* Manager::FakePlacement_Sub_Sub(const RefID chestID) {
         external_favs.erase(itFav);
         external_favs.push_back(fakeid_new);
     }
-    if (renames.contains(fakeid_old) && fakeid_new != fakeid_old) {
-        renames[fakeid_new] = renames.at(fakeid_old);
-        renames.erase(fakeid_old);
+    if (const auto it = renames.find(fakeid_old); it != renames.end() && fakeid_new != fakeid_old) {
+        renames[fakeid_new] = it->second;
+        renames.erase(it);
     }
 
     const auto DFT = DynamicFormTracker::GetSingleton();
@@ -929,8 +930,8 @@ void Manager::SendData() {
                 } else if (std::ranges::find(external_favs, fake_formid) != external_favs.end()) {
                     is_favorited_x = true;
                 }
-                const auto rename_ = renames.contains(fake_formid) ? renames.at(fake_formid) : "";
-                FormIDX fake_container_x(itChest->second.innerKey, is_equipped_x, is_favorited_x, rename_);
+                const auto a_rename = GetRename(fake_formid);
+                FormIDX fake_container_x(itChest->second.innerKey, is_equipped_x, is_favorited_x, a_rename);
                 SetData({src.formid, chest_ref}, {fake_container_x, cont_ref});
             }
         }

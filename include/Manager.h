@@ -140,6 +140,8 @@ class Manager final : public SaveLoadData,
 
     void TransferOnUse(RefID a_chestID) const;
 
+    std::string GetRename(const FormID a_fakeID) const { return renames.contains(a_fakeID) ? renames.at(a_fakeID) : ""; }
+
     [[nodiscard]] bool IsARegistry(RefID registry) const;
     void Gateway(int result, const RE::ObjectRefHandle& a_current_container);
 
@@ -247,7 +249,10 @@ void Manager::UpdateFakeWV(T* fake_form, RE::TESObjectREFR* chest_linked, const 
     auto real_container = FakeToRealContainer(fake_formid);
     // ReSharper disable once CppDependentTemplateWithoutTemplateKeyword
     fake_form->Copy(real_container->As<T>()); // NOLINT(clang-diagnostic-warning)
-    if (renames.contains(fake_formid)) fake_form->fullName = renames.at(fake_form->GetFormID());
+    
+    if (auto a_rename = GetRename(fake_formid); !a_rename.empty()) {
+        fake_form->fullName = a_rename;
+    }
 
     FunctionsSkyrim::FormTraits<T>::SetWeight(
         fake_form,
