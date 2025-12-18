@@ -51,7 +51,7 @@ bool Hooks::HandleEquip(RE::InputEvent* event) {
                 }
                 if (button_event->HeldDuration() > 0.25f) {
                     Manager::GetSingleton()->CloseMenu();
-                    Manager::GetSingleton()->OnLongPressEquip(selected_item);
+                    Manager::GetSingleton()->OnOpen(selected_item);
                 } else if (button_event->IsUp()) {
                     const auto player = RE::PlayerCharacter::GetSingleton();
                     Inventory::ToggleEquip(selected_item);

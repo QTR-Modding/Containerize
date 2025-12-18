@@ -41,9 +41,9 @@ void RefPromptSink::ProcessEvent(const SkyPromptAPI::PromptEvent event) const {
         if (const auto a_ref = crosshairref->get().get()) {
             if (const auto prompt_eventid = event.prompt.eventID; prompt_eventid == 0) {
                 const auto duration = Animations::SetUpAnimationOnOpen(a_ref, true);
-                Manager::GetSingleton()->OnActivateContainer(a_ref, 0, duration);
+                Manager::GetSingleton()->OnPromptAccept(a_ref, 0, duration);
             } else if (prompt_eventid == 1) {
-                Manager::GetSingleton()->OnActivateContainer(a_ref, 1);
+                Manager::GetSingleton()->OnPromptAccept(a_ref, 1);
             }
         }
     }
@@ -126,7 +126,7 @@ void MenuPromptSink::OnOpen(RE::TESBoundObject* a_fake, const bool is_worn) {
 
     manager->CloseMenu();
 
-    Manager::GetSingleton()->OnLongPressEquip(a_fake, Animations::SetUpAnimationOnOpen(a_real, is_worn));
+    Manager::GetSingleton()->OnOpen(a_fake, Animations::SetUpAnimationOnOpen(a_real, is_worn));
 }
 
 void RegistrationPromptSink::ProcessEvent(const SkyPromptAPI::PromptEvent event) const {
@@ -145,12 +145,11 @@ void RegistrationPromptSink::ProcessEvent(const SkyPromptAPI::PromptEvent event)
         if (is_in_inventory_menu || !RE::LookupReferenceByHandle(owner_handle, a_owner)) {
             a_owner.reset();
         }
-        if (const auto a_fake = Manager::GetSingleton()->RegisterFromMenu(a_entry, a_owner.get());
-            a_fake && Manager::GetSingleton()->IsFakeContainer(a_fake->GetFormID())) {
+        if (const auto a_fake = Manager::GetSingleton()->RegisterFromMenu(a_entry, a_owner.get())) {
+            
             if (is_worn) {
                 RE::ActorEquipManager::GetSingleton()->EquipObject(RE::PlayerCharacter::GetSingleton(), a_fake);
             }
-
             if (const auto ui = RE::UI::GetSingleton();
                 ui->IsMenuOpen(RE::InventoryMenu::MENU_NAME) || ui->IsMenuOpen(RE::ContainerMenu::MENU_NAME)) {
                 RE::SendUIMessage::SendInventoryUpdateMessage(RE::PlayerCharacter::GetSingleton(), nullptr);
@@ -158,7 +157,6 @@ void RegistrationPromptSink::ProcessEvent(const SkyPromptAPI::PromptEvent event)
                     RE::SendUIMessage::SendInventoryUpdateMessage(a_owner.get(), nullptr);
                 }
             }
-
             if (event.prompt.eventID == 4) {
                 Manager::RenameCallback(a_fake);
                 return;
