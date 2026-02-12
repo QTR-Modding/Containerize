@@ -165,8 +165,8 @@ bool xData::UpdateExtras(RE::TESObjectREFR* copy_from, RE::TESObjectREFR* copy_t
         logger::error("copy_from or copy_to is null");
         return false;
     }
-    auto* copy_from_extralist = &copy_from->extraList;
-    auto* copy_to_extralist = &copy_to->extraList;
+    const auto copy_from_extralist = &copy_from->extraList;
+    const auto copy_to_extralist = &copy_to->extraList;
     return UpdateExtras(copy_from_extralist, copy_to_extralist);
 }
 
@@ -474,7 +474,7 @@ int32_t xData::GetXDataCostOverride(const RE::ExtraDataList* xList) {
 void xData::AddTextDisplayData(RE::ExtraDataList* extraDataList, const std::string& displayName) {
     if (!extraDataList) return;
     if (extraDataList->HasType(RE::ExtraDataType::kTextDisplayData)) {
-        auto* txtdisplaydata = extraDataList->GetByType<RE::ExtraTextDisplayData>();
+        const auto txtdisplaydata = extraDataList->GetByType<RE::ExtraTextDisplayData>();
         txtdisplaydata->SetName(displayName.c_str());
         return;
     }
@@ -506,10 +506,18 @@ RE::ExtraDataList* xData::GetOrCreateExtraList(RE::InventoryEntryData* data, con
         return nullptr;
     }
 
-    auto* newList = ConstructExtraDataList();
+    const auto newList = ConstructExtraDataList();
 
     data->AddExtraList(newList);
     return newList;
+}
+
+RE::ExtraDataList* xData::GetExtraList(const RE::InventoryEntryData* data) {
+    const auto xLists = data ? data->extraLists : nullptr;
+    if (xLists && !xLists->empty()) {
+        return xLists->front();
+    }
+    return nullptr;
 }
 
 bool xData::UpdateExtrasInInventory(RE::TESObjectREFR* from_ref, const FormID from_item_formid,
@@ -863,17 +871,17 @@ void xData::Copy::CopyOwnership(const RE::ExtraOwnership* from, RE::ExtraOwnersh
 void MsgBoxesNotifs::SkyrimMessageBox::Show(const std::string& bodyText,
                                             const std::vector<std::string>& buttonTextValues,
                                             std::function<void(unsigned int)> callback) {
-    const auto* factoryManager = RE::MessageDataFactoryManager::GetSingleton();
-    const auto* uiStringHolder = RE::InterfaceStrings::GetSingleton();
-    auto* factory = factoryManager->GetCreator<RE::MessageBoxData>(
+    const auto factoryManager = RE::MessageDataFactoryManager::GetSingleton();
+    const auto uiStringHolder = RE::InterfaceStrings::GetSingleton();
+    const auto factory = factoryManager->GetCreator<RE::MessageBoxData>(
         uiStringHolder->messageBoxData);
-    auto* messagebox = factory->Create();
+    const auto messagebox = factory->Create();
     const RE::BSTSmartPointer<RE::IMessageBoxCallback> messageCallback = RE::make_smart<
         MessageBoxResultCallback>(callback);
     messagebox->callback = messageCallback;
     messagebox->bodyText = bodyText;
     for (auto& text : buttonTextValues) messagebox->buttonText.push_back(text.c_str());
-    messagebox->QueueMessage();
+    RE::MessageBoxMenu::QueueMessage(messagebox);
 }
 
 std::string_view Menu::CloseMenu() {
@@ -962,8 +970,17 @@ void Menu::UpdateItemList() {
     }
 }
 
-void ModCompatibility::MakeChecks() {
-    Settings::po3installed = Mods::IsPo3Installed();
+bool ModCompatibility::AreRequirementsInstalled() {
+    if (!Mods::IsPo3Installed()) {
+        logger::error("Po3's Tweaks is not installed. Please install it to use this mod.");
+        return false;
+    }
+    Settings::po3installed = true;
+    if (!Mods::skyprompt_installed) {
+        logger::error("SkyPrompt is not installed. Please install it to use this mod.");
+        return false;
+    }
+    return true;
 }
 
 void ModCompatibility::Load() {

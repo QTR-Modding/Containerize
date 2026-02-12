@@ -70,20 +70,20 @@ class DynamicFormTracker final : public DFSaveLoadData {
     static void ReviveDynamicForm(RE::TESForm* fake, RE::TESForm* base, const FormID setFormID) {
         using namespace DynamicForm;
         fake->Copy(base);
-        auto weaponBaseForm = base->As<RE::TESObjectWEAP>();
+        const auto weaponBaseForm = base->As<RE::TESObjectWEAP>();
 
-        auto weaponNewForm = fake->As<RE::TESObjectWEAP>();
+        const auto weaponNewForm = fake->As<RE::TESObjectWEAP>();
 
-        auto bookBaseForm = base->As<RE::TESObjectBOOK>();
+        const auto bookBaseForm = base->As<RE::TESObjectBOOK>();
 
-        auto bookNewForm = fake->As<RE::TESObjectBOOK>();
+        const auto bookNewForm = fake->As<RE::TESObjectBOOK>();
 
-        auto ammoBaseForm = base->As<RE::TESAmmo>();
+        const auto ammoBaseForm = base->As<RE::TESAmmo>();
 
-        auto ammoNewForm = fake->As<RE::TESAmmo>();
+        const auto ammoNewForm = fake->As<RE::TESAmmo>();
 
-        auto armorNewForm = fake->As<RE::TESObjectARMO>();
-        auto armorBaseForm = base->As<RE::TESObjectARMO>();
+        const auto armorNewForm = fake->As<RE::TESObjectARMO>();
+        const auto armorBaseForm = base->As<RE::TESObjectARMO>();
 
         if (weaponNewForm && weaponBaseForm) {
             weaponNewForm->firstPersonModelObject = weaponBaseForm->firstPersonModelObject;

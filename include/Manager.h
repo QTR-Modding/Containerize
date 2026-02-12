@@ -7,12 +7,11 @@ class Manager final : public SaveLoadData,
                       public clib_util::singleton::ISingleton<Manager> {
     // private variables
 
-    RE::TESObjectREFR* player_ref = nullptr;
     //RE::EffectSetting* empty_mgeff = nullptr;
 
     // runtime specific
-    std::map<RefID, FormFormID> ChestToFakeContainer;
     // chest refid -> {real container formid (outerKey), fake container formid (innerKey)}
+    std::map<RefID, FormFormID> ChestToFakeContainer;
 
     // unowned stuff
     RE::TESObjectCELL* unownedCell = nullptr;
@@ -151,7 +150,7 @@ public:
     std::atomic<bool> isUninstalled = false;
 
     const char* GetType() override { return "Manager"; }
-    void Init();
+    [[nodiscard]] bool Init();
 
     void Gateway(int result, const RE::ObjectRefHandle& a_current_container);
 
@@ -198,6 +197,8 @@ public:
 
     void SendData();
 
+    static void ReceiveDataHandleUnmatchedChests(const std::map<RefID, FormFormID>& unmatched_chests);
+    void ReceiveDataHandleEquipFavorite(const std::unordered_map<RefID, std::pair<bool, bool>>& chest_states) const;
     void ReceiveData();
 
     std::vector<Source> GetSources() const;
