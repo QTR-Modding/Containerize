@@ -47,7 +47,7 @@ SKSEPluginLoad(const SKSE::LoadInterface *skse) {
     SpeedProfiler prof("PluginLoad");
     SetupLog();
     SKSE::Init(skse);
-    if (!ModCompatibility::RequirementsAreInstalled()) {
+    if (!ModCompatibility::AreRequirementsInstalled()) {
         logger::critical("Required mods are not installed.");
         MsgBoxesNotifs::Windows::ReqErrMsg();
         return false;

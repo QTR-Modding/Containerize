@@ -41,7 +41,7 @@ namespace ModCompatibility {
         inline std::set<FormID> doppelgangers;
     }
 
-    bool RequirementsAreInstalled();
+    bool AreRequirementsInstalled();
     void Load();
 }
 

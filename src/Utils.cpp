@@ -970,7 +970,7 @@ void Menu::UpdateItemList() {
     }
 }
 
-bool ModCompatibility::RequirementsAreInstalled() {
+bool ModCompatibility::AreRequirementsInstalled() {
     if (!Mods::IsPo3Installed()) {
         logger::error("Po3's Tweaks is not installed. Please install it to use this mod.");
         return false;
