@@ -873,7 +873,7 @@ void MsgBoxesNotifs::SkyrimMessageBox::Show(const std::string& bodyText,
     messagebox->callback = messageCallback;
     messagebox->bodyText = bodyText;
     for (auto& text : buttonTextValues) messagebox->buttonText.push_back(text.c_str());
-    messagebox->QueueMessage();
+    RE::MessageBoxMenu::QueueMessage(messagebox);
 }
 
 std::string_view Menu::CloseMenu() {
