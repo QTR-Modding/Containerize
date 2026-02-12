@@ -182,7 +182,7 @@ std::vector<Source> Settings::LoadINISources() {
 
     // Sections: Containers, Capacities
     ini.GetAllKeys(InISections[0], source_names);
-    auto numSources = source_names.size();
+    const auto numSources = source_names.size();
 
     sources.reserve(numSources);
 
@@ -206,7 +206,7 @@ std::vector<Source> Settings::LoadINISources() {
             sources.emplace_back(id, "", std::stof(val2), cloud_storage_enabled, transfer_on_use);
         } else if (!po3installed) {
             logger::error("No formid AND powerofthree's Tweaks is not installed.", val1);
-            MsgBoxesNotifs::Windows::Po3ErrMsg();
+            MsgBoxesNotifs::Windows::ReqErrMsg();
             return sources;
         } else {
             sources.emplace_back(0, id_str, std::stof(std::string(val2)), cloud_storage_enabled, transfer_on_use);

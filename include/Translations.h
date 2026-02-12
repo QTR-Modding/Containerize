@@ -1,6 +1,5 @@
 #pragma once
 #include "MCP.h"
-#include "SkyPrompt.h"
 #include "Utils.h"
 
 namespace Translations {
@@ -26,7 +25,7 @@ namespace Translations {
             "NotifBoxes",
             {
                 {"no_src_msgbox", &no_src_msgbox},
-                {"po3_err_msgbox", &po3_err_msgbox},
+                {"requirements_err_msgbox", &requirements_err_msgbox},
                 {"general_err_msgbox", &general_err_msgbox},
                 {"init_err_msgbox", &init_err_msgbox},
                 {"form_type_err_msgbox", &form_type_err_msgbox},

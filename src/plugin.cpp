@@ -13,17 +13,25 @@ namespace {
                 SkyPrompt::g_clientID = SkyPromptAPI::RequestClientID();
             }
             if (SkyPrompt::g_clientID > 0) {
-                Manager::GetSingleton()->Init();
+                if (!Manager::GetSingleton()->Init()) {
+                    logger::critical("Manager failed to initialize. Plugin will not work properly.");
+                    MsgBoxesNotifs::InGame::InitErr();
+                    return;
+                }
                 Settings::LoadTranslations();
                 UI::Register();
 
                 EventSink::GetSingleton()->Install();
                 logger::info("EventSinks added.");
+                
+                ModCompatibility::Load();
+                SKSE::Translation::ParseTranslation("Containerize");
+
             } else {
-                logger::error("Failed to get client ID from SkyPrompt API. Plugin will not work properly.");
+                logger::critical("Failed to get client ID from SkyPrompt API. Plugin will not work properly.");
+                MsgBoxesNotifs::InGame::InitErr();
+                Manager::GetSingleton()->Uninstall();
             }
-            ModCompatibility::Load();
-            SKSE::Translation::ParseTranslation("Containerize");
         }
         if (message->type == SKSE::MessagingInterface::kPostPostLoad) {
             if (ModCompatibility::Mods::po3_use_or_take) {
@@ -39,10 +47,9 @@ SKSEPluginLoad(const SKSE::LoadInterface *skse) {
     SpeedProfiler prof("PluginLoad");
     SetupLog();
     SKSE::Init(skse);
-    ModCompatibility::MakeChecks();
-    if (!Settings::po3installed) {
-        logger::critical("Latest version of Po3's Tweaks is not installed.");
-        MsgBoxesNotifs::Windows::Po3ErrMsg();
+    if (!ModCompatibility::RequirementsAreInstalled()) {
+        logger::critical("Required mods are not installed.");
+        MsgBoxesNotifs::Windows::ReqErrMsg();
         return false;
     }
     Hooks::Install();

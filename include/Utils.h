@@ -16,6 +16,8 @@ namespace ModCompatibility {
     namespace Mods {
         constexpr auto po3path = "Data/SKSE/Plugins/po3_Tweaks.dll";
         bool IsPo3Installed();
+        constexpr auto skyprompt = "Data/SKSE/Plugins/SkyPrompt.dll";
+        const auto skyprompt_installed = IsModInstalled(skyprompt);
 
         constexpr auto po3_UoTpath = "Data/SKSE/Plugins/po3_UseOrTake.dll";
         const auto po3_use_or_take = IsModInstalled(po3_UoTpath);
@@ -39,7 +41,7 @@ namespace ModCompatibility {
         inline std::set<FormID> doppelgangers;
     }
 
-    void MakeChecks();
+    bool RequirementsAreInstalled();
     void Load();
 }
 
@@ -57,8 +59,9 @@ inline std::string no_src_msgbox = std::format(
     "{}: You currently do not have any container set up. Check your ini file or see the mod page for instructions.",
     mod_name);
 
-inline std::string po3_err_msgbox = std::format(
-    "{}: You must have the latest version of powerofthree's Tweaks "
+inline std::string requirements_err_msgbox = std::format(
+    "{}: You do not have all the requirements installed! "
+    "You must have the latest version of SkyPrompt and powerofthree's Tweaks "
     "installed. See mod page for further instructions.",
     mod_name);
 
@@ -211,8 +214,8 @@ namespace MsgBoxesNotifs {
     }
 
     namespace Windows {
-        inline int Po3ErrMsg() {
-            MessageBoxA(nullptr, po3_err_msgbox.c_str(), "Error", MB_OK | MB_ICONERROR);
+        inline int ReqErrMsg() {
+            MessageBoxA(nullptr, requirements_err_msgbox.c_str(), "Error", MB_OK | MB_ICONERROR);
             return 1;
         };
     };
@@ -406,6 +409,7 @@ namespace xData {
 
     inline RE::ExtraDataList* ConstructExtraDataList(void* a_this) {
         using func_t = decltype(&ConstructExtraDataList);
+        // ReSharper disable once CppLocalVariableMayBeConst
         REL::Relocation<func_t> func{RELOCATION_ID(11437, 11583)};
         return func(a_this);
     }
@@ -413,6 +417,8 @@ namespace xData {
     RE::ExtraDataList* ConstructExtraDataList();
 
     RE::ExtraDataList* GetOrCreateExtraList(RE::InventoryEntryData* data, bool a_create = true);
+    RE::ExtraDataList* GetExtraList(const RE::InventoryEntryData* data);
+
 
     bool UpdateExtrasInInventory(RE::TESObjectREFR* from_ref, FormID from_item_formid,
                                  RE::TESObjectREFR* to_ref, FormID to_item_formid);
@@ -483,7 +489,7 @@ public:
 
     ~SpeedProfiler() {
         end_time = std::chrono::steady_clock::now();
-        std::chrono::duration<double> elapsed_seconds = end_time - start_time;
+        const std::chrono::duration<double> elapsed_seconds = end_time - start_time;
         logger::info("{}: Elapsed time: {}", name, elapsed_seconds.count());
     }
 };

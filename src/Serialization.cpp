@@ -202,7 +202,7 @@ bool DFSaveLoadData::Load(SKSE::SerializationInterface* serializationInterface, 
     return true;
 }
 
-#define DISABLE_IF_UNINSTALLED if (Manager::GetSingleton()->isUninstalled) return;
+#define DISABLE_IF_UNINSTALLED if (Manager::GetSingleton()->isUninstalled.load()) return;
 
 void Serialization::SaveCallback(SKSE::SerializationInterface* serializationInterface) {
     DISABLE_IF_UNINSTALLED
@@ -298,7 +298,7 @@ void Serialization::LoadCallback(SKSE::SerializationInterface* serializationInte
 }
 
 void Serialization::InitializeSerialization() {
-    auto* serialization = SKSE::GetSerializationInterface();
+    const auto serialization = SKSE::GetSerializationInterface();
     serialization->SetUniqueID(Settings::kDataKey);
     serialization->SetSaveCallback(SaveCallback);
     serialization->SetLoadCallback(LoadCallback);
