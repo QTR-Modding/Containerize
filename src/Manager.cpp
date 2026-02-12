@@ -555,8 +555,7 @@ void Manager::FakePlacement(RefID saved_loc, const RefID chest_refID, RE::TESObj
     if (std::ranges::find(external_favs, fakeid) != external_favs.end()) {
         if (const auto inventory_changes = saved_loc_ref->GetInventoryChanges()) {
             auto a_inv = saved_loc_ref->GetInventory();
-            const auto it = a_inv.find(fake_bound);
-            if (it != a_inv.end()){
+            if (const auto it = a_inv.find(fake_bound); it != a_inv.end()){
                 const auto entry = it->second.second.get();
                 if (entry && !entry->IsFavorited()) {
                     Inventory::FavoriteItem(entry, inventory_changes);
@@ -1480,58 +1479,50 @@ void Manager::ReceiveData() {
         }
     }
 
+    ReceiveDataHandleUnmatchedChests(unmatched_chests);
 
-    SKSE::GetTaskInterface()->AddTask([this, 
-        all_chestIDs = std::move(all_chestIDs), 
-        unmatched_chests = std::move(unmatched_chests), 
-        chest_equipped_fav = std::move(chest_equipped_fav), 
-        pendingWV = std::move(pendingWV)] {
-        ReceiveDataHandleUnmatchedChests(unmatched_chests);
-
-        std::vector<RefID> handled_already;
-        const auto DFT = DynamicFormTracker::GetSingleton();
-        for (const auto& a_chestID : all_chestIDs) {
-            if (std::ranges::find(handled_already, a_chestID) != handled_already.end()) continue;
-            FakePlacementCeption(a_chestID, handled_already);
-            auto a_realID = GetRealID(a_chestID);
-            const auto real_editorid = FormReader::GetEditorID(a_realID);
-            if (real_editorid.empty()) {
-                logger::critical("Real container with FormID {:x} has no EditorID.", a_realID);
-                return RaiseMngrErr("Real container has no EditorID.");
-            }
-            const auto a_fakeID = GetFakeID(a_chestID);
-            DFT->Reserve(a_realID, real_editorid, a_fakeID);
+    std::vector<RefID> handled_already;
+    for (const auto& a_chestID : all_chestIDs) {
+        if (std::ranges::find(handled_already, a_chestID) != handled_already.end()) continue;
+        FakePlacementCeption(a_chestID, handled_already);
+        auto a_realID = GetRealID(a_chestID);
+        const auto real_editorid = FormReader::GetEditorID(a_realID);
+        if (real_editorid.empty()) {
+            logger::critical("Real container with FormID {:x} has no EditorID.", a_realID);
+            return RaiseMngrErr("Real container has no EditorID.");
         }
+        const auto a_fakeID = GetFakeID(a_chestID);
+        DFT->Reserve(a_realID, real_editorid, a_fakeID);
+    }
 
-        ReceiveDataHandleEquipFavorite(chest_equipped_fav);
+    ReceiveDataHandleEquipFavorite(chest_equipped_fav);
 
-        for (const auto& [chest_refid, weight_ratio] : pendingWV) {
-            const auto fake_formid = GetFakeID(chest_refid);  // resolve NOW (post-placement)
-            const auto fake_bound = RE::TESForm::LookupByID<RE::TESBoundObject>(fake_formid);
-            const auto chest_ref = RE::TESForm::LookupByID<RE::TESObjectREFR>(chest_refid);
-            if (fake_bound && chest_ref) {
-                UpdateFakeWV(fake_bound, chest_ref, weight_ratio);
-            } else {
-                logger::error("ReceiveData: missing fake_bound or chest_ref for chest {:x}", chest_refid);
-            }
+    for (const auto& [chest_refid, weight_ratio] : pendingWV) {
+        const auto fake_formid = GetFakeID(chest_refid);  // resolve NOW (post-placement)
+        const auto fake_bound = RE::TESForm::LookupByID<RE::TESBoundObject>(fake_formid);
+        const auto chest_ref = RE::TESForm::LookupByID<RE::TESObjectREFR>(chest_refid);
+        if (fake_bound && chest_ref) {
+            UpdateFakeWV(fake_bound, chest_ref, weight_ratio);
+        } else {
+            logger::error("ReceiveData: missing fake_bound or chest_ref for chest {:x}", chest_refid);
         }
+    }
 
-        logger::info("Deleting unused fake forms from bank.");
-        DFT->DeleteInactives();
-        if (DFT->GetNDeleted() > 0) {
-            logger::warn("ReceiveData: Deleted forms exist. User is required to restart.");
-            MsgBoxesNotifs::InGame::CustomMsg(
-                "It seems the configuration has changed from your previous session"
-                " that requires you to restart the game."
-                "DO NOT IGNORE THIS:"
-                "1. Save your game."
-                "2. Exit the game."
-                "3. Restart the game."
-                "4. Load the saved game."
-                "JUST DO IT! NOW! BEFORE DOING ANYTHING ELSE!");
-        }
-        logger::info("--------Receiving data done---------");
-    });
+    logger::info("Deleting unused fake forms from bank.");
+    DFT->DeleteInactives();
+    if (DFT->GetNDeleted() > 0) {
+        logger::warn("ReceiveData: Deleted forms exist. User is required to restart.");
+        MsgBoxesNotifs::InGame::CustomMsg(
+            "It seems the configuration has changed from your previous session"
+            " that requires you to restart the game."
+            "DO NOT IGNORE THIS:"
+            "1. Save your game."
+            "2. Exit the game."
+            "3. Restart the game."
+            "4. Load the saved game."
+            "JUST DO IT! NOW! BEFORE DOING ANYTHING ELSE!");
+    }
+    logger::info("--------Receiving data done---------");
 }
 
 std::vector<Source> Manager::GetSources() const {
