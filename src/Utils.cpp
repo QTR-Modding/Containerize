@@ -165,8 +165,8 @@ bool xData::UpdateExtras(RE::TESObjectREFR* copy_from, RE::TESObjectREFR* copy_t
         logger::error("copy_from or copy_to is null");
         return false;
     }
-    auto copy_from_extralist = &copy_from->extraList;
-    auto copy_to_extralist = &copy_to->extraList;
+    const auto copy_from_extralist = &copy_from->extraList;
+    const auto copy_to_extralist = &copy_to->extraList;
     return UpdateExtras(copy_from_extralist, copy_to_extralist);
 }
 
@@ -474,7 +474,7 @@ int32_t xData::GetXDataCostOverride(const RE::ExtraDataList* xList) {
 void xData::AddTextDisplayData(RE::ExtraDataList* extraDataList, const std::string& displayName) {
     if (!extraDataList) return;
     if (extraDataList->HasType(RE::ExtraDataType::kTextDisplayData)) {
-        auto txtdisplaydata = extraDataList->GetByType<RE::ExtraTextDisplayData>();
+        const auto txtdisplaydata = extraDataList->GetByType<RE::ExtraTextDisplayData>();
         txtdisplaydata->SetName(displayName.c_str());
         return;
     }
@@ -506,7 +506,7 @@ RE::ExtraDataList* xData::GetOrCreateExtraList(RE::InventoryEntryData* data, con
         return nullptr;
     }
 
-    auto newList = ConstructExtraDataList();
+    const auto newList = ConstructExtraDataList();
 
     data->AddExtraList(newList);
     return newList;
@@ -873,9 +873,9 @@ void MsgBoxesNotifs::SkyrimMessageBox::Show(const std::string& bodyText,
                                             std::function<void(unsigned int)> callback) {
     const auto factoryManager = RE::MessageDataFactoryManager::GetSingleton();
     const auto uiStringHolder = RE::InterfaceStrings::GetSingleton();
-    auto factory = factoryManager->GetCreator<RE::MessageBoxData>(
+    const auto factory = factoryManager->GetCreator<RE::MessageBoxData>(
         uiStringHolder->messageBoxData);
-    auto messagebox = factory->Create();
+    const auto messagebox = factory->Create();
     const RE::BSTSmartPointer<RE::IMessageBoxCallback> messageCallback = RE::make_smart<
         MessageBoxResultCallback>(callback);
     messagebox->callback = messageCallback;
