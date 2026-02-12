@@ -165,6 +165,7 @@ std::string Manager::GetChestName(const RE::TESObjectREFR* chest) const {
 bool Manager::ActivateChest(RE::TESObjectREFR* chest) const {
     if (!chest) {
         logger::error("ActivateChest: Chest reference is null.");
+        return false;
     }
     unownedChest->fullName = GetChestName(chest);
     if (const auto a_obj = chest->GetBaseObject()->As<RE::TESObjectCONT>()) {
