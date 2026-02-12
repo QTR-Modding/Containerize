@@ -7,7 +7,6 @@ class Manager final : public SaveLoadData,
                       public clib_util::singleton::ISingleton<Manager> {
     // private variables
 
-    RE::TESObjectREFR* player_ref = nullptr;
     //RE::EffectSetting* empty_mgeff = nullptr;
 
     // runtime specific
