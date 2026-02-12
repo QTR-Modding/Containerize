@@ -1402,36 +1402,30 @@ void Manager::ReceiveDataHandleUnmatchedChests(const std::map<RefID, FormFormID>
     }
 }
 
-void Manager::ReceiveDataHandleEquipFavorite(const std::unordered_map<FormID, std::pair<bool, bool>>& a_fakes) {
-    const auto player_ref = RE::PlayerCharacter::GetSingleton();
-    if (!player_ref) {
-        logger::error("Player reference null in ReceiveDataHandleEquipFavorite.");
-        return;
-    }
-    const auto inventory_changes = player_ref->GetInventoryChanges();
-    if (!inventory_changes) {
-        logger::error("Player inventory changes null in ReceiveDataHandleEquipFavorite.");
-        return;
-    }
-    auto player_inv = player_ref->GetInventory();
-    for (auto& [a_fake, state] : a_fakes) {
-        if (auto a_bound = RE::TESForm::LookupByID<RE::TESBoundObject>(a_fake)) {
-            if (const auto it = player_inv.find(a_bound); it != player_inv.end()) {
-                const auto& [is_equipped, is_faved] = state;
-                if (!is_equipped && !is_faved) continue;
-                if (const auto a_entry = it->second.second.get()) {
-                    if (is_faved && !a_entry->IsFavorited()) {
-                        Inventory::FavoriteItem(a_entry, inventory_changes);
-                    }
-                    if (is_equipped && !a_entry->IsWorn()) {
-                        const auto xList = xData::GetExtraList(a_entry);
-                        RE::ActorEquipManager::GetSingleton()->EquipObject(player_ref, a_bound, xList, 1, nullptr,
-                                                                           false,
-                                                                           false, false, false);
-                    }
-                }
-            }
-        }
+void Manager::ReceiveDataHandleEquipFavorite(const std::unordered_map<RefID, std::pair<bool, bool>>& chest_states) const {
+    const auto player = RE::PlayerCharacter::GetSingleton();
+    const auto invchg = player ? player->GetInventoryChanges() : nullptr;
+    if (!player || !invchg) return;
+
+    const auto inv = player->GetInventory();
+    for (const auto& [chestRefID, state] : chest_states) {
+        const auto fake_formid = GetFakeID(chestRefID);  // resolve NOW
+        if (!fake_formid) continue;
+        auto bound = RE::TESForm::LookupByID<RE::TESBoundObject>(fake_formid);
+        if (!bound) continue;
+
+        auto it = inv.find(bound);
+        if (it == inv.end()) continue;
+
+        const auto entry = it->second.second.get();
+        if (!entry) continue;
+
+        const auto [equip, fav] = state;
+        if (fav && !entry->IsFavorited()) Inventory::FavoriteItem(entry, invchg);
+
+        if (equip && !entry->IsWorn())
+            RE::ActorEquipManager::GetSingleton()->EquipObject(player, bound, xData::GetExtraList(entry), 1, nullptr,
+                                                               false, false, false, false);
     }
 }
 
@@ -1439,7 +1433,7 @@ void Manager::ReceiveData() {
     logger::info("--------Receiving data---------");
 
 
-    std::unordered_map<FormID, std::pair<bool, bool>> fake_equipped_fav;
+    std::unordered_map<RefID, std::pair<bool, bool>> chest_equipped_fav;
     std::map<RefID, FormFormID> unmatched_chests;
     for (const auto& [realcontForm_chestRef, fakecontForm_contRef] : m_Data) {
         auto [realcontFormID, chestRefID] = realcontForm_chestRef;
@@ -1448,7 +1442,7 @@ void Manager::ReceiveData() {
         if (Register_Sub(realcontFormID, fakecontForm_info.id, chestRefID, locRefID)) {
             if (!fakecontForm_info.name.empty()) renames[fakecontForm_info.id] = fakecontForm_info.name;
             if (locRefID == player_refid) {
-                fake_equipped_fav[fakecontForm_info.id] = {fakecontForm_info.equipped, fakecontForm_info.favorited};
+                chest_equipped_fav[chestRefID] = {fakecontForm_info.equipped, fakecontForm_info.favorited};
             }
             else if (fakecontForm_info.favorited) {
                 external_favs.push_back(fakecontForm_info.id);
@@ -1467,7 +1461,8 @@ void Manager::ReceiveData() {
     }
 
     const auto DFT = DynamicFormTracker::GetSingleton();
-    std::vector<std::tuple<FormID, RefID, float>> pendingWV;
+    std::vector<std::pair<RefID, float>> pendingWV;  // chest_refid, weight_ratio
+
     {
         SHARED_GUARD;
         for (const auto& source : sources) {
@@ -1478,10 +1473,9 @@ void Manager::ReceiveData() {
                 DFT->Reserve(source.formid, editorid, dyn_formid);
             }
             for (const auto& chest_refid : source.data | std::views::keys) {
-                if (const auto fake_formid = GetFakeID_NoLock(chest_refid)) {
-                    pendingWV.emplace_back(fake_formid, chest_refid, source.weight_ratio);
-                }
+                pendingWV.emplace_back(chest_refid, source.weight_ratio);
             }
+
         }
     }
 
@@ -1489,7 +1483,7 @@ void Manager::ReceiveData() {
     SKSE::GetTaskInterface()->AddTask([this, 
         all_chestIDs = std::move(all_chestIDs), 
         unmatched_chests = std::move(unmatched_chests), 
-        fake_equipped_fav = std::move(fake_equipped_fav), 
+        chest_equipped_fav = std::move(chest_equipped_fav), 
         pendingWV = std::move(pendingWV)] {
         ReceiveDataHandleUnmatchedChests(unmatched_chests);
 
@@ -1508,11 +1502,13 @@ void Manager::ReceiveData() {
             DFT->Reserve(a_realID, real_editorid, a_fakeID);
         }
 
-        ReceiveDataHandleEquipFavorite(fake_equipped_fav);
+        ReceiveDataHandleEquipFavorite(chest_equipped_fav);
 
-        for (const auto& [fake_formid, chest_refid, weight_ratio] : pendingWV) {
+        for (const auto& [chest_refid, weight_ratio] : pendingWV) {
+            const auto fake_formid = GetFakeID(chest_refid);  // resolve NOW (post-placement)
             const auto fake_bound = RE::TESForm::LookupByID<RE::TESBoundObject>(fake_formid);
-            if (const auto chest_ref = RE::TESForm::LookupByID<RE::TESObjectREFR>(chest_refid); fake_bound && chest_ref) {
+            const auto chest_ref = RE::TESForm::LookupByID<RE::TESObjectREFR>(chest_refid);
+            if (fake_bound && chest_ref) {
                 UpdateFakeWV(fake_bound, chest_ref, weight_ratio);
             } else {
                 logger::error("ReceiveData: missing fake_bound or chest_ref for chest {:x}", chest_refid);

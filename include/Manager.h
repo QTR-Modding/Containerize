@@ -198,7 +198,7 @@ public:
     void SendData();
 
     static void ReceiveDataHandleUnmatchedChests(const std::map<RefID, FormFormID>& unmatched_chests);
-    static void ReceiveDataHandleEquipFavorite(const std::unordered_map<FormID, std::pair<bool, bool>>& a_fakes);
+    void ReceiveDataHandleEquipFavorite(const std::unordered_map<RefID, std::pair<bool, bool>>& chest_states) const;
     void ReceiveData();
 
     std::vector<Source> GetSources() const;
