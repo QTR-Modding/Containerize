@@ -10,8 +10,8 @@ class Manager final : public SaveLoadData,
     //RE::EffectSetting* empty_mgeff = nullptr;
 
     // runtime specific
-    std::map<RefID, FormFormID> ChestToFakeContainer;
     // chest refid -> {real container formid (outerKey), fake container formid (innerKey)}
+    std::map<RefID, FormFormID> ChestToFakeContainer;
 
     // unowned stuff
     RE::TESObjectCELL* unownedCell = nullptr;
@@ -150,7 +150,7 @@ public:
     std::atomic<bool> isUninstalled = false;
 
     const char* GetType() override { return "Manager"; }
-    void Init();
+    [[nodiscard]] bool Init();
 
     void Gateway(int result, const RE::ObjectRefHandle& a_current_container);
 
@@ -197,6 +197,8 @@ public:
 
     void SendData();
 
+    static void ReceiveDataHandleUnmatchedChests(const std::map<RefID, FormFormID>& unmatched_chests);
+    static void ReceiveDataHandleEquipFavorite(const std::unordered_map<FormID, std::pair<bool, bool>>& a_fakes);
     void ReceiveData();
 
     std::vector<Source> GetSources() const;
