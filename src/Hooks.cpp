@@ -277,11 +277,22 @@ bool Hooks::InputHook::IsOtherButtonHeld(RE::InputEvent* const* a_event) {
 template <typename MenuType>
 RE::UI_MESSAGE_RESULTS Hooks::MenuHook<MenuType>::ProcessMessage_Hook(RE::UIMessage& a_message) {
     const auto manager = Manager::GetSingleton();
-    if (manager->isUninstalled) {
+    if (manager->isUninstalled.load()) {
         return _ProcessMessage(this, a_message);
     }
 
     const auto msg_type = static_cast<int>(a_message.type.get());
+    if (!inventory_loaded.load()) {
+        if (msg_type == 6) {
+            inventory_loaded.store(true);
+            if (const auto a_bound = GetSelectedItemInMenu()) {
+                OnHoverItem(a_bound);
+            }
+        }
+    } else if (msg_type == 7) {
+        SkyPrompt::MenuPromptSink::GetSingleton()->Hide();
+        SkyPrompt::RegistrationPromptSink::GetSingleton()->Hide();
+    }
     if (msg_type != 3 && msg_type != 1) {
         return _ProcessMessage(this, a_message);
     }
@@ -291,17 +302,14 @@ RE::UI_MESSAGE_RESULTS Hooks::MenuHook<MenuType>::ProcessMessage_Hook(RE::UIMess
         inventory_loaded.store(false);
         if (!Menu::IsPickpocketingOrStealing()) {
             is_open.store(true);
-            clib_utilsQTR::Tasker::GetSingleton()->PushTask(
-                [] {
-                    inventory_loaded.store(true);
-                }, inventory_load_time
-                );
         }
     } else {
         is_open.store(false);
+        inventory_loaded.store(false);
     }
 
     SkyPrompt::MenuPromptSink::GetSingleton()->Hide();
+    SkyPrompt::RegistrationPromptSink::GetSingleton()->Hide();
 
     if (const std::string_view menuname = MenuType::MENU_NAME; a_message.menu == menuname) {
         if (menuname == RE::ContainerMenu::MENU_NAME) {
@@ -337,20 +345,7 @@ void Hooks::MenuHook<MenuType>::InstallHook(const REL::VariantID& varID) {
 
 int64_t Hooks::InventoryHoverHook::thunk(RE::InventoryEntryData* a1) {
     if (is_open.load() && inventory_loaded.load()) {
-        if (const auto a_bound = a1->GetObject()) {
-            const auto a_formid = a_bound->GetFormID();
-            if (const auto mngr = Manager::GetSingleton();
-                mngr->IsFakeContainer(a_formid)) {
-                SkyPrompt::RegistrationPromptSink::GetSingleton()->Hide();
-                SkyPrompt::MenuPromptSink::GetSingleton()->Show(a_bound);
-            } else if (mngr->IsRealContainer(a_formid)) {
-                SkyPrompt::MenuPromptSink::GetSingleton()->Hide();
-                SkyPrompt::RegistrationPromptSink::GetSingleton()->Show(a_bound);
-            } else {
-                SkyPrompt::RegistrationPromptSink::GetSingleton()->Hide();
-                SkyPrompt::MenuPromptSink::GetSingleton()->Hide();
-            }
-        }
+        OnHoverItem(a1->GetObject());
     }
     return originalFunction(a1);
 }
@@ -368,5 +363,20 @@ void Hooks::OnIsWorn(RE::TESBoundObject* object_to_equip) {
         } else {
             logger::warn("Failed to get node by name: {}", addonString);
         }
+    }
+}
+
+void Hooks::OnHoverItem(const RE::TESBoundObject* a_bound) {
+    const auto a_formid = a_bound->GetFormID();
+    const auto mngr = Manager::GetSingleton();
+    if (mngr->IsFakeContainer(a_formid)) {
+        SkyPrompt::RegistrationPromptSink::GetSingleton()->Hide();
+        SkyPrompt::MenuPromptSink::GetSingleton()->Show(a_bound);
+    } else if (mngr->IsRealContainer(a_formid)) {
+        SkyPrompt::MenuPromptSink::GetSingleton()->Hide();
+        SkyPrompt::RegistrationPromptSink::GetSingleton()->Show(a_bound);
+    } else {
+        SkyPrompt::RegistrationPromptSink::GetSingleton()->Hide();
+        SkyPrompt::MenuPromptSink::GetSingleton()->Hide();
     }
 }
