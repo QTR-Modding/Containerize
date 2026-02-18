@@ -1,4 +1,5 @@
 #pragma once
+#include "Utils.h"
 
 namespace Hooks {
     void Install();
@@ -6,6 +7,9 @@ namespace Hooks {
 
     inline RE::NiPointer<RE::NiAVObject> objectNode = nullptr;
     void OnIsWorn(RE::TESBoundObject* object_to_equip);
+    void OnHoverItem(const RE::TESBoundObject* a_bound);
+    inline auto last_viewed_side = -1;
+    inline auto last_viewed_cat = -1;
 
     inline bool HandleEquip(RE::InputEvent* event);
     RE::InventoryEntryData* GetSelectedEntryInMenu();
@@ -13,7 +17,6 @@ namespace Hooks {
     inline std::atomic_bool equip_was_pressed = false;
     inline std::atomic_bool is_open = false;
     inline std::atomic_bool inventory_loaded = false;
-    constexpr int inventory_load_time = 500;
 
     template <typename FormType>
     class ActivateHook : public FormType {

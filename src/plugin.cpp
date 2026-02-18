@@ -23,10 +23,9 @@ namespace {
 
                 EventSink::GetSingleton()->Install();
                 logger::info("EventSinks added.");
-                
+
                 ModCompatibility::Load();
                 SKSE::Translation::ParseTranslation("Containerize");
-
             } else {
                 logger::critical("Failed to get client ID from SkyPrompt API. Plugin will not work properly.");
                 MsgBoxesNotifs::InGame::InitErr();

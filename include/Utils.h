@@ -1,5 +1,4 @@
 ﻿#pragma once
-#include <windows.h>
 #include "ClibUtil/editorID.hpp"
 #include "SimpleIni.h"
 #include "CLibUtilsQTR/FormReader.hpp"
@@ -473,6 +472,28 @@ namespace Menu {
     }
 
     void UpdateItemList();
+
+    struct SkyUICategoryState {
+        std::int32_t activeSegment{0}; // 0=left, 1=right (only meaningful when dividerIndex != -1)
+        std::int32_t dividerIndex{-1}; // -1 = not tabbed
+        std::int32_t selectedIndex{-1}; // absolute index in entryList
+        std::int32_t filterFlag{0}; // selectedEntry.flag
+    };
+
+    std::optional<SkyUICategoryState> ReadSkyUICategoryState(const RE::GFxValue& menuRoot /* Menu_mc */);
+
+    template <class MenuT>
+    std::optional<SkyUICategoryState> GetSkyUICategoryState() {
+        const auto ui = RE::UI::GetSingleton();
+        if (!ui) return std::nullopt;
+
+        auto menuPtr = ui->GetMenu<MenuT>(MenuT::MENU_NAME);
+        auto menu = menuPtr.get();
+        if (!menu) return std::nullopt;
+
+        auto& root = menu->GetRuntimeData().root;
+        return ReadSkyUICategoryState(root);
+    }
 };
 
 

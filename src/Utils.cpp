@@ -1,4 +1,4 @@
-#include <Utils.h>
+#include "Utils.h"
 #include "Translations.h"
 #include "CLibUtilsQTR/FormReader.hpp"
 
@@ -968,6 +968,34 @@ void Menu::UpdateItemList() {
     } else if (ui->IsMenuOpen(RE::ContainerMenu::MENU_NAME)) {
         UpdateItemList<RE::ContainerMenu>();
     }
+}
+
+std::optional<Menu::SkyUICategoryState> Menu::ReadSkyUICategoryState(const RE::GFxValue& menuRoot) {
+    RE::GFxValue invLists, catList;
+    if (!menuRoot.IsObject() || !menuRoot.GetMember("inventoryLists", &invLists) ||
+        !invLists.GetMember("categoryList", &catList)) {
+        return std::nullopt; // not SkyUI (or SWF not initialized yet)
+    }
+
+    SkyUICategoryState out{};
+
+    RE::GFxValue v;
+
+    if (catList.GetMember("activeSegment", &v) && v.IsNumber())
+        out.activeSegment = static_cast<std::int32_t>(v.GetNumber());
+
+    if (catList.GetMember("dividerIndex", &v) && v.IsNumber())
+        out.dividerIndex = static_cast<std::int32_t>(v.GetNumber());
+
+    if (catList.GetMember("selectedIndex", &v) && v.IsNumber())
+        out.selectedIndex = static_cast<std::int32_t>(v.GetNumber());
+
+    RE::GFxValue selEntry, flag;
+    if (catList.GetMember("selectedEntry", &selEntry) && selEntry.IsObject() && selEntry.GetMember("flag", &flag) &&
+        flag.IsNumber())
+        out.filterFlag = static_cast<std::int32_t>(flag.GetNumber());
+
+    return out;
 }
 
 bool ModCompatibility::AreRequirementsInstalled() {

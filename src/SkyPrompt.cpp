@@ -10,9 +10,9 @@ void RefPromptSink::Start(RE::TESObjectREFR* a_ref) {
     weight_text.clear();
     value_text.clear();
     if (ModCompatibility::Mods::ui_extensions_installed) {
-        prompts = { open_prompt, rename_prompt };
+        prompts = {open_prompt, rename_prompt};
     } else {
-        prompts = { open_prompt};
+        prompts = {open_prompt};
     }
 
     const auto manager = Manager::GetSingleton();
@@ -79,7 +79,7 @@ void MenuPromptSink::ProcessEvent(const SkyPromptAPI::PromptEvent event) const {
 
 void MenuPromptSink::Show(const RE::TESBoundObject* a_fake) const {
     weight_text.clear();
-    
+
     if (const auto a_ref = RE::Inventory3DManager::GetSingleton()->tempRef) {
         const auto refid = a_ref->GetFormID();
         open_prompt.refid = refid;
@@ -176,7 +176,6 @@ void RegistrationPromptSink::Show(const RE::TESBoundObject* a_item) const {
         open_prompt.refid = refid;
         rename_prompt.refid = refid;
         weight_prompt.refid = refid;
-
     } else {
         open_prompt.refid = 0;
         rename_prompt.refid = 0;
