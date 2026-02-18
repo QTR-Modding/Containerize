@@ -291,8 +291,9 @@ RE::UI_MESSAGE_RESULTS Hooks::MenuHook<MenuType>::ProcessMessage_Hook(RE::UIMess
         const auto viewed_pane = skyui_info ? skyui_info->activeSegment : -1;
         const auto viewed_cat = skyui_info ? skyui_info->filterFlag : -1;
         if (last_viewed_side != viewed_pane || last_viewed_cat != viewed_cat) {
-            SkyPrompt::MenuPromptSink::GetSingleton()->Hide();
-            SkyPrompt::RegistrationPromptSink::GetSingleton()->Hide();
+            if (last_viewed_cat >= 0 && last_viewed_side >= 0) {
+                HidePrompts();
+            }
             last_viewed_side = viewed_pane;
             last_viewed_cat = viewed_cat;
         }
@@ -301,19 +302,11 @@ RE::UI_MESSAGE_RESULTS Hooks::MenuHook<MenuType>::ProcessMessage_Hook(RE::UIMess
         return _ProcessMessage(this, a_message);
     }
 
-    if (msg_type == 1) {
-        is_open.store(false);
-        inventory_loaded.store(false);
-        if (!Menu::IsPickpocketingOrStealing()) {
-            is_open.store(true);
-        }
-    } else {
-        is_open.store(false);
-        inventory_loaded.store(false);
+    ResetMenuRelatedData();
+    if (msg_type == 1 && !Menu::IsPickpocketingOrStealing()) {
+        is_open.store(true);
     }
 
-    SkyPrompt::MenuPromptSink::GetSingleton()->Hide();
-    SkyPrompt::RegistrationPromptSink::GetSingleton()->Hide();
 
     if (const std::string_view menuname = MenuType::MENU_NAME; a_message.menu == menuname) {
         if (menuname == RE::ContainerMenu::MENU_NAME) {
@@ -384,4 +377,17 @@ void Hooks::OnHoverItem(const RE::TESBoundObject* a_bound) {
         SkyPrompt::RegistrationPromptSink::GetSingleton()->Hide();
         SkyPrompt::MenuPromptSink::GetSingleton()->Hide();
     }
+}
+
+void Hooks::HidePrompts() {
+    SkyPrompt::MenuPromptSink::GetSingleton()->Hide();
+    SkyPrompt::RegistrationPromptSink::GetSingleton()->Hide();
+}
+
+void Hooks::ResetMenuRelatedData() {
+    last_viewed_side = -1;
+    last_viewed_cat = -1;
+    is_open.store(false);
+    inventory_loaded.store(false);
+    HidePrompts();
 }
