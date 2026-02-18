@@ -970,43 +970,32 @@ void Menu::UpdateItemList() {
     }
 }
 
-Menu::ViewedSide Menu::GetViewedSide_SkyUI() {
-    const auto ui = RE::UI::GetSingleton();
-    if (!ui) {
-        return ViewedSide::Unknown;
+std::optional<Menu::SkyUICategoryState> Menu::ReadSkyUICategoryState(const RE::GFxValue& menuRoot) {
+    RE::GFxValue invLists, catList;
+    if (!menuRoot.IsObject() || !menuRoot.GetMember("inventoryLists", &invLists) ||
+        !invLists.GetMember("categoryList", &catList)) {
+        return std::nullopt; // not SkyUI (or SWF not initialized yet)
     }
 
-    const auto menuPtr = ui->GetMenu<RE::ContainerMenu>();
-    const auto menu = menuPtr.get();
-    if (!menu) {
-        return ViewedSide::Unknown;
-    }
+    SkyUICategoryState out{};
 
-    const auto& root = menu->GetRuntimeData().root;
+    RE::GFxValue v;
 
-    RE::GFxValue inventoryLists;
-    if (!root.GetMember("inventoryLists", &inventoryLists)) {
-        return ViewedSide::Unknown;
-    }
+    if (catList.GetMember("activeSegment", &v) && v.IsNumber())
+        out.activeSegment = static_cast<std::int32_t>(v.GetNumber());
 
-    RE::GFxValue categoryList;
-    if (!inventoryLists.GetMember("categoryList", &categoryList)) {
-        return ViewedSide::Unknown;
-    }
+    if (catList.GetMember("dividerIndex", &v) && v.IsNumber())
+        out.dividerIndex = static_cast<std::int32_t>(v.GetNumber());
 
-    RE::GFxValue activeSegment;
-    if (!categoryList.GetMember("activeSegment", &activeSegment) || !activeSegment.IsNumber()) {
-        return ViewedSide::Unknown;
-    }
+    if (catList.GetMember("selectedIndex", &v) && v.IsNumber())
+        out.selectedIndex = static_cast<std::int32_t>(v.GetNumber());
 
-    const auto seg = static_cast<std::int32_t>(activeSegment.GetNumber());
-    if (seg == 0) {
-        return ViewedSide::Container;
-    }
-    if (seg == 1) {
-        return ViewedSide::Player;
-    }
-    return ViewedSide::Unknown;
+    RE::GFxValue selEntry, flag;
+    if (catList.GetMember("selectedEntry", &selEntry) && selEntry.IsObject() && selEntry.GetMember("flag", &flag) &&
+        flag.IsNumber())
+        out.filterFlag = static_cast<std::int32_t>(flag.GetNumber());
+
+    return out;
 }
 
 bool ModCompatibility::AreRequirementsInstalled() {

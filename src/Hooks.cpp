@@ -282,23 +282,20 @@ RE::UI_MESSAGE_RESULTS Hooks::MenuHook<MenuType>::ProcessMessage_Hook(RE::UIMess
     }
 
     const auto msg_type = static_cast<int>(a_message.type.get());
-    if (msg_type == 6) {
+    if (is_open.load() && msg_type == 6) {
         if (!inventory_loaded.load()) {
             inventory_loaded.store(true);
             OnHoverItem(GetSelectedItemInMenu());
         }
-        if (user_event_happened && MenuType::MENU_NAME == RE::ContainerMenu::MENU_NAME) {
-            auto viewed_pane = Menu::GetViewedSide_SkyUI();
-            if (last_viewed_side != viewed_pane) {
-                last_viewed_side = viewed_pane;
-                SkyPrompt::MenuPromptSink::GetSingleton()->Hide();
-                SkyPrompt::RegistrationPromptSink::GetSingleton()->Hide();
-            }
+        const std::optional<Menu::SkyUICategoryState> skyui_info = Menu::GetSkyUICategoryState<MenuType>();
+        const auto viewed_pane = skyui_info ? skyui_info->activeSegment : -1;
+        const auto viewed_cat = skyui_info ? skyui_info->filterFlag : -1;
+        if (last_viewed_side != viewed_pane || last_viewed_cat != viewed_cat) {
+            SkyPrompt::MenuPromptSink::GetSingleton()->Hide();
+            SkyPrompt::RegistrationPromptSink::GetSingleton()->Hide();
+            last_viewed_side = viewed_pane;
+            last_viewed_cat = viewed_cat;
         }
-        user_event_happened = false;
-    }
-    if (msg_type == 7) {
-        user_event_happened = true;
     }
     if (msg_type != 3 && msg_type != 1) {
         return _ProcessMessage(this, a_message);
