@@ -358,8 +358,9 @@ void Manager::UpdateFakeWV(RE::TESBoundObject* fake_form, RE::TESObjectREFR* che
     else if (formtype == "ALCH")
         UpdateFakeWV<RE::AlchemyItem>(fake_form->As<RE::AlchemyItem>(), chest_linked,
                                       weight_ratio);
-    else if (formtype == "FURN") UpdateFakeWV<RE::TESFurniture>(fake_form->As<RE::TESFurniture>(), chest_linked,
-                                                                weight_ratio);
+    else if (formtype == "FURN")
+        UpdateFakeWV<RE::TESFurniture>(fake_form->As<RE::TESFurniture>(), chest_linked,
+                                       weight_ratio);
     else RaiseMngrErr(std::format("Form type not supported: {}", formtype));
 }
 
@@ -555,7 +556,7 @@ void Manager::FakePlacement(RefID saved_loc, const RefID chest_refID, RE::TESObj
     if (std::ranges::find(external_favs, fakeid) != external_favs.end()) {
         if (const auto inventory_changes = saved_loc_ref->GetInventoryChanges()) {
             auto a_inv = saved_loc_ref->GetInventory();
-            if (const auto it = a_inv.find(fake_bound); it != a_inv.end()){
+            if (const auto it = a_inv.find(fake_bound); it != a_inv.end()) {
                 const auto entry = it->second.second.get();
                 if (entry && !entry->IsFavorited()) {
                     Inventory::FavoriteItem(entry, inventory_changes);
@@ -767,7 +768,6 @@ bool Manager::Init() {
     if (init_failed) {
         InitFailed();
         return false;
-        
     }
     isUninstalled.store(false);
     logger::info("Manager initialized.");
@@ -1402,14 +1402,15 @@ void Manager::ReceiveDataHandleUnmatchedChests(const std::map<RefID, FormFormID>
     }
 }
 
-void Manager::ReceiveDataHandleEquipFavorite(const std::unordered_map<RefID, std::pair<bool, bool>>& chest_states) const {
+void Manager::ReceiveDataHandleEquipFavorite(
+    const std::unordered_map<RefID, std::pair<bool, bool>>& chest_states) const {
     const auto player = RE::PlayerCharacter::GetSingleton();
     const auto invchg = player ? player->GetInventoryChanges() : nullptr;
     if (!player || !invchg) return;
 
     const auto inv = player->GetInventory();
     for (const auto& [chestRefID, state] : chest_states) {
-        const auto fake_formid = GetFakeID(chestRefID);  // resolve NOW
+        const auto fake_formid = GetFakeID(chestRefID); // resolve NOW
         if (!fake_formid) continue;
         auto bound = RE::TESForm::LookupByID<RE::TESBoundObject>(fake_formid);
         if (!bound) continue;
@@ -1432,7 +1433,6 @@ void Manager::ReceiveDataHandleEquipFavorite(const std::unordered_map<RefID, std
 void Manager::ReceiveData() {
     logger::info("--------Receiving data---------");
 
-
     std::unordered_map<RefID, std::pair<bool, bool>> chest_equipped_fav;
     std::map<RefID, FormFormID> unmatched_chests;
     for (const auto& [realcontForm_chestRef, fakecontForm_contRef] : m_Data) {
@@ -1443,8 +1443,7 @@ void Manager::ReceiveData() {
             if (!fakecontForm_info.name.empty()) renames[fakecontForm_info.id] = fakecontForm_info.name;
             if (locRefID == player_refid) {
                 chest_equipped_fav[chestRefID] = {fakecontForm_info.equipped, fakecontForm_info.favorited};
-            }
-            else if (fakecontForm_info.favorited) {
+            } else if (fakecontForm_info.favorited) {
                 external_favs.push_back(fakecontForm_info.id);
             }
         } else {
@@ -1461,7 +1460,7 @@ void Manager::ReceiveData() {
     }
 
     const auto DFT = DynamicFormTracker::GetSingleton();
-    std::vector<std::pair<RefID, float>> pendingWV;  // chest_refid, weight_ratio
+    std::vector<std::pair<RefID, float>> pendingWV; // chest_refid, weight_ratio
 
     {
         SHARED_GUARD;
@@ -1475,7 +1474,6 @@ void Manager::ReceiveData() {
             for (const auto& chest_refid : source.data | std::views::keys) {
                 pendingWV.emplace_back(chest_refid, source.weight_ratio);
             }
-
         }
     }
 
@@ -1498,7 +1496,7 @@ void Manager::ReceiveData() {
     ReceiveDataHandleEquipFavorite(chest_equipped_fav);
 
     for (const auto& [chest_refid, weight_ratio] : pendingWV) {
-        const auto fake_formid = GetFakeID(chest_refid);  // resolve NOW (post-placement)
+        const auto fake_formid = GetFakeID(chest_refid); // resolve NOW (post-placement)
         const auto fake_bound = RE::TESForm::LookupByID<RE::TESBoundObject>(fake_formid);
         const auto chest_ref = RE::TESForm::LookupByID<RE::TESObjectREFR>(chest_refid);
         if (fake_bound && chest_ref) {
