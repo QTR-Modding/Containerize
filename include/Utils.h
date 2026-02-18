@@ -1,5 +1,4 @@
 ﻿#pragma once
-#include <windows.h>
 #include "ClibUtil/editorID.hpp"
 #include "SimpleIni.h"
 #include "CLibUtilsQTR/FormReader.hpp"
@@ -473,6 +472,10 @@ namespace Menu {
     }
 
     void UpdateItemList();
+
+    enum class ViewedSide : std::uint8_t { Unknown, Container, Player };
+
+    ViewedSide GetViewedSide_SkyUI();
 };
 
 

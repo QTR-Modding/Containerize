@@ -1,4 +1,4 @@
-#include <Utils.h>
+#include "Utils.h"
 #include "Translations.h"
 #include "CLibUtilsQTR/FormReader.hpp"
 
@@ -968,6 +968,45 @@ void Menu::UpdateItemList() {
     } else if (ui->IsMenuOpen(RE::ContainerMenu::MENU_NAME)) {
         UpdateItemList<RE::ContainerMenu>();
     }
+}
+
+Menu::ViewedSide Menu::GetViewedSide_SkyUI() {
+    const auto ui = RE::UI::GetSingleton();
+    if (!ui) {
+        return ViewedSide::Unknown;
+    }
+
+    const auto menuPtr = ui->GetMenu<RE::ContainerMenu>();
+    const auto menu = menuPtr.get();
+    if (!menu) {
+        return ViewedSide::Unknown;
+    }
+
+    const auto& root = menu->GetRuntimeData().root;
+
+    RE::GFxValue inventoryLists;
+    if (!root.GetMember("inventoryLists", &inventoryLists)) {
+        return ViewedSide::Unknown;
+    }
+
+    RE::GFxValue categoryList;
+    if (!inventoryLists.GetMember("categoryList", &categoryList)) {
+        return ViewedSide::Unknown;
+    }
+
+    RE::GFxValue activeSegment;
+    if (!categoryList.GetMember("activeSegment", &activeSegment) || !activeSegment.IsNumber()) {
+        return ViewedSide::Unknown;
+    }
+
+    const auto seg = static_cast<std::int32_t>(activeSegment.GetNumber());
+    if (seg == 0) {
+        return ViewedSide::Container;
+    }
+    if (seg == 1) {
+        return ViewedSide::Player;
+    }
+    return ViewedSide::Unknown;
 }
 
 bool ModCompatibility::AreRequirementsInstalled() {

@@ -1,4 +1,5 @@
 #pragma once
+#include "Utils.h"
 
 namespace Hooks {
     void Install();
@@ -7,6 +8,8 @@ namespace Hooks {
     inline RE::NiPointer<RE::NiAVObject> objectNode = nullptr;
     void OnIsWorn(RE::TESBoundObject* object_to_equip);
     void OnHoverItem(const RE::TESBoundObject* a_bound);
+    inline auto last_viewed_side = Menu::ViewedSide::Unknown;
+    inline bool user_event_happened = false;
 
     inline bool HandleEquip(RE::InputEvent* event);
     RE::InventoryEntryData* GetSelectedEntryInMenu();

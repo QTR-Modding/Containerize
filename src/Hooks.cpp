@@ -282,14 +282,23 @@ RE::UI_MESSAGE_RESULTS Hooks::MenuHook<MenuType>::ProcessMessage_Hook(RE::UIMess
     }
 
     const auto msg_type = static_cast<int>(a_message.type.get());
-    if (!inventory_loaded.load()) {
-        if (msg_type == 6) {
+    if (msg_type == 6) {
+        if (!inventory_loaded.load()) {
             inventory_loaded.store(true);
             OnHoverItem(GetSelectedItemInMenu());
         }
-    } else if (msg_type == 7) {
-        SkyPrompt::MenuPromptSink::GetSingleton()->Hide();
-        SkyPrompt::RegistrationPromptSink::GetSingleton()->Hide();
+        if (user_event_happened && MenuType::MENU_NAME == RE::ContainerMenu::MENU_NAME) {
+            auto viewed_pane = Menu::GetViewedSide_SkyUI();
+            if (last_viewed_side != viewed_pane) {
+                last_viewed_side = viewed_pane;
+                SkyPrompt::MenuPromptSink::GetSingleton()->Hide();
+                SkyPrompt::RegistrationPromptSink::GetSingleton()->Hide();
+            }
+        }
+        user_event_happened = false;
+    }
+    if (msg_type == 7) {
+        user_event_happened = true;
     }
     if (msg_type != 3 && msg_type != 1) {
         return _ProcessMessage(this, a_message);
