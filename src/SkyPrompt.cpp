@@ -3,6 +3,7 @@
 #include "Events.h"
 #include "Hooks.h"
 #include "Manager.h"
+#include "CLibUtilsQTR/Tasker.hpp"
 
 using namespace SkyPrompt;
 
@@ -148,7 +149,8 @@ void RegistrationPromptSink::ProcessEvent(const SkyPromptAPI::PromptEvent event)
         if (const auto a_fake = Manager::GetSingleton()->RegisterFromMenu(a_entry, a_owner.get());
             a_fake && Manager::GetSingleton()->IsFakeContainer(a_fake->GetFormID())) {
             if (is_worn) {
-                RE::ActorEquipManager::GetSingleton()->EquipObject(RE::PlayerCharacter::GetSingleton(), a_fake);
+                RE::ActorEquipManager::GetSingleton()->EquipObject(RE::PlayerCharacter::GetSingleton(), a_fake, nullptr,
+                                                                   1, nullptr, true, false, false, true);
             }
 
             if (const auto ui = RE::UI::GetSingleton();
@@ -163,7 +165,12 @@ void RegistrationPromptSink::ProcessEvent(const SkyPromptAPI::PromptEvent event)
                 Manager::RenameCallback(a_fake);
                 return;
             }
-            MenuPromptSink::OnOpen(a_fake, is_worn);
+            clib_utilsQTR::Tasker::GetSingleton()->PushTask([a_fake, is_worn] {
+                                                                SKSE::GetTaskInterface()->AddTask([a_fake, is_worn] {
+                                                                    MenuPromptSink::OnOpen(a_fake, is_worn);
+                                                                });
+                                                            }, 150
+                );
         }
     }
 }
