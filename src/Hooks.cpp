@@ -285,9 +285,7 @@ RE::UI_MESSAGE_RESULTS Hooks::MenuHook<MenuType>::ProcessMessage_Hook(RE::UIMess
     if (!inventory_loaded.load()) {
         if (msg_type == 6) {
             inventory_loaded.store(true);
-            if (const auto a_bound = GetSelectedItemInMenu()) {
-                OnHoverItem(a_bound);
-            }
+            OnHoverItem(GetSelectedItemInMenu());
         }
     } else if (msg_type == 7) {
         SkyPrompt::MenuPromptSink::GetSingleton()->Hide();
@@ -344,9 +342,7 @@ void Hooks::MenuHook<MenuType>::InstallHook(const REL::VariantID& varID) {
 }
 
 int64_t Hooks::InventoryHoverHook::thunk(RE::InventoryEntryData* a1) {
-    if (is_open.load() && inventory_loaded.load()) {
-        OnHoverItem(a1->GetObject());
-    }
+    OnHoverItem(a1->GetObject());
     return originalFunction(a1);
 }
 
@@ -367,6 +363,9 @@ void Hooks::OnIsWorn(RE::TESBoundObject* object_to_equip) {
 }
 
 void Hooks::OnHoverItem(const RE::TESBoundObject* a_bound) {
+    if (!is_open.load() || !inventory_loaded.load() || !a_bound) {
+        return;
+    }
     const auto a_formid = a_bound->GetFormID();
     const auto mngr = Manager::GetSingleton();
     if (mngr->IsFakeContainer(a_formid)) {
