@@ -1,12 +1,12 @@
 #include "MCP.h"
 
 void HelpMarker(const char* desc) {
-    ImGui::TextDisabled("(?)");
-    if (ImGui::BeginItemTooltip()) {
-        ImGui::PushTextWrapPos(ImGui::GetFontSize() * 35.0f);
-        ImGui::TextUnformatted(desc);
-        ImGui::PopTextWrapPos();
-        ImGui::EndTooltip();
+    ImGuiMCP::TextDisabled("(?)");
+    if (ImGuiMCP::BeginItemTooltip()) {
+        ImGuiMCP::PushTextWrapPos(ImGuiMCP::GetFontSize() * 35.0f);
+        ImGuiMCP::TextUnformatted(desc);
+        ImGuiMCP::PopTextWrapPos();
+        ImGuiMCP::EndTooltip();
     }
 }
 
@@ -14,39 +14,39 @@ void __stdcall UI::RenderStatus() {
     constexpr auto color_operational = ImVec4(0, 1, 0, 1);
     constexpr auto color_not_operational = ImVec4(1, 0, 0, 1);
 
-    ImGui::Text((Strings::status + ": ").c_str());
-    ImGui::SameLine();
-    ImGui::TextColored(color_operational, std::format("{} ({})", Strings::sources_label, n_sources).c_str());
-    ImGui::SameLine();
-    if (ImGui::Button(Strings::uninstall_label.c_str())) Manager::GetSingleton()->Uninstall();
+    Text((Strings::status + ": ").c_str());
+    SameLine();
+    TextColored(color_operational, std::format("{} ({})", Strings::sources_label, n_sources).c_str());
+    SameLine();
+    if (Button(Strings::uninstall_label.c_str())) Manager::GetSingleton()->Uninstall();
 
     if (Settings::problems_in_YAML_sources) {
-        ImGui::TextColored(color_not_operational, Strings::yaml_error.c_str());
+        TextColored(color_not_operational, Strings::yaml_error.c_str());
     }
     if (Settings::problems_in_INI_sources) {
-        ImGui::TextColored(color_not_operational, Strings::ini_error.c_str());
+        TextColored(color_not_operational, Strings::ini_error.c_str());
     }
     if (Settings::duplicate_sources) {
-        ImGui::TextColored(color_not_operational, Strings::duplicate_error.c_str());
+        TextColored(color_not_operational, Strings::duplicate_error.c_str());
     }
 
-    ImGui::Text("");
-    ImGui::Text((Strings::po3_tweaks + ": ").c_str());
-    ImGui::SameLine();
-    ImGui::TextColored(Settings::po3installed ? color_operational : color_not_operational,
-                       Settings::po3installed ? Strings::installed.c_str() : Strings::not_installed.c_str());
+    Text("");
+    Text((Strings::po3_tweaks + ": ").c_str());
+    SameLine();
+    TextColored(Settings::po3installed ? color_operational : color_not_operational,
+                Settings::po3installed ? Strings::installed.c_str() : Strings::not_installed.c_str());
 
-    ImGui::Text((Strings::use_or_take + ": ").c_str());
-    ImGui::SameLine();
+    Text((Strings::use_or_take + ": ").c_str());
+    SameLine();
 
     using namespace ModCompatibility::Mods;
-    ImGui::TextColored(po3_use_or_take ? color_operational : color_not_operational,
-                       po3_use_or_take ? Strings::installed.c_str() : Strings::not_installed.c_str());
+    TextColored(po3_use_or_take ? color_operational : color_not_operational,
+                po3_use_or_take ? Strings::installed.c_str() : Strings::not_installed.c_str());
 
-    ImGui::Text((Strings::object_manipulation + ": ").c_str());
-    ImGui::SameLine();
-    ImGui::TextColored(obj_manipu_installed ? color_operational : color_not_operational,
-                       obj_manipu_installed ? Strings::installed.c_str() : Strings::not_installed.c_str());
+    Text((Strings::object_manipulation + ": ").c_str());
+    SameLine();
+    TextColored(obj_manipu_installed ? color_operational : color_not_operational,
+                obj_manipu_installed ? Strings::installed.c_str() : Strings::not_installed.c_str());
 }
 
 void __stdcall UI::RenderSettings() {
@@ -56,12 +56,12 @@ void __stdcall UI::RenderSettings() {
         if (setting_name == Settings::otherstuffKeys[3]) {
             continue;
         }
-        settings_changed |= ImGui::Checkbox((setting_name + ":").c_str(), &setting);
-        ImGui::SameLine();
+        settings_changed |= Checkbox((setting_name + ":").c_str(), &setting);
+        SameLine();
         const char* value = setting ? Strings::enabled.c_str() : Strings::disabled.c_str();
         const auto color = setting ? ImVec4(0, 1, 0, 1) : ImVec4(1, 0, 0, 1);
-        ImGui::TextColored(color, value);
-        ImGui::SameLine();
+        TextColored(color, value);
+        SameLine();
         HelpMarker(Settings::os_comments[std::distance(Settings::otherstuffKeys.begin(),
                                                        std::ranges::find(Settings::otherstuffKeys, setting_name))].
             c_str());
@@ -72,20 +72,20 @@ void __stdcall UI::RenderSettings() {
 void __stdcall UI::RenderSources() {
     RefreshButton();
 
-    ImGui::Text(std::format("{} ({})", Strings::sources_label, n_sources).c_str());
+    Text(std::format("{} ({})", Strings::sources_label, n_sources).c_str());
     if (sources.empty()) {
-        ImGui::Text(Strings::no_sources_found.c_str());
+        Text(Strings::no_sources_found.c_str());
         return;
     }
 
     // collapse all and expand all buttons
-    if (ImGui::Button(Strings::collapse_all.c_str())) {
+    if (Button(Strings::collapse_all.c_str())) {
         for (auto& state : collapse_states | std::views::values) {
             state = false;
         }
     }
-    ImGui::SameLine();
-    if (ImGui::Button(Strings::expand_all.c_str())) {
+    SameLine();
+    if (Button(Strings::expand_all.c_str())) {
         for (auto& state : collapse_states | std::views::values) {
             state = true;
         }
@@ -93,21 +93,21 @@ void __stdcall UI::RenderSources() {
 
     // collapsable: FormID, EditorID, Cloud Storage Ratio, Capacity, Initial Items
     for (const auto& source : sources) {
-        if (!collapse_states[source.formid]) ImGui::SetNextItemOpen(false);
-        else ImGui::SetNextItemOpen(true);
-        if (ImGui::CollapsingHeader(std::format("{:08X} - {}", source.formid, source.editorid).c_str())) {
-            ImGui::Text("%s: %.2f%%", Strings::cloud_storage.c_str(), source.cloud_storage_ratio * 100);
-            ImGui::Text(std::format("{}: %.2f", Strings::capacity, source.capacity).c_str());
-            ImGui::Text(Strings::initial_items.c_str());
-            if (ImGui::BeginTable("table_initial_items", 2, table_flags)) {
+        if (!collapse_states[source.formid]) SetNextItemOpen(false);
+        else SetNextItemOpen(true);
+        if (CollapsingHeader(std::format("{:08X} - {}", source.formid, source.editorid).c_str())) {
+            Text("%s: %.2f%%", Strings::cloud_storage.c_str(), source.cloud_storage_ratio * 100);
+            Text(std::format("{}: %.2f", Strings::capacity, source.capacity).c_str());
+            Text(Strings::initial_items.c_str());
+            if (BeginTable("table_initial_items", 2, table_flags)) {
                 for (const auto& [formid, item] : source.initial_items) {
-                    ImGui::TableNextRow();
-                    ImGui::TableNextColumn();
-                    ImGui::Text(std::format("{:08X}", formid).c_str());
-                    ImGui::TableNextColumn();
-                    ImGui::Text(std::format("{} x{}", item.first, item.second).c_str());
+                    TableNextRow();
+                    TableNextColumn();
+                    Text(std::format("{:08X}", formid).c_str());
+                    TableNextColumn();
+                    Text(std::format("{} x{}", item.first, item.second).c_str());
                 }
-                ImGui::EndTable();
+                EndTable();
             }
             collapse_states[source.formid] = true;
         } else collapse_states[source.formid] = false;
@@ -117,32 +117,32 @@ void __stdcall UI::RenderSources() {
 void __stdcall UI::RenderInspect() {
     RefreshButton();
 
-    ImGui::Text(std::format("{} ({}/{})", Strings::dynamic_forms, dynamic_forms.size(), dft_form_limit).c_str());
+    Text(std::format("{} ({}/{})", Strings::dynamic_forms, dynamic_forms.size(), dft_form_limit).c_str());
     if (dynamic_forms.empty()) {
-        ImGui::Text(Strings::no_dynamic_forms.c_str());
+        Text(Strings::no_dynamic_forms.c_str());
         return;
     }
     // dynamic forms table: FormID, Name, Status
-    if (ImGui::BeginTable("table_dynamic_forms", 3, table_flags)) {
+    if (BeginTable("table_dynamic_forms", 3, table_flags)) {
         for (const auto& [formid, form] : dynamic_forms) {
-            ImGui::TableNextRow();
-            ImGui::TableNextColumn();
-            ImGui::Text(std::format("{:08X}", formid).c_str());
-            ImGui::TableNextColumn();
-            ImGui::Text(form.first.c_str());
-            ImGui::TableNextColumn();
+            TableNextRow();
+            TableNextColumn();
+            Text(std::format("{:08X}", formid).c_str());
+            TableNextColumn();
+            Text(form.first.c_str());
+            TableNextColumn();
             const auto color = form.second == 2
                                    ? ImVec4(0, 1, 0, 1)
                                    : form.second == 1
                                    ? ImVec4(1, 1, 0, 1)
                                    : ImVec4(1, 0, 0, 1);
-            ImGui::TextColored(color, form.second == 2
-                                          ? Strings::active.c_str()
-                                          : form.second == 1
-                                          ? Strings::protected_status.c_str()
-                                          : Strings::inactive.c_str());
+            TextColored(color, form.second == 2
+                                   ? Strings::active.c_str()
+                                   : form.second == 1
+                                   ? Strings::protected_status.c_str()
+                                   : Strings::inactive.c_str());
         }
-        ImGui::EndTable();
+        EndTable();
     }
 
     RenderData();
@@ -150,17 +150,17 @@ void __stdcall UI::RenderInspect() {
 
 void __stdcall UI::RenderLog() {
     #ifndef NDEBUG
-    ImGui::Checkbox(Strings::log_trace.c_str(), &LogSettings::log_trace);
+    Checkbox(Strings::log_trace.c_str(), &LogSettings::log_trace);
     #endif
-    ImGui::SameLine();
-    ImGui::Checkbox(Strings::log_info.c_str(), &LogSettings::log_info);
-    ImGui::SameLine();
-    ImGui::Checkbox(Strings::log_warning.c_str(), &LogSettings::log_warning);
-    ImGui::SameLine();
-    ImGui::Checkbox(Strings::log_error.c_str(), &LogSettings::log_error);
+    SameLine();
+    Checkbox(Strings::log_info.c_str(), &LogSettings::log_info);
+    SameLine();
+    Checkbox(Strings::log_warning.c_str(), &LogSettings::log_warning);
+    SameLine();
+    Checkbox(Strings::log_error.c_str(), &LogSettings::log_error);
 
     // if "Generate Log" button is pressed, read the log file
-    if (ImGui::Button(Strings::log_generate.c_str())) logLines = ReadLogFile();
+    if (Button(Strings::log_generate.c_str())) logLines = ReadLogFile();
 
     // Display each line in a new ImGui::Text() element
     for (const auto& line : logLines) {
@@ -168,7 +168,7 @@ void __stdcall UI::RenderLog() {
         if (!LogSettings::log_info && line.find("info") != std::string::npos) continue;
         if (!LogSettings::log_warning && line.find("warning") != std::string::npos) continue;
         if (!LogSettings::log_error && line.find("error") != std::string::npos) continue;
-        ImGui::Text(line.c_str());
+        Text(line.c_str());
     }
 }
 
@@ -189,14 +189,14 @@ void UI::Register() {
 void UI::RefreshButton() {
     FontAwesome::PushSolid();
 
-    if (ImGui::Button((FontAwesome::UnicodeToUtf8(0xf021) + " " + Strings::refresh).c_str()) || last_generated.
+    if (Button((FontAwesome::UnicodeToUtf8(0xf021) + " " + Strings::refresh).c_str()) || last_generated.
         empty()) {
         Refresh();
     }
     FontAwesome::Pop();
 
-    ImGui::SameLine();
-    ImGui::Text((Strings::last_generated + last_generated).c_str());
+    SameLine();
+    Text((Strings::last_generated + last_generated).c_str());
 }
 
 void UI::Refresh() {
@@ -256,37 +256,38 @@ void UI::SaveToINI() {
         ini.SetBoolValue(InISections[2], setting_name.c_str(), setting);
     }
 
+    // ReSharper disable once CppExpressionWithoutSideEffects
     ini.SaveFile(path);
 }
 
 void UI::RenderData() {
-    ImGui::Text(std::format("{} ({})", Strings::data, data.size()).c_str());
+    Text(std::format("{} ({})", Strings::data, data.size()).c_str());
     if (data.empty()) {
-        ImGui::Text(Strings::no_data_found.c_str());
+        Text(Strings::no_data_found.c_str());
         return;
     }
 
-    if (ImGui::BeginTable("table_data", 5, table_flags)) {
-        ImGui::TableSetupColumn(Strings::real_form_id.c_str());
-        ImGui::TableSetupColumn(Strings::chest_ref_id.c_str());
-        ImGui::TableSetupColumn(Strings::location_ref_id.c_str());
-        ImGui::TableSetupColumn(Strings::name.c_str());
-        ImGui::TableSetupColumn(Strings::location_name.c_str());
-        ImGui::TableHeadersRow();
+    if (BeginTable("table_data", 5, table_flags)) {
+        TableSetupColumn(Strings::real_form_id.c_str());
+        TableSetupColumn(Strings::chest_ref_id.c_str());
+        TableSetupColumn(Strings::location_ref_id.c_str());
+        TableSetupColumn(Strings::name.c_str());
+        TableSetupColumn(Strings::location_name.c_str());
+        TableHeadersRow();
 
         for (const auto& data_ : data) {
-            ImGui::TableNextRow();
-            ImGui::TableNextColumn();
-            ImGui::Text(std::format("{:x}", data_.real_formid).c_str());
-            ImGui::TableNextColumn();
-            ImGui::Text(std::format("{:x}", data_.chest_ref).c_str());
-            ImGui::TableNextColumn();
-            ImGui::Text(std::format("{:x}", data_.location).c_str());
-            ImGui::TableNextColumn();
-            ImGui::Text(data_.name.c_str());
-            ImGui::TableNextColumn();
-            ImGui::Text(data_.location_name.c_str());
+            TableNextRow();
+            TableNextColumn();
+            Text(std::format("{:x}", data_.real_formid).c_str());
+            TableNextColumn();
+            Text(std::format("{:x}", data_.chest_ref).c_str());
+            TableNextColumn();
+            Text(std::format("{:x}", data_.location).c_str());
+            TableNextColumn();
+            Text(data_.name.c_str());
+            TableNextColumn();
+            Text(data_.location_name.c_str());
         }
-        ImGui::EndTable();
+        EndTable();
     }
 }

@@ -197,8 +197,8 @@ namespace MsgBoxesNotifs {
             explicit MessageBoxResultCallback(const std::function<void(unsigned int)>& callback) : _callback(callback) {
             }
 
-            void Run(Message message) override {
-                _callback(static_cast<unsigned int>(message));
+            void Run(const std::uint8_t a_button) override {
+                _callback(a_button);
             }
         };
 

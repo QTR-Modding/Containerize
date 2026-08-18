@@ -307,7 +307,6 @@ RE::UI_MESSAGE_RESULTS Hooks::MenuHook<MenuType>::ProcessMessage_Hook(RE::UIMess
         is_open.store(true);
     }
 
-
     if (const std::string_view menuname = MenuType::MENU_NAME; a_message.menu == menuname) {
         if (menuname == RE::ContainerMenu::MENU_NAME) {
             if (RE::TESObjectREFRPtr refr; LookupReferenceByHandle(RE::ContainerMenu::GetTargetRefHandle(), refr)) {

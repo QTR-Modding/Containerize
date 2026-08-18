@@ -22,6 +22,7 @@ struct ManagerData {
 };
 
 namespace UI {
+    using namespace ImGuiMCP;
     inline ImGuiTableFlags table_flags = ImGuiTableFlags_Resizable | ImGuiTableFlags_SizingFixedFit |
                                          ImGuiTableFlags_SizingStretchProp | ImGuiTableFlags_Borders |
                                          ImGuiTableFlags_RowBg;

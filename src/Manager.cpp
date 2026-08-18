@@ -23,13 +23,13 @@ namespace {
             assert(m && "DebugSharedLock: mutex pointer is null");
             // Cannot take shared if this thread already holds unique
             assert(DebugLockState::uniqueDepth == 0 &&
-                   "Attempt to acquire shared lock while holding unique lock on Manager::mutex_ (undefined behavior). Release unique lock first.");
+                "Attempt to acquire shared lock while holding unique lock on Manager::mutex_ (undefined behavior). Release unique lock first.");
             // Prevent re-entrant shared acquisition
             if (DebugLockState::sharedDepth++ == 0) {
                 m->lock_shared();
             } else {
                 assert(false &&
-                       "Re-entrant shared lock acquisition detected on Manager::mutex_ (undefined behavior). Refactor using NoLock helpers.");
+                    "Re-entrant shared lock acquisition detected on Manager::mutex_ (undefined behavior). Refactor using NoLock helpers.");
             }
         }
 
@@ -55,10 +55,10 @@ namespace {
             assert(m && "DebugUniqueLock: mutex pointer is null");
             // Cannot take unique if shared is currently held
             assert(DebugLockState::sharedDepth == 0 &&
-                   "Attempt to acquire unique lock while holding shared lock on Manager::mutex_ (illegal upgrade). Release shared first.");
+                "Attempt to acquire unique lock while holding shared lock on Manager::mutex_ (illegal upgrade). Release shared first.");
             // Prevent unique re-entrancy
             assert(DebugLockState::uniqueDepth == 0 &&
-                   "Re-entrant unique lock acquisition detected on Manager::mutex_. Refactor to avoid nested mutations.");
+                "Re-entrant unique lock acquisition detected on Manager::mutex_. Refactor to avoid nested mutations.");
             m->lock();
             owns = true;
             DebugLockState::uniqueDepth = 1;
@@ -1125,7 +1125,8 @@ void Manager::OnChestExit(RE::TESObjectREFR* a_chest) {
                                                   containermenu_owner->GetFormID());
                                 }
                             } else if (containermenu_owner) {
-                                containermenu_owner->OpenContainer(0);
+                                RE::ContainerMenu::OpenMenu(containermenu_owner.get(),
+                                                            RE::ContainerMenu::ContainerMode::kLoot);
                             }
                             containermenu_owner.reset();
                         });

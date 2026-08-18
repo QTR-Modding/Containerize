@@ -1,10 +1,10 @@
 #pragma once
+#include <REX/REX/Singleton.h>
 #include "DynamicFormTracker.h"
-#include "ClibUtil/singleton.hpp"
 #include <shared_mutex>
 
 class Manager final : public SaveLoadData,
-                      public clib_util::singleton::ISingleton<Manager> {
+                      public REX::Singleton<Manager> {
     // private variables
 
     //RE::EffectSetting* empty_mgeff = nullptr;
