@@ -1,90 +1,10 @@
 #include "Manager.h"
 #include "Papyrus.h"
 #include "Animations.h"
+#include "DebugLock.h"
 #include "CLibUtilsQTR/FormReader.hpp"
 #include "CLibUtilsQTR/Tasker.hpp"
 
-// Debug guards to detect improper re-entrant or mixed locking (debug builds only)
-// Debug guards to detect improper re-entrant or mixed locking (debug builds only)
-#ifndef NDEBUG
-namespace {
-    struct DebugLockState {
-        static thread_local int sharedDepth;
-        static thread_local int uniqueDepth;
-    };
-
-    thread_local int DebugLockState::sharedDepth = 0;
-    thread_local int DebugLockState::uniqueDepth = 0;
-
-    struct DebugSharedLock {
-        std::shared_mutex* m;
-
-        explicit DebugSharedLock(std::shared_mutex* mutex) : m(mutex) {
-            assert(m && "DebugSharedLock: mutex pointer is null");
-            // Cannot take shared if this thread already holds unique
-            assert(DebugLockState::uniqueDepth == 0 &&
-                "Attempt to acquire shared lock while holding unique lock on Manager::mutex_ (undefined behavior). Release unique lock first.");
-            // Prevent re-entrant shared acquisition
-            if (DebugLockState::sharedDepth++ == 0) {
-                m->lock_shared();
-            } else {
-                assert(false &&
-                    "Re-entrant shared lock acquisition detected on Manager::mutex_ (undefined behavior). Refactor using NoLock helpers.");
-            }
-        }
-
-        DebugSharedLock(const DebugSharedLock&) = delete;
-        DebugSharedLock& operator=(const DebugSharedLock&) = delete;
-        DebugSharedLock(DebugSharedLock&&) = delete;
-        DebugSharedLock& operator=(DebugSharedLock&&) = delete;
-
-        ~DebugSharedLock() {
-            assert(m && "DebugSharedLock: mutex pointer is null on destruction");
-            assert(DebugLockState::sharedDepth > 0 && "Shared depth underflow");
-            if (--DebugLockState::sharedDepth == 0) {
-                m->unlock_shared();
-            }
-        }
-    };
-
-    struct DebugUniqueLock {
-        std::shared_mutex* m;
-        bool owns = false;
-
-        explicit DebugUniqueLock(std::shared_mutex* mutex) : m(mutex) {
-            assert(m && "DebugUniqueLock: mutex pointer is null");
-            // Cannot take unique if shared is currently held
-            assert(DebugLockState::sharedDepth == 0 &&
-                "Attempt to acquire unique lock while holding shared lock on Manager::mutex_ (illegal upgrade). Release shared first.");
-            // Prevent unique re-entrancy
-            assert(DebugLockState::uniqueDepth == 0 &&
-                "Re-entrant unique lock acquisition detected on Manager::mutex_. Refactor to avoid nested mutations.");
-            m->lock();
-            owns = true;
-            DebugLockState::uniqueDepth = 1;
-        }
-
-        DebugUniqueLock(const DebugUniqueLock&) = delete;
-        DebugUniqueLock& operator=(const DebugUniqueLock&) = delete;
-        DebugUniqueLock(DebugUniqueLock&&) = delete;
-        DebugUniqueLock& operator=(DebugUniqueLock&&) = delete;
-
-        ~DebugUniqueLock() {
-            if (owns) {
-                assert(DebugLockState::uniqueDepth == 1 && "Unique depth corruption");
-                m->unlock();
-                DebugLockState::uniqueDepth = 0;
-            }
-        }
-    };
-}
-
-#define SHARED_GUARD DebugSharedLock slock(&mutex_)
-#define UNIQUE_GUARD DebugUniqueLock ulock(&mutex_)
-#else
-#define SHARED_GUARD std::shared_lock slock(mutex_)
-#define UNIQUE_GUARD std::unique_lock ulock(mutex_)
-#endif
 // Avoid Windows GetObject macro conflicts in this file
 #undef GetObject
 
@@ -188,7 +108,7 @@ RE::TESObjectREFR* Manager::GetFakeContainerChest(const RE::TESBoundObject* a_fa
 }
 
 RE::TESObjectREFR* Manager::GetContainerLocation(const FormID a_fake_id) const {
-    SHARED_GUARD;
+    DebugLock::SHARED_GUARD;
     const RefID chest_id = GetFakeContainerChestID_NoLock(a_fake_id);
     if (!chest_id) return nullptr;
     const auto real_id = GetRealID_NoLock(chest_id);
@@ -224,7 +144,7 @@ std::vector<RefID> Manager::GetChildChests(const RefID parent_chestID, std::unor
 
     std::vector<RefID> children;
     {
-        SHARED_GUARD;
+        DebugLock::SHARED_GUARD;
         for (const auto& [a_chest_id, real_fake] : ChestToFakeContainer) {
             const auto src = GetContainerSource_NoLock(real_fake.outerKey);
             if (!src) {
@@ -311,12 +231,12 @@ void Manager::OpenChestFromMenu(RE::TESObjectREFR* a_chest) {
 }
 
 const Source* Manager::GetContainerSource(const FormID real_id) const {
-    SHARED_GUARD;
+    DebugLock::SHARED_GUARD;
     return GetContainerSource_NoLock(real_id);
 }
 
 Source* Manager::GetContainerSource(const FormID real_id) {
-    SHARED_GUARD;
+    DebugLock::SHARED_GUARD;
     return GetContainerSource_NoLock(real_id);
 }
 
@@ -422,7 +342,7 @@ RE::TESBoundObject* Manager::FakePlacement_Sub_Sub(const RefID chestID) {
     FormID real_formid;
     FormID fakeid_old;
     {
-        SHARED_GUARD;
+        DebugLock::SHARED_GUARD;
         real_formid = GetRealID_NoLock(chestID);
         fakeid_old = GetFakeID_NoLock(chestID);
     }
@@ -436,9 +356,8 @@ RE::TESBoundObject* Manager::FakePlacement_Sub_Sub(const RefID chestID) {
 
     // Mutations under unique lock
     {
-        UNIQUE_GUARD;
-        const auto it = ChestToFakeContainer.find(chestID);
-        if (it != ChestToFakeContainer.end()) {
+        DebugLock::UNIQUE_GUARD;
+        if (const auto it = ChestToFakeContainer.find(chestID); it != ChestToFakeContainer.end()) {
             it->second.innerKey = fakeid_new;
         }
     }
@@ -497,7 +416,7 @@ void Manager::FakePlacementCeption(const RefID chest_ref, std::vector<RefID>& ha
     RefID saved_loc = 0;
     bool error = false;
     {
-        SHARED_GUARD;
+        DebugLock::SHARED_GUARD;
         const auto src = GetChestSource_NoLock(chest_ref);
         if (!src) {
             logger::error("Could not find source for container {:x}", chest_ref);
@@ -692,7 +611,7 @@ std::string Manager::GetWeightText(const float weight, const float capacity) {
 }
 
 bool Manager::Register_Sub(const FormID master_formID, const FormID fake_formID, RefID chest_refID, RefID loc_refID) {
-    UNIQUE_GUARD;
+    DebugLock::UNIQUE_GUARD;
     Source* src = GetContainerSource_NoLock(master_formID);
     if (!src) return false;
     if (!src->data.insert({chest_refID, loc_refID}).second) return false;
@@ -704,7 +623,7 @@ bool Manager::Register_Sub(const FormID master_formID, const FormID fake_formID,
 }
 
 bool Manager::DeRegister_Sub(const FormID master_formID, const RefID chest_refID) {
-    UNIQUE_GUARD;
+    DebugLock::UNIQUE_GUARD;
     Source* src = GetContainerSource_NoLock(master_formID);
     if (!src) return false;
     if (!src->data.erase(chest_refID)) return false;
@@ -794,7 +713,7 @@ void Manager::Gateway(const int result, const RE::ObjectRefHandle& a_current_con
 }
 
 RefID Manager::GetContainerChestID(const RefID a_loc_refid) const {
-    SHARED_GUARD;
+    DebugLock::SHARED_GUARD;
     for (const auto& src : sources) {
         for (const auto& [chest_refid, cont_refid] : src.data) {
             if (cont_refid == a_loc_refid) return chest_refid;
@@ -804,12 +723,12 @@ RefID Manager::GetContainerChestID(const RefID a_loc_refid) const {
 }
 
 RefID Manager::GetFakeContainerChestID(const FormID fake_id) const {
-    SHARED_GUARD;
+    DebugLock::SHARED_GUARD;
     return GetFakeContainerChestID_NoLock(fake_id);
 }
 
 RE::TESBoundObject* Manager::GetFakeBound(const RefID chest_id) const {
-    SHARED_GUARD;
+    DebugLock::SHARED_GUARD;
     return GetFakeBound_NoLock(chest_id);
 }
 
@@ -818,12 +737,12 @@ RE::TESBoundObject* Manager::GetRealBound(const RefID chest_id) const {
 }
 
 FormID Manager::GetFakeID(const RefID chest_id) const {
-    SHARED_GUARD;
+    DebugLock::SHARED_GUARD;
     return GetFakeID_NoLock(chest_id);
 }
 
 FormID Manager::GetRealID(const RefID chest_id) const {
-    SHARED_GUARD;
+    DebugLock::SHARED_GUARD;
     return GetRealID_NoLock(chest_id);
 }
 
@@ -834,7 +753,7 @@ void Manager::BeforePickup(RE::TESObjectREFR* picked_up_by, RE::TESObjectREFR* a
         RE::TESBoundObject* fake_bound = nullptr;
         float weight_ratio = 0.f;
         {
-            UNIQUE_GUARD;
+            DebugLock::UNIQUE_GUARD;
             if (const auto src = GetContainerSource_NoLock(GetRealID_NoLock(chest_refid))) {
                 weight_ratio = src->weight_ratio;
                 if (fake_bound = GetFakeBound_NoLock(chest_refid); fake_bound && src->data.contains(chest_refid)) {
@@ -888,7 +807,7 @@ void Manager::UpdateLoc_Private(const RefID chestID, const RefID loc_id) {
         return;
     }
     {
-        UNIQUE_GUARD;
+        DebugLock::UNIQUE_GUARD;
         const auto real_id = GetRealID_NoLock(chestID);
         Source* src = GetContainerSource_NoLock(real_id);
         if (!src) {
@@ -981,7 +900,7 @@ Count Manager::CanBeAdded(const RE::TESBoundObject* a_item, const Count a_count,
         logger::error("Chest ref not found.");
         return 0;
     }
-    SHARED_GUARD;
+    DebugLock::SHARED_GUARD;
     const auto itChest = ChestToFakeContainer.find(a_chestID);
     if (itChest == ChestToFakeContainer.end()) return 0;
     const auto src = GetContainerSource_NoLock(itChest->second.outerKey);
@@ -1024,7 +943,7 @@ void Manager::HandleFakePlacement(RE::TESObjectREFR* external_cont) {
     if (!IsARegistry(external_cont_refid)) return;
     std::vector<std::pair<RefID, RefID>> chest_locs;
     {
-        SHARED_GUARD;
+        DebugLock::SHARED_GUARD;
         for (const auto& src : sources) {
             for (const auto& [chest_ref, loc] : src.data) {
                 if (external_cont_refid == loc) {
@@ -1045,14 +964,14 @@ void Manager::HandleFakePlacement(RE::TESObjectREFR* external_cont) {
 }
 
 bool Manager::IsFakeContainer(const FormID formid) const {
-    SHARED_GUARD;
+    DebugLock::SHARED_GUARD;
     return std::ranges::any_of(ChestToFakeContainer, [formid](const auto& pair) {
         return pair.second.innerKey == formid;
     });
 }
 
 bool Manager::IsRealContainer(const FormID formid) const {
-    SHARED_GUARD;
+    DebugLock::SHARED_GUARD;
     return std::ranges::any_of(sources, [formid](const Source& src) { return src.formid == formid; });
 }
 
@@ -1079,7 +998,7 @@ void Manager::RenameContainer(const std::string& new_name, RE::TESBoundObject* a
     else if (formtype == "FURN") Rename(new_name, a_fake->As<RE::TESFurniture>());
     else logger::warn("Form type not supported: {}", formtype);
     {
-        UNIQUE_GUARD;
+        DebugLock::UNIQUE_GUARD;
         renames[fake_formid] = new_name;
     }
     RE::ExtraDataList* xList = nullptr;
@@ -1161,7 +1080,7 @@ void Manager::OnChestEnter(RE::TESObjectREFR* a_chest) {
 }
 
 bool Manager::IsARegistry(const RefID registry) const {
-    SHARED_GUARD;
+    DebugLock::SHARED_GUARD;
     for (const auto& src : sources) {
         for (const auto& cont_ref : src.data | std::views::values) {
             if (cont_ref == registry) return true;
@@ -1196,7 +1115,7 @@ void Manager::HandleCraftingExit() {
 
     bool error = false;
     {
-        SHARED_GUARD;
+        DebugLock::SHARED_GUARD;
         for (const auto& src : sources) {
             if (error) {
                 break;
@@ -1240,7 +1159,7 @@ void Manager::OnConsume(const FormID fake_formid, RE::TESObjectREFR* consumed_by
     const auto real_bound = FakeToRealContainer(fake_formid);
     if (!real_bound) return;
     {
-        SHARED_GUARD;
+        DebugLock::SHARED_GUARD;
         if (const auto src = GetContainerSource_NoLock(real_bound->GetFormID())) {
             if (const auto it = src->data.find(a_chestID);
                 it == src->data.end() || it->second != consumed_by->GetFormID()) {
@@ -1281,7 +1200,7 @@ void Manager::HandleFormDelete(const RefID refid) {
     // Find chest_ref without holding the lock during callback
     RefID targetChest = 0;
     {
-        SHARED_GUARD;
+        DebugLock::SHARED_GUARD;
         for (auto& src : sources) {
             for (const auto& [chest_ref, cont_ref] : src.data) {
                 if (cont_ref == refid) {
@@ -1296,14 +1215,14 @@ void Manager::HandleFormDelete(const RefID refid) {
 }
 
 bool Manager::IsChest(const RefID a_refid) const {
-    SHARED_GUARD;
+    DebugLock::SHARED_GUARD;
     return IsChest_NoLock(a_refid);
 }
 
 void Manager::Reset() {
     logger::info("Resetting manager...");
     {
-        UNIQUE_GUARD;
+        DebugLock::UNIQUE_GUARD;
         for (auto& src : sources) src.data.clear();
         ChestToFakeContainer.clear();
     }
@@ -1336,7 +1255,7 @@ void Manager::SendData() {
     bool error = false;
     const auto player_ref = RE::PlayerCharacter::GetSingleton();
     {
-        SHARED_GUARD;
+        DebugLock::SHARED_GUARD;
         for (auto& src : sources) {
             if (error) break;
             for (const auto& [chest_ref, cont_ref] : src.data) {
@@ -1454,7 +1373,7 @@ void Manager::ReceiveData() {
 
     std::vector<RefID> all_chestIDs;
     {
-        SHARED_GUARD;
+        DebugLock::SHARED_GUARD;
         for (const auto& chest_ref : ChestToFakeContainer | std::views::keys) {
             all_chestIDs.push_back(chest_ref);
         }
@@ -1464,7 +1383,7 @@ void Manager::ReceiveData() {
     std::vector<std::pair<RefID, float>> pendingWV; // chest_refid, weight_ratio
 
     {
-        SHARED_GUARD;
+        DebugLock::SHARED_GUARD;
         for (const auto& source : sources) {
             for (const auto dyn_formid : DFT->GetFormSet(source.formid, source.editorid)) {
                 const auto editorid = source.editorid.empty()
@@ -1525,7 +1444,7 @@ void Manager::ReceiveData() {
 }
 
 std::vector<Source> Manager::GetSources() const {
-    SHARED_GUARD;
+    DebugLock::SHARED_GUARD;
     return sources;
 }
 
@@ -1535,7 +1454,7 @@ void Manager::Uninstall() {
     logger::info("Uninstalling...");
     std::vector<std::pair<RefID, FormID>> all_chests_fakes;
     {
-        SHARED_GUARD;
+        DebugLock::SHARED_GUARD;
         for (const auto& [chest_refid, real_fake_formid] : ChestToFakeContainer) {
             all_chests_fakes.emplace_back(chest_refid, real_fake_formid.innerKey);
         }
