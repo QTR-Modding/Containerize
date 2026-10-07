@@ -36,6 +36,8 @@ namespace Serialization {
                                 std::uint32_t version) override;
 
         [[nodiscard]] bool Load(SKSE::SerializationInterface* serializationInterface, bool is_older_version);
+
+        [[nodiscard]] std::vector<RefID> GetLoadedChestRefIDs();
     };
 
 

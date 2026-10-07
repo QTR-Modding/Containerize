@@ -2,8 +2,6 @@
 
 // Debug guards to detect improper re-entrant or mixed locking (debug builds only)
 // Debug guards to detect improper re-entrant or mixed locking (debug builds only)
-#ifndef NDEBUG
-#include <shared_mutex>
 
 namespace DebugLock {
     struct DebugLockState {
@@ -21,15 +19,15 @@ namespace DebugLock {
             assert(m && "DebugSharedLock: mutex pointer is null");
             // Cannot take shared if this thread already holds unique
             assert(DebugLockState::uniqueDepth == 0 &&
-                   "Attempt to acquire shared lock while holding unique lock on Manager::mutex_ (undefined behavior). "
-                   "Release unique lock first.");
+                "Attempt to acquire shared lock while holding unique lock on Manager::mutex_ (undefined behavior). "
+                "Release unique lock first.");
             // Prevent re-entrant shared acquisition
             if (DebugLockState::sharedDepth++ == 0) {
                 m->lock_shared();
             } else {
                 assert(false &&
-                       "Re-entrant shared lock acquisition detected on Manager::mutex_ (undefined behavior). Refactor "
-                       "using NoLock helpers.");
+                    "Re-entrant shared lock acquisition detected on Manager::mutex_ (undefined behavior). Refactor "
+                    "using NoLock helpers.");
             }
         }
 
@@ -55,8 +53,8 @@ namespace DebugLock {
             assert(m && "DebugUniqueLock: mutex pointer is null");
             // Cannot take unique if shared is currently held
             assert(DebugLockState::sharedDepth == 0 &&
-                   "Attempt to acquire unique lock while holding shared lock on Manager::mutex_ (illegal upgrade). "
-                   "Release shared first.");
+                "Attempt to acquire unique lock while holding shared lock on Manager::mutex_ (illegal upgrade). "
+                "Release shared first.");
             // Prevent unique re-entrancy
             assert(
                 DebugLockState::uniqueDepth == 0 &&
@@ -80,10 +78,3 @@ namespace DebugLock {
         }
     };
 }
-
-    #define SHARED_GUARD DebugSharedLock slock(&mutex_)
-    #define UNIQUE_GUARD DebugUniqueLock ulock(&mutex_)
-#else
-    #define SHARED_GUARD std::shared_lock slock(mutex_)
-    #define UNIQUE_GUARD std::unique_lock ulock(mutex_)
-#endif

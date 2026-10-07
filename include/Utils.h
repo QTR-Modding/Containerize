@@ -44,16 +44,6 @@ namespace ModCompatibility {
     void Load();
 }
 
-namespace UnownedStuff {
-    // unowned stuff
-    constexpr RefID unownedChestOGRefID = 0x000EA29A;
-    constexpr RefID unownedChestFormID = 0x000EA299;
-    //RE::TESObjectCELL* unownedCell = RE::TESForm::LookupByID<RE::TESObjectCELL>(0x000FE47B);  // cwquartermastercontainers
-    //RE::TESObjectCONT* unownedChest = RE::TESForm::LookupByID<RE::TESObjectCONT>(0x000A0DB5); // playerhousechestnew
-    constexpr RE::NiPoint3 unownedChestPos = {1986.f, 1780.f, 6784.f};
-}
-
-
 inline std::string no_src_msgbox = std::format(
     "{}: You currently do not have any container set up. Check your ini file or see the mod page for instructions.",
     mod_name);

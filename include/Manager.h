@@ -2,9 +2,12 @@
 #include <REX/REX/Singleton.h>
 #include "DynamicFormTracker.h"
 #include <shared_mutex>
+#include "API.h"
 
 class Manager final : public SaveLoadData,
                       public REX::Singleton<Manager> {
+    static constexpr ContainerizeAPI::ClientID client_id = ContainerizeAPI::containerize_client;
+
     // private variables
 
     //RE::EffectSetting* empty_mgeff = nullptr;
@@ -12,10 +15,6 @@ class Manager final : public SaveLoadData,
     // runtime specific
     // chest refid -> {real container formid (outerKey), fake container formid (innerKey)}
     std::map<RefID, FormFormID> ChestToFakeContainer;
-
-    // unowned stuff
-    RE::TESObjectCELL* unownedCell = nullptr;
-    RE::TESObjectCONT* unownedChest = nullptr;
 
     std::vector<FormID> external_favs; // runtime specific, FormIDs of fake containers if faved
     std::vector<RefID> handled_external_conts; // runtime specific to prevent unnecessary checks in HandleFakePlacement
@@ -42,18 +41,8 @@ class Manager final : public SaveLoadData,
     [[nodiscard]] RE::TESObjectREFR* GetFakeContainerChest(const RE::TESBoundObject* a_fake) const;
     [[nodiscard]] RE::TESObjectREFR* GetContainerLocation(FormID a_fake_id) const;
 
-    [[nodiscard]] uint32_t GetNoChests() const;
-
     // parent_chestID nin icindeki chestler
     [[nodiscard]] std::vector<RefID> GetChildChests(RefID parent_chestID, std::unordered_set<RefID>* parents);
-
-    [[nodiscard]] bool IsUnownedChest(RefID refid) const;
-
-    [[nodiscard]] RE::TESObjectREFR* MakeChest(RE::NiPoint3 Pos3 = {0.0f, 0.0f, 0.0f}) const;
-
-    [[nodiscard]] RE::TESObjectREFR* AddChest(uint32_t chest_no) const;
-
-    [[nodiscard]] RE::TESObjectREFR* FindNotMatchedChest() const;
 
     void OpenChestFromMenu(RE::TESObjectREFR* a_chest);
 

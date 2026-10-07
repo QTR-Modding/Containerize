@@ -1,4 +1,5 @@
 #include "Serialization.h"
+#include "Chest.h"
 #include "Events.h"
 #include "Manager.h"
 
@@ -95,6 +96,16 @@ bool SaveLoadData::Load(SKSE::SerializationInterface* serializationInterface,
         logger::trace("Loaded data for FormRefID: ({},{})", formId.outerKey, formId.innerKey);
     }
     return true;
+}
+
+std::vector<RefID> SaveLoadData::GetLoadedChestRefIDs() {
+    Locker locker(m_Lock);
+    std::vector<RefID> chest_refids;
+    chest_refids.reserve(m_Data.size());
+    for (const auto& form_id : m_Data | std::views::keys) {
+        chest_refids.push_back(form_id.innerKey);
+    }
+    return chest_refids;
 }
 
 bool DFSaveLoadData::Save(SKSE::SerializationInterface* serializationInterface) {
@@ -226,7 +237,10 @@ void Serialization::LoadCallback(SKSE::SerializationInterface* serializationInte
     logger::info("Loading Data from skse co-save.");
 
     EventSink::GetSingleton()->Reset();
-    Manager::GetSingleton()->Reset();
+    auto* manager = Manager::GetSingleton();
+    manager->Reset();
+    auto* chest_manager = ChestManager::GetSingleton();
+    chest_manager->Reset();
     auto* DFT = DynamicFormTracker::GetSingleton();
     DFT->Reset();
 
@@ -274,10 +288,11 @@ void Serialization::LoadCallback(SKSE::SerializationInterface* serializationInte
         switch (type) {
             case Settings::kDataKey: {
                 logger::trace("Loading Record: {} - Version: {} - Length: {}", temp, version, length);
-                if (!Manager::GetSingleton()->Load(serializationInterface, is_before_0_7)) {
+                if (!manager->Load(serializationInterface, is_before_0_7)) {
                     logger::critical("Failed to Load Data");
                     return MsgBoxesNotifs::InGame::CustomMsg("Failed to Load Data.");
                 }
+                chest_manager->RestoreContainerizeChests(manager->GetLoadedChestRefIDs());
             }
             break;
             case Settings::kDFDataKey: {
@@ -293,7 +308,7 @@ void Serialization::LoadCallback(SKSE::SerializationInterface* serializationInte
 
     logger::info("Receiving Data.");
     DFT->ReceiveData();
-    Manager::GetSingleton()->ReceiveData();
+    manager->ReceiveData();
     logger::info("Data loaded from skse co-save.");
 }
 
