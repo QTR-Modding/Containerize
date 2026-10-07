@@ -1,14 +1,19 @@
 #include "Manager.h"
 #include "Papyrus.h"
 #include "Animations.h"
-#include "DebugLock.h"
+#include "CLibUtilsQTR/DebugLocks.hpp"
 #include "CLibUtilsQTR/FormReader.hpp"
 #include "CLibUtilsQTR/Tasker.hpp"
 #include "Chest.h"
 
 #ifndef NDEBUG
-#define SHARED_GUARD DebugLock::DebugSharedLock slock(&mutex_)
-#define UNIQUE_GUARD DebugLock::DebugUniqueLock ulock(&mutex_)
+namespace {
+    struct ManagerMutexTag {
+        static constexpr auto name = "Manager::mutex_";
+    };
+}
+#define SHARED_GUARD clib_utilsQTR::DebugSharedLock<ManagerMutexTag> slock(mutex_)
+#define UNIQUE_GUARD clib_utilsQTR::DebugUniqueLock<ManagerMutexTag> ulock(mutex_)
 #else
 #define SHARED_GUARD std::shared_lock slock(mutex_)
 #define UNIQUE_GUARD std::unique_lock ulock(mutex_)
