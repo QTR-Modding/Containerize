@@ -213,42 +213,56 @@ bool DFSaveLoadData::Load(SKSE::SerializationInterface* serializationInterface, 
     return true;
 }
 
-#define DISABLE_IF_UNINSTALLED if (Manager::GetSingleton()->isUninstalled.load()) return;
-
 void Serialization::SaveCallback(SKSE::SerializationInterface* serializationInterface) {
-    DISABLE_IF_UNINSTALLED
     logger::trace("Saving Data to skse co-save.");
-    const auto M = Manager::GetSingleton();
-    M->SendData();
-    if (!M->Save(serializationInterface, Settings::kDataKey, Settings::kSerializationVersion)) {
-        logger::critical("Failed to save Data");
+    const auto manager = Manager::GetSingleton();
+    if (!manager->isUninstalled.load()) {
+        manager->SendData();
+        if (!manager->Save(serializationInterface, Settings::kDataKey, Settings::kSerializationVersion)) {
+            logger::critical("Failed to save Data");
+        }
+        auto* DFT = DynamicFormTracker::GetSingleton();
+        DFT->SendData();
+        if (!DFT->Save(serializationInterface, Settings::kDFDataKey, Settings::kSerializationVersion)) {
+            logger::critical("Failed to save Data");
+        }
     }
-    auto* DFT = DynamicFormTracker::GetSingleton();
-    DFT->SendData();
-    if (!DFT->Save(serializationInterface, Settings::kDFDataKey, Settings::kSerializationVersion)) {
-        logger::critical("Failed to save Data");
+    if (!ChestManager::GetSingleton()->Save(serializationInterface)) {
+        logger::critical("Failed to save chest rentals");
     }
     logger::trace("Data saved to skse co-save.");
 }
 
-void Serialization::LoadCallback(SKSE::SerializationInterface* serializationInterface) {
-    DISABLE_IF_UNINSTALLED
-
-    logger::info("Loading Data from skse co-save.");
-
+void Serialization::RevertCallback(SKSE::SerializationInterface*) {
     EventSink::GetSingleton()->Reset();
+    Manager::GetSingleton()->Reset();
+    ChestManager::GetSingleton()->Reset();
+    DynamicFormTracker::GetSingleton()->Reset();
+}
+
+void Serialization::LoadCallback(SKSE::SerializationInterface* serializationInterface) {
+    logger::info("Loading Data from skse co-save.");
+    RevertCallback(serializationInterface);
     auto* manager = Manager::GetSingleton();
-    manager->Reset();
     auto* chest_manager = ChestManager::GetSingleton();
-    chest_manager->Reset();
     auto* DFT = DynamicFormTracker::GetSingleton();
-    DFT->Reset();
+    bool rentals_present = false;
+    bool rentals_loaded = false;
+    bool manager_loaded = false;
+    bool manager_failed = false;
 
     std::uint32_t type;
     std::uint32_t version;
     std::uint32_t length;
 
     while (serializationInterface->GetNextRecordInfo(type, version, length)) {
+        if (type == ChestManager::kDataKey) {
+            rentals_present = true;
+            rentals_loaded = version == ChestManager::kSerializationVersion &&
+                             chest_manager->Load(serializationInterface, length);
+            if (!rentals_loaded) logger::critical("Failed to load chest rentals, version {}", version);
+            continue;
+        }
         bool is_before_0_7 = false;
 
         auto temp = DecodeTypeCode(type);
@@ -290,9 +304,10 @@ void Serialization::LoadCallback(SKSE::SerializationInterface* serializationInte
                 logger::trace("Loading Record: {} - Version: {} - Length: {}", temp, version, length);
                 if (!manager->Load(serializationInterface, is_before_0_7)) {
                     logger::critical("Failed to Load Data");
-                    return MsgBoxesNotifs::InGame::CustomMsg("Failed to Load Data.");
+                    manager_failed = true;
+                } else {
+                    manager_loaded = true;
                 }
-                chest_manager->RestoreContainerizeChests(manager->GetLoadedChestRefIDs());
             }
             break;
             case Settings::kDFDataKey: {
@@ -306,9 +321,17 @@ void Serialization::LoadCallback(SKSE::SerializationInterface* serializationInte
         }
     }
 
+    if (!rentals_present && manager_loaded && !manager_failed) {
+        chest_manager->RestoreContainerizeChests(manager->GetLoadedChestRefIDs());
+    }
     logger::info("Receiving Data.");
     DFT->ReceiveData();
-    manager->ReceiveData();
+    if (manager_failed || (rentals_present && !rentals_loaded)) {
+        MsgBoxesNotifs::InGame::CustomMsg("Failed to load Containerize data.");
+    } else if (manager_loaded) {
+        manager->ReceiveData();
+    }
+    chest_manager->ResumeDisposals();
     logger::info("Data loaded from skse co-save.");
 }
 
@@ -317,7 +340,6 @@ void Serialization::InitializeSerialization() {
     serialization->SetUniqueID(Settings::kDataKey);
     serialization->SetSaveCallback(SaveCallback);
     serialization->SetLoadCallback(LoadCallback);
+    serialization->SetRevertCallback(RevertCallback);
     SKSE::log::trace("Cosave serialization initialized.");
 }
-
-#undef DISABLE_IF_UNINSTALLED

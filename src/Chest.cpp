@@ -27,17 +27,20 @@ bool ChestManager::Init() {
 }
 
 bool ChestManager::IsEmpty(RE::TESObjectREFR* chest) {
-    return chest && chest->GetInventory().empty();
+    return chest && std::ranges::none_of(chest->GetInventory(), [](const auto& item) {
+        return item.second.first > 0;
+    });
 }
 
 RE::TESObjectREFR* ChestManager::FindNotMatchedChest() const {
     auto& runtimeData = UnownedStuff::unownedCell->GetRuntimeData();
     RE::BSSpinLockGuard locker(runtimeData.spinLock);
     for (const auto& ref : runtimeData.references) {
-        if (!ref) continue;
+        if (!ref || ref->IsDeleted()) continue;
         if (ref->GetFormID() == UnownedStuff::unownedChestOGRefID) continue;
         if (ref->GetBaseObject()->GetFormID() != UnownedStuff::unownedChest->GetFormID()) continue;
-        if (!the_register.contains(ref->GetFormID()) && IsEmpty(ref.get())) {
+        if (!rental_state.rented.contains(ref->GetFormID()) &&
+            !rental_state.returned.contains(ref->GetFormID()) && IsEmpty(ref.get())) {
             return ref.get();
         }
     }
@@ -91,43 +94,151 @@ bool ChestManager::IsUnownedChest(const RefID refid) {
     return base ? base->GetFormID() == UnownedStuff::unownedChest->GetFormID() : false;
 }
 
+bool ChestManager::Save(SKSE::SerializationInterface* serializationInterface) {
+    std::shared_lock lock(register_mutex);
+    if (rental_state.rented.size() > std::numeric_limits<std::uint32_t>::max() ||
+        rental_state.returned.size() > std::numeric_limits<std::uint32_t>::max() ||
+        !serializationInterface->OpenRecord(kDataKey, kSerializationVersion)) return false;
+
+    const auto rental_count = static_cast<std::uint32_t>(rental_state.rented.size());
+    if (!serializationInterface->WriteRecordData(rental_count)) return false;
+    for (const auto& [chest_refid, client_id] : rental_state.rented) {
+        if (!serializationInterface->WriteRecordData(chest_refid) ||
+            !serializationInterface->WriteRecordData(client_id)) return false;
+    }
+
+    const auto returned_count = static_cast<std::uint32_t>(rental_state.returned.size());
+    if (!serializationInterface->WriteRecordData(returned_count)) return false;
+    for (const auto chest_refid : rental_state.returned) {
+        if (!serializationInterface->WriteRecordData(chest_refid)) return false;
+    }
+    return true;
+}
+
+bool ChestManager::Load(SKSE::SerializationInterface* serializationInterface, std::uint32_t length) {
+    RentalState loaded;
+    const auto read = [&]<typename T>(T& value) {
+        if (length < sizeof(T) || serializationInterface->ReadRecordData(value) != sizeof(T)) return false;
+        length -= sizeof(T);
+        return true;
+    };
+
+    std::uint32_t rental_count;
+    constexpr auto rental_size = sizeof(RefID) + sizeof(ContainerizeAPI::ClientID);
+    if (!read(rental_count) || length < sizeof(std::uint32_t) ||
+        rental_count > (length - sizeof(std::uint32_t)) / rental_size) return false;
+    for (std::uint32_t i = 0; i < rental_count; ++i) {
+        RefID chest_refid;
+        ContainerizeAPI::ClientID client_id;
+        if (!read(chest_refid) || !read(client_id)) return false;
+        if (serializationInterface->ResolveFormID(chest_refid, chest_refid)) {
+            if (!loaded.rented.emplace(chest_refid, client_id).second) return false;
+        } else {
+            logger::warn("Could not resolve rented chest {:x} during load", chest_refid);
+        }
+    }
+
+    std::uint32_t returned_count;
+    if (!read(returned_count) || returned_count > length / sizeof(RefID)) return false;
+    for (std::uint32_t i = 0; i < returned_count; ++i) {
+        RefID chest_refid;
+        if (!read(chest_refid)) return false;
+        if (serializationInterface->ResolveFormID(chest_refid, chest_refid)) {
+            loaded.rented.erase(chest_refid);
+            loaded.returned.insert(chest_refid);
+        } else {
+            logger::warn("Could not resolve returned chest {:x} during load", chest_refid);
+        }
+    }
+    if (length != 0) return false;
+
+    std::unique_lock lock(register_mutex);
+    rental_state = std::move(loaded);
+    return true;
+}
+
 void ChestManager::Reset() {
     std::unique_lock lock(register_mutex);
-    the_register.clear();
+    rental_state.rented.clear();
+    rental_state.returned.clear();
 }
 
 void ChestManager::RestoreContainerizeChests(const std::vector<RefID>& chest_refids) {
     std::unique_lock lock(register_mutex);
     for (const auto chest_refid : chest_refids) {
-        the_register.insert_or_assign(chest_refid, ContainerizeAPI::containerize_client);
+        rental_state.rented.insert_or_assign(chest_refid, ContainerizeAPI::containerize_client);
+    }
+}
+
+void ChestManager::ResumeDisposals() {
+    std::vector<RE::ObjectRefHandle> chests;
+    {
+        std::unique_lock lock(register_mutex);
+        for (auto it = rental_state.returned.begin(); it != rental_state.returned.end();) {
+            if (const auto chest = RE::TESForm::LookupByID<RE::TESObjectREFR>(*it)) {
+                chests.push_back(chest->GetHandle());
+                ++it;
+            } else {
+                it = rental_state.returned.erase(it);
+            }
+        }
+    }
+    for (const auto& handle : chests) {
+        if (const auto chest = handle.get()) ScheduleDisposal(chest.get());
+    }
+}
+
+void ChestManager::ScheduleDisposal(RE::TESObjectREFR* chest) {
+    SKSE::GetTaskInterface()->AddTask([this, handle = chest->GetHandle()] {
+        DisposeReturnedChest(handle);
+    });
+}
+
+void ChestManager::DisposeReturnedChest(const RE::ObjectRefHandle chest_handle) {
+    const auto chest = chest_handle.get();
+    if (!chest || chest->IsDeleted()) return;
+    const auto chest_refid = chest->GetFormID();
+    {
+        std::shared_lock lock(register_mutex);
+        if (!rental_state.returned.contains(chest_refid)) return;
+    }
+
+    for (const auto& [item, entry] : chest->GetInventory()) {
+        if (entry.first > 0) chest->RemoveItem(item, entry.first, RE::ITEM_REMOVE_REASON::kRemove, nullptr, nullptr);
+    }
+    if (IsEmpty(chest.get())) {
+        std::unique_lock lock(register_mutex);
+        rental_state.returned.erase(chest_refid);
+    } else {
+        logger::warn("Returned chest {:x} still contains items; submitting it for deletion", chest_refid);
+        RE::GarbageCollector::GetSingleton()->Add(chest.get(), true);
     }
 }
 
 void ChestManager::HandleFormDelete(const RefID chest_refid) {
     std::unique_lock lock(register_mutex);
-    the_register.erase(chest_refid);
+    rental_state.rented.erase(chest_refid);
+    rental_state.returned.erase(chest_refid);
 }
 
 bool ChestManager::ReturnChest(const ContainerizeAPI::ClientID client_id, RE::TESObjectREFR* chest) {
     if (!chest) return false;
-    std::unique_lock lock(register_mutex);
-    const auto lease = the_register.find(chest->GetFormID());
-    if (lease == the_register.end() || lease->second != client_id) {
-        return true;
+    const auto empty = IsEmpty(chest);
+    {
+        std::unique_lock lock(register_mutex);
+        const auto lease = rental_state.rented.find(chest->GetFormID());
+        if (lease == rental_state.rented.end() || lease->second != client_id) return false;
+        rental_state.rented.erase(lease);
+        if (!empty) rental_state.returned.insert(chest->GetFormID());
     }
-    if (!IsEmpty(chest)) {
-        logger::error("Client {} tried to return nonempty chest {:x}", client_id, chest->GetFormID());
-        return false;
-    }
-
-    the_register.erase(lease);
+    if (!empty) ScheduleDisposal(chest);
     return true;
 }
 
 RE::TESObjectREFR* ChestManager::RentChest(const ContainerizeAPI::ClientID client_id) {
     std::unique_lock lock(register_mutex);
     if (const auto a_chest = FindNotMatchedChest()) {
-        if (the_register.emplace(a_chest->GetFormID(), client_id).second) {
+        if (rental_state.rented.emplace(a_chest->GetFormID(), client_id).second) {
             return a_chest;
         }
         logger::error("Failed to register chest for client {}. Chest ID: {:x}", client_id, a_chest->GetFormID());

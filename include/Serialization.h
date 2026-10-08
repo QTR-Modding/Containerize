@@ -58,5 +58,7 @@ namespace Serialization {
 
     void LoadCallback(SKSE::SerializationInterface* serializationInterface);
 
+    void RevertCallback(SKSE::SerializationInterface* serializationInterface);
+
     void InitializeSerialization();
 }

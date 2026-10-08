@@ -545,7 +545,7 @@ bool Manager::DeRegister(RE::TESObjectREFR* chest, RE::TESObjectREFR* transfer_d
     for (auto& [fst,snd] : chest->GetInventory()) {
         chest->RemoveItem(fst, snd.first, RE::ITEM_REMOVE_REASON::kRemove, nullptr, transfer_dest);
     }
-    if (!chest->GetInventory().empty()) {
+    if (!ChestManager::IsEmpty(chest)) {
         logger::critical("Chest inventory not empty after deregistration!");
         return false;
     }
@@ -1273,7 +1273,9 @@ void Manager::ReceiveDataHandleUnmatchedChests(const std::map<RefID, FormFormID>
                 if (fst->GetFormID() == fakecontFormID)
                     player_ref->RemoveItem(fst, snd.first, RE::ITEM_REMOVE_REASON::kRemove, nullptr, nullptr);
             }
-            if (!ChestManager::GetSingleton()->ReturnChest(ContainerizeAPI::containerize_client, chest)) {
+            if (!ChestManager::IsEmpty(chest)) {
+                logger::error("Recovered chest {:x} still contains items; retaining its rental", chestRef_);
+            } else if (!ChestManager::GetSingleton()->ReturnChest(ContainerizeAPI::containerize_client, chest)) {
                 logger::error("Failed to return recovered chest {:x}", chestRef_);
             }
         }
