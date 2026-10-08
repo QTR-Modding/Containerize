@@ -7,7 +7,25 @@
 #include "CLibUtilsQTR/PresetHelpers/PresetHelpersYAML.hpp"
 
 namespace {
-    Source parseSource_(const YAML::Node& config, const FormID formid, const std::string& editorid) {
+    std::vector<FormID> resolvePresetForms(const std::string& value, const std::string& filename,
+                                           const char* field) {
+        auto forms = PresetHelpers::YAML_Helpers::StringToFormIDs(value);
+        if (forms.empty()) {
+            bool is_form_group;
+            {
+                std::shared_lock lock(PresetHelpers::formGroups_mutex_);
+                is_form_group = PresetHelpers::formGroups.contains(value);
+            }
+            if (!is_form_group) {
+                logger::warn("Preset '{}': {} value '{}' could not be resolved to a form or form group. Skipping.",
+                             filename, field, value);
+            }
+        }
+        return forms;
+    }
+
+    Source parseSource_(const YAML::Node& config, const FormID formid, const std::string& editorid,
+                         const std::string& filename) {
         using namespace Settings;
 
         const auto temp_weight_limit = config["weight_limit"] && !config["weight_limit"].IsNull()
@@ -52,7 +70,7 @@ namespace {
                     continue;
                 }
 
-                for (const auto id : PresetHelpers::YAML_Helpers::StringToFormIDs(temp_formeditorid)) {
+                for (const auto id : resolvePresetForms(temp_formeditorid, filename, "containers.initial_items.FormEditorID")) {
                     source.AddInitialItem(id, temp_count);
                 }
             }
@@ -61,16 +79,16 @@ namespace {
         return source;
     }
 
-    std::vector<Source> parseSources(const YAML::Node& config) {
+    std::vector<Source> parseSources(const YAML::Node& config, const std::string& filename) {
         std::vector<Source> sources;
         const auto formeditorid =
             config["FormEditorID"] && !config["FormEditorID"].IsNull() ? config["FormEditorID"].as<std::string>() : "";
-        const auto candidates = PresetHelpers::YAML_Helpers::StringToFormIDs(formeditorid);
+        const auto candidates = resolvePresetForms(formeditorid, filename, "containers.FormEditorID");
         size_t i = 0;
         for (const auto formid : candidates) {
             if (const auto form = FormReader::GetFormByID(formid)) {
                 const auto editorid = clib_util::editorID::get_editorID(form);
-                sources.push_back(parseSource_(config, formid, editorid));
+                sources.push_back(parseSource_(config, formid, editorid, filename));
                 break;
             }
             ++i;
@@ -117,7 +135,7 @@ std::vector<Source> Settings::LoadYAMLSources() {
             for (const auto& node : config["containers"]) {
                 // we have list of owners at each node or a scalar owner
                 try {
-                    for (const auto& source : parseSources(node)) {
+                    for (const auto& source : parseSources(node, filename)) {
                         if (!source.IsHealthy()) {
                             logger::error("LoadYAMLSources: File {} has invalid source: {}, {}", filename,
                                           source.formid, source.editorid);
