@@ -18,7 +18,6 @@ namespace {
 #define SHARED_GUARD std::shared_lock slock(mutex_)
 #define UNIQUE_GUARD std::unique_lock ulock(mutex_)
 #endif
-
 // Avoid Windows GetObject macro conflicts in this file
 #undef GetObject
 
@@ -312,7 +311,8 @@ RE::TESBoundObject* Manager::FakePlacement_Sub_Sub(const RefID chestID) {
     // Mutations under unique lock
     {
         UNIQUE_GUARD;
-        if (const auto it = ChestToFakeContainer.find(chestID); it != ChestToFakeContainer.end()) {
+        const auto it = ChestToFakeContainer.find(chestID);
+        if (it != ChestToFakeContainer.end()) {
             it->second.innerKey = fakeid_new;
         }
     }
@@ -654,14 +654,17 @@ bool Manager::DeRegister(RE::TESObjectREFR* chest, RE::TESObjectREFR* transfer_d
         logger::critical("DeRegister: fake_bound null for chest {:x}", chestID);
         return false;
     }
-    const auto realID = GetRealID(chestID);
     const auto fake_loc = GetContainerLocation(fake_bound->GetFormID());
-    if (!DeRegister_Sub(realID, chestID)) {
+
+    if (!DeRegister_Sub(GetRealID(chestID), chestID)) {
         logger::critical("Failed to deregister chestID: {:x}", chestID);
         return false;
     }
+
     RetainTransfer(chest, transfer_dest);
-    if (fake_loc) fake_loc->RemoveItem(fake_bound, 1, RE::ITEM_REMOVE_REASON::kRemove, nullptr, nullptr);
+    if (fake_loc) {
+        fake_loc->RemoveItem(fake_bound, 1, RE::ITEM_REMOVE_REASON::kRemove, nullptr, nullptr);
+    }
     return CompleteTransfer(chestID);
 }
 
@@ -747,7 +750,6 @@ bool Manager::Init() {
     if (!ChestManager::GetSingleton()->Init()) {
         init_failed = true;
     }
-
     if (init_failed) {
         InitFailed();
         return false;
@@ -1519,6 +1521,7 @@ std::vector<Source> Manager::GetSources() const {
 
 void Manager::Uninstall() {
     if (isUninstalled.load()) return;
+    bool uninstall_successful = true;
     logger::info("Uninstalling...");
     std::vector<RefID> retained_chests;
     std::vector<RefID> active_chests;
@@ -1538,7 +1541,6 @@ void Manager::Uninstall() {
         return;
     }
 
-    bool uninstall_successful = true;
     for (const auto chest_refid : retained_chests) {
         if (!CompleteTransfer(chest_refid)) uninstall_successful = false;
     }
@@ -1718,6 +1720,3 @@ void Manager::RenameCallback(RE::TESBoundObject* a_fake) {
         logger::error("Failed to call UIExtensions functions.");
     }
 }
-
-#undef SHARED_GUARD
-#undef UNIQUE_GUARD

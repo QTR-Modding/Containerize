@@ -215,10 +215,10 @@ bool DFSaveLoadData::Load(SKSE::SerializationInterface* serializationInterface, 
 
 void Serialization::SaveCallback(SKSE::SerializationInterface* serializationInterface) {
     logger::trace("Saving Data to skse co-save.");
-    const auto manager = Manager::GetSingleton();
-    if (!manager->isUninstalled.load()) {
-        manager->SendData();
-        if (!manager->Save(serializationInterface, Settings::kDataKey, Settings::kSerializationVersion)) {
+    const auto M = Manager::GetSingleton();
+    if (!M->isUninstalled.load()) {
+        M->SendData();
+        if (!M->Save(serializationInterface, Settings::kDataKey, Settings::kSerializationVersion)) {
             logger::critical("Failed to save Data");
         }
         auto* DFT = DynamicFormTracker::GetSingleton();
@@ -227,7 +227,7 @@ void Serialization::SaveCallback(SKSE::SerializationInterface* serializationInte
             logger::critical("Failed to save Data");
         }
     }
-    if (!manager->SavePendingTransfers(serializationInterface)) {
+    if (!M->SavePendingTransfers(serializationInterface)) {
         logger::critical("Failed to save retained item transfers");
     }
     if (!ChestManager::GetSingleton()->Save(serializationInterface)) {
@@ -314,7 +314,7 @@ void Serialization::LoadCallback(SKSE::SerializationInterface* serializationInte
         switch (type) {
             case Settings::kDataKey: {
                 logger::trace("Loading Record: {} - Version: {} - Length: {}", temp, version, length);
-                if (!manager->Load(serializationInterface, is_before_0_7)) {
+                if (!Manager::GetSingleton()->Load(serializationInterface, is_before_0_7)) {
                     logger::critical("Failed to Load Data");
                     manager_failed = true;
                 } else {
@@ -341,7 +341,7 @@ void Serialization::LoadCallback(SKSE::SerializationInterface* serializationInte
     if (manager_failed || recovery_failed || (rentals_present && !rentals_loaded)) {
         MsgBoxesNotifs::InGame::CustomMsg("Failed to load Containerize data.");
     } else if (manager_loaded) {
-        manager->ReceiveData();
+        Manager::GetSingleton()->ReceiveData();
     }
     chest_manager->ResumeDisposals();
     logger::info("Data loaded from skse co-save.");

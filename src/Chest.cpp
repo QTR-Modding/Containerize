@@ -26,6 +26,50 @@ bool ChestManager::Init() {
     return true;
 }
 
+uint32_t ChestManager::GetNoChests() {
+    uint32_t no_chests = 0;
+    auto& runtimeData = UnownedStuff::unownedCell->GetRuntimeData();
+    RE::BSSpinLockGuard locker(runtimeData.spinLock);
+    for (const auto& ref : runtimeData.references) {
+        if (!ref) continue;
+        if (ref->IsDeleted()) continue;
+        if (ref->GetBaseObject()->GetFormID() == UnownedStuff::unownedChest->GetFormID()) {
+            no_chests++;
+        }
+    }
+    return no_chests;
+}
+
+bool ChestManager::IsUnownedChest(const RefID refid) {
+    const auto temp = RE::TESForm::LookupByID<RE::TESObjectREFR>(refid);
+    if (!temp) return false;
+    const auto base = temp->GetBaseObject();
+    return base ? base->GetFormID() == UnownedStuff::unownedChest->GetFormID() : false;
+}
+
+RE::TESObjectREFR* ChestManager::MakeChest(const RE::NiPoint3 Pos3) {
+    const auto item = UnownedStuff::unownedChest->As<RE::TESBoundObject>();
+    const auto newPropRef = RE::TESDataHandler::GetSingleton()
+                            ->CreateReferenceAtLocation(item, Pos3, {0.0f, 0.0f, 0.0f}, UnownedStuff::unownedCell, nullptr, nullptr,
+                                                        nullptr, {}, true, false).get().get();
+    logger::info("Created Object! Type: {}, Base ID: {:x}, Ref ID: {:x},",
+                 RE::FormTypeToString(item->GetFormType()), item->GetFormID(), newPropRef->GetFormID());
+    return newPropRef;
+}
+
+RE::TESObjectREFR* ChestManager::AddChest(const uint32_t chest_no) {
+    int total_chests = static_cast<int>(chest_no);
+    total_chests += 1;
+    const int total_chests_x = (1 - (total_chests % 3)) * (-2);
+    const int total_chests_y = ((total_chests - 1) / 3) % 9;
+    const int total_chests_z = (total_chests - 1) / 27;
+    const float Pos3_x = UnownedStuff::unownedChestPos.x + static_cast<float>(100 * total_chests_x);
+    const float Pos3_y = UnownedStuff::unownedChestPos.y + static_cast<float>(50 * total_chests_y);
+    const float Pos3_z = UnownedStuff::unownedChestPos.z + static_cast<float>(50 * total_chests_z);
+    const RE::NiPoint3 Pos3 = {Pos3_x, Pos3_y, Pos3_z};
+    return MakeChest(Pos3);
+}
+
 bool ChestManager::IsEmpty(RE::TESObjectREFR* chest) {
     return chest && std::ranges::none_of(chest->GetInventory(), [](const auto& item) {
         return item.second.first > 0;
@@ -45,53 +89,6 @@ RE::TESObjectREFR* ChestManager::FindNotMatchedChest() const {
         }
     }
     return AddChest(GetNoChests());
-}
-
-uint32_t ChestManager::GetNoChests() {
-    uint32_t no_chests = 0;
-    auto& runtimeData = UnownedStuff::unownedCell->GetRuntimeData();
-    RE::BSSpinLockGuard locker(runtimeData.spinLock);
-    for (const auto& ref : runtimeData.references) {
-        if (!ref) continue;
-        if (ref->IsDeleted()) continue;
-        if (ref->GetBaseObject()->GetFormID() == UnownedStuff::unownedChest->GetFormID()) {
-            no_chests++;
-        }
-    }
-    return no_chests;
-}
-
-RE::TESObjectREFR* ChestManager::MakeChest(RE::NiPoint3 Pos3) {
-    const auto item = UnownedStuff::unownedChest->As<RE::TESBoundObject>();
-    const auto newPropRef = RE::TESDataHandler::GetSingleton()
-                            ->CreateReferenceAtLocation(item, Pos3, {0.0f, 0.0f, 0.0f}, UnownedStuff::unownedCell,
-                                                        nullptr,
-                                                        nullptr, nullptr, {}, true, false)
-                            .get()
-                            .get();
-    logger::info("Created Object! Type: {}, Base ID: {:x}, Ref ID: {:x},",
-                 RE::FormTypeToString(item->GetFormType()), item->GetFormID(), newPropRef->GetFormID());
-    return newPropRef;
-}
-
-RE::TESObjectREFR* ChestManager::AddChest(const uint32_t chest_no) {
-    int total_chests = static_cast<int>(chest_no);
-    total_chests += 1;
-    const int total_chests_x = (1 - (total_chests % 3)) * (-2);
-    const int total_chests_y = ((total_chests - 1) / 3) % 9;
-    const int total_chests_z = (total_chests - 1) / 27;
-    const float Pos3_x = UnownedStuff::unownedChestPos.x + static_cast<float>(100 * total_chests_x);
-    const float Pos3_y = UnownedStuff::unownedChestPos.y + static_cast<float>(50 * total_chests_y);
-    const float Pos3_z = UnownedStuff::unownedChestPos.z + static_cast<float>(50 * total_chests_z);
-    const RE::NiPoint3 Pos3 = {Pos3_x, Pos3_y, Pos3_z};
-    return MakeChest(Pos3);
-}
-
-bool ChestManager::IsUnownedChest(const RefID refid) {
-    const auto temp = RE::TESForm::LookupByID<RE::TESObjectREFR>(refid);
-    if (!temp) return false;
-    const auto base = temp->GetBaseObject();
-    return base ? base->GetFormID() == UnownedStuff::unownedChest->GetFormID() : false;
 }
 
 bool ChestManager::Save(SKSE::SerializationInterface* serializationInterface) {
