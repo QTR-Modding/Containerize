@@ -227,9 +227,6 @@ void Serialization::SaveCallback(SKSE::SerializationInterface* serializationInte
             logger::critical("Failed to save Data");
         }
     }
-    if (!M->SavePendingTransfers(serializationInterface)) {
-        logger::critical("Failed to save retained item transfers");
-    }
     if (!ChestManager::GetSingleton()->Save(serializationInterface)) {
         logger::critical("Failed to save chest rentals");
     }
@@ -253,21 +250,12 @@ void Serialization::LoadCallback(SKSE::SerializationInterface* serializationInte
     bool rentals_loaded = false;
     bool manager_loaded = false;
     bool manager_failed = false;
-    bool recovery_failed = false;
 
     std::uint32_t type;
     std::uint32_t version;
     std::uint32_t length;
 
     while (serializationInterface->GetNextRecordInfo(type, version, length)) {
-        if (type == Manager::kRecoveryDataKey) {
-            if (version != Manager::kRecoverySerializationVersion ||
-                !manager->LoadPendingTransfers(serializationInterface, length)) {
-                logger::critical("Failed to load retained item transfers, version {}", version);
-                recovery_failed = true;
-            }
-            continue;
-        }
         if (type == ChestManager::kDataKey) {
             rentals_present = true;
             rentals_loaded = version == ChestManager::kSerializationVersion &&
@@ -338,7 +326,7 @@ void Serialization::LoadCallback(SKSE::SerializationInterface* serializationInte
     }
     logger::info("Receiving Data.");
     DFT->ReceiveData();
-    if (manager_failed || recovery_failed || (rentals_present && !rentals_loaded)) {
+    if (manager_failed || (rentals_present && !rentals_loaded)) {
         MsgBoxesNotifs::InGame::CustomMsg("Failed to load Containerize data.");
     } else if (manager_loaded) {
         Manager::GetSingleton()->ReceiveData();

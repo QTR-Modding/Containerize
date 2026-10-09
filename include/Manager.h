@@ -8,24 +8,6 @@ class Manager final : public SaveLoadData,
                       public REX::Singleton<Manager> {
     static constexpr ContainerizeAPI::ClientID client_id = ContainerizeAPI::containerize_client;
 
-    friend void Serialization::SaveCallback(SKSE::SerializationInterface* serializationInterface);
-    friend void Serialization::LoadCallback(SKSE::SerializationInterface* serializationInterface);
-
-    static constexpr std::uint32_t kRecoveryDataKey = 'RCTZ';
-    static constexpr std::uint32_t kRecoverySerializationVersion = 1;
-
-    struct PendingTransfer {
-        RE::ObjectRefHandle chest;
-        RE::ObjectRefHandle destination;
-    };
-    std::map<RefID, PendingTransfer> pending_transfers;
-
-    void RetainTransfer(RE::TESObjectREFR* chest, RE::TESObjectREFR* destination);
-    [[nodiscard]] bool CompleteTransfer(RefID chest_refid);
-    static void ReportTransferFailure(RefID chest_refid);
-    [[nodiscard]] bool SavePendingTransfers(SKSE::SerializationInterface* serializationInterface);
-    [[nodiscard]] bool LoadPendingTransfers(SKSE::SerializationInterface* serializationInterface, std::uint32_t length);
-
     // private variables
 
     //RE::EffectSetting* empty_mgeff = nullptr;
@@ -123,8 +105,9 @@ class Manager final : public SaveLoadData,
 
     bool HandleRegistration(RE::TESObjectREFR* a_item);
 
-    // Removes the fake and returns the rental only after its contents have transferred.
+    // deregisters the chest, tries to move its contents to transfer_dest, removes the fake and returns the rental
     [[nodiscard]] bool DeRegister(RE::TESObjectREFR* chest, RE::TESObjectREFR* transfer_dest);
+    static void ReportTransferFailure(RefID chest_refid);
 
     std::string GetWeightText_(RE::TESObjectREFR* a_chest);
 
@@ -204,7 +187,7 @@ public:
 
     void SendData();
 
-    void ReceiveDataHandleUnmatchedChests(const std::map<RefID, FormFormID>& unmatched_chests);
+    static void ReceiveDataHandleUnmatchedChests(const std::map<RefID, FormFormID>& unmatched_chests);
     void ReceiveDataHandleEquipFavorite(const std::unordered_map<RefID, std::pair<bool, bool>>& chest_states) const;
     void ReceiveData();
 

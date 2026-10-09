@@ -260,7 +260,8 @@ void Manager::HandleFormDelete_(const RefID chest_refid) {
         }
     }
 
-    ReportTransferFailure(chest_refid);
+    MsgBoxesNotifs::InGame::CustomMsg("Something went wrong while returning your items.");
+    RaiseMngrErr(std::format("Failed to deregister chest {}", chest_refid));
 }
 
 void Manager::RaiseMngrErr(const std::string& err_msg_) {
@@ -520,135 +521,9 @@ bool Manager::HandleRegistration(RE::TESObjectREFR* a_item) {
     return true;
 }
 
-void Manager::RetainTransfer(RE::TESObjectREFR* chest, RE::TESObjectREFR* destination) {
-    const auto chest_refid = chest->GetFormID();
-    auto destination_handle = destination ? destination->GetHandle() : RE::ObjectRefHandle{};
-    UNIQUE_GUARD;
-    if (destination) {
-        if (const auto parent = pending_transfers.find(destination->GetFormID()); parent != pending_transfers.end()) {
-            destination_handle = parent->second.destination;
-        }
-    }
-    if (const auto target = destination_handle.get(); target && target->GetFormID() == chest_refid) {
-        destination_handle = {};
-    }
-    pending_transfers.insert_or_assign(chest_refid, PendingTransfer{chest->GetHandle(), destination_handle});
-    for (auto& [id, transfer] : pending_transfers) {
-        if (const auto target = transfer.destination.get(); target && target->GetFormID() == chest_refid) {
-            transfer.destination = destination_handle;
-        }
-    }
-}
-
-bool Manager::CompleteTransfer(const RefID chest_refid) {
-    PendingTransfer transfer;
-    {
-        SHARED_GUARD;
-        const auto it = pending_transfers.find(chest_refid);
-        if (it == pending_transfers.end()) return false;
-        transfer = it->second;
-    }
-    const auto chest = transfer.chest.get();
-    if (!chest) {
-        logger::error("Retained transfer chest {:x} could not be found", chest_refid);
-        return false;
-    }
-    auto destination = transfer.destination.get();
-    if (!destination || destination->IsDeleted()) {
-        destination.reset(RE::PlayerCharacter::GetSingleton());
-        if (destination) {
-            UNIQUE_GUARD;
-            pending_transfers.at(chest_refid).destination = destination->GetHandle();
-        }
-    }
-    if (!destination || destination->GetFormID() == chest_refid) {
-        logger::error("Retained transfer chest {:x} has no valid destination", chest_refid);
-        return false;
-    }
-    for (const auto& [item, entry] : chest->GetInventory()) {
-        if (entry.first > 0) {
-            chest->RemoveItem(item, entry.first, RE::ITEM_REMOVE_REASON::kRemove, nullptr, destination.get());
-        }
-    }
-    bool remaining = false;
-    for (const auto& [item, entry] : chest->GetInventory()) {
-        if (entry.first <= 0) continue;
-        remaining = true;
-        logger::error("Retained chest {:x}, destination {:x}: {} ({:x}), quantity {}", chest_refid,
-                      destination->GetFormID(), item->GetName(), item->GetFormID(), entry.first);
-    }
-    if (remaining) return false;
-    if (!ChestManager::GetSingleton()->ReturnChest(client_id, chest.get())) {
-        logger::error("Failed to return recovered chest {:x} for client {}", chest_refid, client_id);
-        return false;
-    }
-    UNIQUE_GUARD;
-    pending_transfers.erase(chest_refid);
-    return true;
-}
-
-bool Manager::SavePendingTransfers(SKSE::SerializationInterface* serializationInterface) {
-    SHARED_GUARD;
-    if (pending_transfers.size() > std::numeric_limits<std::uint32_t>::max() ||
-        !serializationInterface->OpenRecord(kRecoveryDataKey, kRecoverySerializationVersion)) return false;
-    const auto count = static_cast<std::uint32_t>(pending_transfers.size());
-    if (!serializationInterface->WriteRecordData(count)) return false;
-    for (const auto& [chest_refid, transfer] : pending_transfers) {
-        const auto destination = transfer.destination.get();
-        const RefID destination_refid = destination ? destination->GetFormID() : 0;
-        if (!serializationInterface->WriteRecordData(chest_refid) ||
-            !serializationInterface->WriteRecordData(destination_refid)) return false;
-    }
-    return true;
-}
-
-bool Manager::LoadPendingTransfers(SKSE::SerializationInterface* serializationInterface, std::uint32_t length) {
-    std::uint32_t count;
-    constexpr auto entry_size = sizeof(RefID) + sizeof(RefID);
-    if (length < sizeof(count) || serializationInterface->ReadRecordData(count) != sizeof(count)) return false;
-    length -= sizeof(count);
-    if (count > length / entry_size || count * entry_size != length) return false;
-    std::map<RefID, PendingTransfer> loaded;
-    for (std::uint32_t i = 0; i < count; ++i) {
-        RefID chest_refid;
-        RefID destination_refid;
-        if (serializationInterface->ReadRecordData(chest_refid) != sizeof(chest_refid) ||
-            serializationInterface->ReadRecordData(destination_refid) != sizeof(destination_refid)) return false;
-        if (!serializationInterface->ResolveFormID(chest_refid, chest_refid)) {
-            logger::warn("Could not resolve retained transfer chest {:x}", chest_refid);
-            continue;
-        }
-        const auto chest = RE::TESForm::LookupByID<RE::TESObjectREFR>(chest_refid);
-        RE::TESObjectREFR* destination = nullptr;
-        if (destination_refid && serializationInterface->ResolveFormID(destination_refid, destination_refid)) {
-            destination = RE::TESForm::LookupByID<RE::TESObjectREFR>(destination_refid);
-        }
-        if (!destination || destination->IsDeleted()) destination = RE::PlayerCharacter::GetSingleton();
-        if (!loaded.emplace(chest_refid, PendingTransfer{
-                chest ? chest->GetHandle() : RE::ObjectRefHandle{},
-                destination ? destination->GetHandle() : RE::ObjectRefHandle{}}).second) return false;
-    }
-    UNIQUE_GUARD;
-    pending_transfers = std::move(loaded);
-    return true;
-}
-
-void Manager::ReportTransferFailure(const RefID chest_refid) {
-    logger::error("Item recovery is incomplete for chest {:x}", chest_refid);
-    MsgBoxesNotifs::InGame::CustomMsg(
-        "Could not return all stored items. Remaining items are kept in storage. Details are in Containerize.log.");
-}
-
 bool Manager::DeRegister(RE::TESObjectREFR* chest, RE::TESObjectREFR* transfer_dest) {
     if (!chest) return false;
     const auto chestID = chest->GetFormID();
-    bool retained;
-    {
-        SHARED_GUARD;
-        retained = pending_transfers.contains(chestID);
-    }
-    if (retained) return CompleteTransfer(chestID);
-
     const auto fake_bound = GetFakeBound(chestID);
     if (!fake_bound) {
         logger::critical("DeRegister: fake_bound null for chest {:x}", chestID);
@@ -661,11 +536,27 @@ bool Manager::DeRegister(RE::TESObjectREFR* chest, RE::TESObjectREFR* transfer_d
         return false;
     }
 
-    RetainTransfer(chest, transfer_dest);
     if (fake_loc) {
         fake_loc->RemoveItem(fake_bound, 1, RE::ITEM_REMOVE_REASON::kRemove, nullptr, nullptr);
     }
-    return CompleteTransfer(chestID);
+    if (transfer_dest) {
+        for (auto& [fst,snd] : chest->GetInventory()) {
+            if (snd.first > 0) chest->RemoveItem(fst, snd.first, RE::ITEM_REMOVE_REASON::kRemove, nullptr, transfer_dest);
+        }
+    }
+    if (!ChestManager::IsEmpty(chest)) ReportTransferFailure(chestID);
+    if (!ChestManager::GetSingleton()->ReturnChest(client_id, chest)) {
+        logger::critical("Failed to return chest {:x} for client {}", chestID, client_id);
+        return false;
+    }
+    return true;
+}
+
+void Manager::ReportTransferFailure(const RefID chest_refid) {
+    logger::error("Could not return all stored items from chest {:x}", chest_refid);
+    MsgBoxesNotifs::InGame::CustomMsg(
+        "Some stored items could not be returned and will be discarded. "
+        "Load a previous save to recover them. Details are in Containerize.log.");
 }
 
 std::string Manager::GetWeightText_(RE::TESObjectREFR* a_chest) {
@@ -704,9 +595,9 @@ bool Manager::Register_Sub(const FormID master_formID, const FormID fake_formID,
 bool Manager::DeRegister_Sub(const FormID master_formID, const RefID chest_refID) {
     UNIQUE_GUARD;
     Source* src = GetContainerSource_NoLock(master_formID);
-    if (!src || !src->data.contains(chest_refID) || !ChestToFakeContainer.contains(chest_refID)) return false;
-    src->data.erase(chest_refID);
-    ChestToFakeContainer.erase(chest_refID);
+    if (!src) return false;
+    if (!src->data.erase(chest_refID)) return false;
+    if (!ChestToFakeContainer.erase(chest_refID)) return false;
     return true;
 }
 
@@ -1239,7 +1130,7 @@ void Manager::OnConsume(const FormID fake_formid, RE::TESObjectREFR* consumed_by
     }
     chest->RemoveItem(real_bound, 1, RE::ITEM_REMOVE_REASON::kRemove, nullptr, nullptr);
     if (!DeRegister(chest, consumed_by)) {
-        ReportTransferFailure(chest->GetFormID());
+        RaiseMngrErr("Failed to deregister chest");
     }
     Menu::UpdateItemList();
     const auto player_ref = RE::PlayerCharacter::GetSingleton();
@@ -1257,7 +1148,7 @@ void Manager::HandleSell(const FormID a_fake, RE::TESObjectREFR* sell_ref) {
         if (const auto child_fake = GetFakeID(a_child)) HandleSell(child_fake, sell_ref);
     }
     if (!DeRegister(chest, sell_ref)) {
-        ReportTransferFailure(chestID);
+        RaiseMngrErr(std::format("DeRegister failed during HandleSell for chest: {:x}", chestID));
     }
 }
 
@@ -1291,7 +1182,6 @@ void Manager::Reset() {
         UNIQUE_GUARD;
         for (auto& src : sources) src.data.clear();
         ChestToFakeContainer.clear();
-        pending_transfers.clear();
     }
     external_favs.clear();
     renames.clear();
@@ -1380,15 +1270,16 @@ void Manager::ReceiveDataHandleUnmatchedChests(const std::map<RefID, FormFormID>
         }
         logger::info("Trying to retrieve items from chest");
         if (const auto chest = RE::TESForm::LookupByID<RE::TESObjectREFR>(chestRef_)) {
-            if (const auto fake_bound = RE::TESForm::LookupByID<RE::TESBoundObject>(fakecontFormID)) {
-                for (const auto& [item, entry] : chest->GetInventory()) {
-                    if (item == fake_bound && entry.first > 0) {
-                        chest->RemoveItem(item, entry.first, RE::ITEM_REMOVE_REASON::kRemove, nullptr, nullptr);
-                    }
-                }
+            for (auto& [fst, snd] : chest->GetInventory()) {
+                if (snd.first <= 0) continue;
+                chest->RemoveItem(fst, snd.first, RE::ITEM_REMOVE_REASON::kRemove, nullptr, player_ref);
+                if (fst->GetFormID() == fakecontFormID)
+                    player_ref->RemoveItem(fst, snd.first, RE::ITEM_REMOVE_REASON::kRemove, nullptr, nullptr);
             }
-            RetainTransfer(chest, player_ref);
-            if (!CompleteTransfer(chestRef_)) ReportTransferFailure(chestRef_);
+            if (!ChestManager::IsEmpty(chest)) ReportTransferFailure(chestRef_);
+            if (!ChestManager::GetSingleton()->ReturnChest(ContainerizeAPI::containerize_client, chest)) {
+                logger::error("Failed to return recovered chest {:x}", chestRef_);
+            }
         }
     }
 }
@@ -1523,72 +1414,24 @@ void Manager::Uninstall() {
     if (isUninstalled.load()) return;
     bool uninstall_successful = true;
     logger::info("Uninstalling...");
-    std::vector<RefID> retained_chests;
     std::vector<RefID> active_chests;
     {
         SHARED_GUARD;
-        for (const auto chest_refid : pending_transfers | std::views::keys) retained_chests.push_back(chest_refid);
         for (const auto chest_refid : ChestToFakeContainer | std::views::keys) active_chests.push_back(chest_refid);
     }
-    if (!UnownedStuff::unownedCell || !UnownedStuff::unownedChest) {
-        if (retained_chests.empty() && active_chests.empty()) {
-            Reset();
-            isUninstalled.store(true);
-        } else {
-            logger::error("Uninstall incomplete: storage cell or chest form is unavailable");
-            MsgBoxesNotifs::InGame::UninstallFailed();
-        }
-        return;
-    }
 
-    for (const auto chest_refid : retained_chests) {
-        if (!CompleteTransfer(chest_refid)) uninstall_successful = false;
-    }
     const auto player_ref = RE::PlayerCharacter::GetSingleton();
     for (const auto chest_refid : active_chests) {
         if (!IsChest(chest_refid)) continue;
         const auto chest = RE::TESForm::LookupByID<RE::TESObjectREFR>(chest_refid);
         if (!chest || !DeRegister(chest, player_ref)) uninstall_successful = false;
     }
-    {
-        SHARED_GUARD;
-        if (!pending_transfers.empty()) uninstall_successful = false;
-    }
     if (!uninstall_successful) {
-        logger::error("Uninstall incomplete: stored items or their recovery records remain");
-        MsgBoxesNotifs::InGame::CustomMsg(
-            "Could not return all stored items. Uninstall is incomplete. Keep Containerize installed. "
-            "Details are in Containerize.log.");
-        return;
-    }
-
-    std::vector<RE::ObjectRefHandle> pool_chests;
-    {
-        auto& runtime_data = UnownedStuff::unownedCell->GetRuntimeData();
-        RE::BSSpinLockGuard lock(runtime_data.spinLock);
-        for (const auto& ref : runtime_data.references) {
-            if (!ref || ref->IsDeleted() || ref->GetFormID() == UnownedStuff::unownedChestOGRefID) continue;
-            if (ref->GetBaseObject()->GetFormID() == UnownedStuff::unownedChestFormID) {
-                pool_chests.push_back(ref->GetHandle());
-            }
-        }
-    }
-    for (const auto& handle : pool_chests) {
-        if (const auto chest = handle.get()) {
-            if (!ChestManager::IsEmpty(chest.get())) {
-                logger::error("Uninstall cannot delete occupied chest {:x}", chest->GetFormID());
-                uninstall_successful = false;
-                continue;
-            }
-            RE::GarbageCollector::GetSingleton()->Add(chest.get(), true);
-        }
-    }
-    if (!uninstall_successful || ChestManager::GetNoChests() != 1) {
-        logger::error("Uninstall incomplete: chest cleanup did not finish");
+        logger::critical("Uninstall failed to deregister Containerize's chests.");
         MsgBoxesNotifs::InGame::UninstallFailed();
         return;
     }
-    DynamicFormTracker::GetSingleton()->DeleteAll();
+
     Reset();
     isUninstalled.store(true);
     logger::info("Uninstall successful.");
