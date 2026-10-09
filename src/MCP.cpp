@@ -1,5 +1,7 @@
 #include "MCP.h"
 
+namespace ImGui = ImGuiMCP;
+
 void HelpMarker(const char* desc) {
     ImGui::TextDisabled("(?)");
     if (ImGui::BeginItemTooltip()) {

@@ -1,86 +1,19 @@
 #include "Manager.h"
 #include "Papyrus.h"
 #include "Animations.h"
+#include "CLibUtilsQTR/DebugLocks.hpp"
 #include "CLibUtilsQTR/FormReader.hpp"
 #include "CLibUtilsQTR/Tasker.hpp"
+#include "Chest.h"
 
-// Debug guards to detect improper re-entrant or mixed locking (debug builds only)
-// Debug guards to detect improper re-entrant or mixed locking (debug builds only)
 #ifndef NDEBUG
 namespace {
-    struct DebugLockState {
-        static thread_local int sharedDepth;
-        static thread_local int uniqueDepth;
-    };
-
-    thread_local int DebugLockState::sharedDepth = 0;
-    thread_local int DebugLockState::uniqueDepth = 0;
-
-    struct DebugSharedLock {
-        std::shared_mutex* m;
-
-        explicit DebugSharedLock(std::shared_mutex* mutex) : m(mutex) {
-            assert(m && "DebugSharedLock: mutex pointer is null");
-            // Cannot take shared if this thread already holds unique
-            assert(DebugLockState::uniqueDepth == 0 &&
-                   "Attempt to acquire shared lock while holding unique lock on Manager::mutex_ (undefined behavior). Release unique lock first.");
-            // Prevent re-entrant shared acquisition
-            if (DebugLockState::sharedDepth++ == 0) {
-                m->lock_shared();
-            } else {
-                assert(false &&
-                       "Re-entrant shared lock acquisition detected on Manager::mutex_ (undefined behavior). Refactor using NoLock helpers.");
-            }
-        }
-
-        DebugSharedLock(const DebugSharedLock&) = delete;
-        DebugSharedLock& operator=(const DebugSharedLock&) = delete;
-        DebugSharedLock(DebugSharedLock&&) = delete;
-        DebugSharedLock& operator=(DebugSharedLock&&) = delete;
-
-        ~DebugSharedLock() {
-            assert(m && "DebugSharedLock: mutex pointer is null on destruction");
-            assert(DebugLockState::sharedDepth > 0 && "Shared depth underflow");
-            if (--DebugLockState::sharedDepth == 0) {
-                m->unlock_shared();
-            }
-        }
-    };
-
-    struct DebugUniqueLock {
-        std::shared_mutex* m;
-        bool owns = false;
-
-        explicit DebugUniqueLock(std::shared_mutex* mutex) : m(mutex) {
-            assert(m && "DebugUniqueLock: mutex pointer is null");
-            // Cannot take unique if shared is currently held
-            assert(DebugLockState::sharedDepth == 0 &&
-                   "Attempt to acquire unique lock while holding shared lock on Manager::mutex_ (illegal upgrade). Release shared first.");
-            // Prevent unique re-entrancy
-            assert(DebugLockState::uniqueDepth == 0 &&
-                   "Re-entrant unique lock acquisition detected on Manager::mutex_. Refactor to avoid nested mutations.");
-            m->lock();
-            owns = true;
-            DebugLockState::uniqueDepth = 1;
-        }
-
-        DebugUniqueLock(const DebugUniqueLock&) = delete;
-        DebugUniqueLock& operator=(const DebugUniqueLock&) = delete;
-        DebugUniqueLock(DebugUniqueLock&&) = delete;
-        DebugUniqueLock& operator=(DebugUniqueLock&&) = delete;
-
-        ~DebugUniqueLock() {
-            if (owns) {
-                assert(DebugLockState::uniqueDepth == 1 && "Unique depth corruption");
-                m->unlock();
-                DebugLockState::uniqueDepth = 0;
-            }
-        }
+    struct ManagerMutexTag {
+        static constexpr auto name = "Manager::mutex_";
     };
 }
-
-#define SHARED_GUARD DebugSharedLock slock(&mutex_)
-#define UNIQUE_GUARD DebugUniqueLock ulock(&mutex_)
+#define SHARED_GUARD clib_utilsQTR::DebugSharedLock<ManagerMutexTag> slock(mutex_)
+#define UNIQUE_GUARD clib_utilsQTR::DebugUniqueLock<ManagerMutexTag> ulock(mutex_)
 #else
 #define SHARED_GUARD std::shared_lock slock(mutex_)
 #define UNIQUE_GUARD std::unique_lock ulock(mutex_)
@@ -167,7 +100,7 @@ bool Manager::ActivateChest(RE::TESObjectREFR* chest) const {
         logger::error("ActivateChest: Chest reference is null.");
         return false;
     }
-    unownedChest->fullName = GetChestName(chest);
+    UnownedStuff::unownedChest->fullName = GetChestName(chest);
     if (const auto a_obj = chest->GetBaseObject()->As<RE::TESObjectCONT>()) {
         RE::TESObjectCONT::SetOpenState(chest, false, true);
         return a_obj->Activate(chest, RE::PlayerCharacter::GetSingleton(), 0, a_obj, 1);
@@ -197,20 +130,6 @@ RE::TESObjectREFR* Manager::GetContainerLocation(const FormID a_fake_id) const {
     const auto it = src->data.find(chest_id);
     if (it == src->data.end()) return nullptr;
     return RE::TESForm::LookupByID<RE::TESObjectREFR>(it->second);
-}
-
-uint32_t Manager::GetNoChests() const {
-    uint32_t no_chests = 0;
-    auto& runtimeData = unownedCell->GetRuntimeData();
-    RE::BSSpinLockGuard locker(runtimeData.spinLock);
-    for (const auto& ref : runtimeData.references) {
-        if (!ref) continue;
-        if (ref->IsDeleted()) continue;
-        if (ref->GetBaseObject()->GetFormID() == unownedChest->GetFormID()) {
-            no_chests++;
-        }
-    }
-    return no_chests;
 }
 
 std::vector<RefID> Manager::GetChildChests(const RefID parent_chestID, std::unordered_set<RefID>* parents) {
@@ -248,50 +167,6 @@ std::vector<RefID> Manager::GetChildChests(const RefID parent_chestID, std::unor
         children.insert(children.end(), deeper.begin(), deeper.end());
     }
     return children;
-}
-
-bool Manager::IsUnownedChest(const RefID refid) const {
-    const auto temp = RE::TESForm::LookupByID<RE::TESObjectREFR>(refid);
-    if (!temp) return false;
-    const auto base = temp->GetBaseObject();
-    return base ? base->GetFormID() == unownedChest->GetFormID() : false;
-}
-
-RE::TESObjectREFR* Manager::MakeChest(const RE::NiPoint3 Pos3) const {
-    const auto item = unownedChest->As<RE::TESBoundObject>();
-    const auto newPropRef = RE::TESDataHandler::GetSingleton()
-                            ->CreateReferenceAtLocation(item, Pos3, {0.0f, 0.0f, 0.0f}, unownedCell, nullptr, nullptr,
-                                                        nullptr, {}, true, false).get().get();
-    logger::info("Created Object! Type: {}, Base ID: {:x}, Ref ID: {:x},",
-                 RE::FormTypeToString(item->GetFormType()), item->GetFormID(), newPropRef->GetFormID());
-    return newPropRef;
-}
-
-RE::TESObjectREFR* Manager::AddChest(const uint32_t chest_no) const {
-    int total_chests = static_cast<int>(chest_no);
-    total_chests += 1;
-    const int total_chests_x = (1 - (total_chests % 3)) * (-2);
-    const int total_chests_y = ((total_chests - 1) / 3) % 9;
-    const int total_chests_z = (total_chests - 1) / 27;
-    const float Pos3_x = UnownedStuff::unownedChestPos.x + static_cast<float>(100 * total_chests_x);
-    const float Pos3_y = UnownedStuff::unownedChestPos.y + static_cast<float>(50 * total_chests_y);
-    const float Pos3_z = UnownedStuff::unownedChestPos.z + static_cast<float>(50 * total_chests_z);
-    const RE::NiPoint3 Pos3 = {Pos3_x, Pos3_y, Pos3_z};
-    return MakeChest(Pos3);
-}
-
-RE::TESObjectREFR* Manager::FindNotMatchedChest() const {
-    auto& runtimeData = unownedCell->GetRuntimeData();
-    RE::BSSpinLockGuard locker(runtimeData.spinLock);
-    for (const auto& ref : runtimeData.references) {
-        if (!ref) continue;
-        if (ref->GetFormID() == UnownedStuff::unownedChestOGRefID) continue;
-        if (ref->GetBaseObject()->GetFormID() != unownedChest->GetFormID()) continue;
-        if (!IsChest(ref->GetFormID()) && ref->GetInventory().empty()) {
-            return ref.get();
-        }
-    }
-    return AddChest(GetNoChests());
 }
 
 void Manager::OpenChestFromMenu(RE::TESObjectREFR* a_chest) {
@@ -597,12 +472,17 @@ bool Manager::HandleRegistration(RE::TESObjectREFR* a_item) {
             logger::error("Source not found for container with refid: {:x}", a_item->GetFormID());
             return false;
         }
-        const auto ChestObjRef = FindNotMatchedChest();
+        const auto ChestObjRef = ChestManager::GetSingleton()->RentChest(client_id);
         if (!ChestObjRef) return false;
         const auto ChestRefID = ChestObjRef->GetFormID();
         logger::info("Matched chest {:x} with container {:x}", ChestRefID, container_refid);
         const auto fake_formid = CreateFakeContainer(a_item->GetObjectReference(), ChestRefID, nullptr);
-        if (!fake_formid) return false;
+        if (!fake_formid) {
+            if (!ChestManager::GetSingleton()->ReturnChest(client_id, ChestObjRef)) {
+                logger::error("Failed to return chest {:x}", ChestRefID);
+            }
+            return false;
+        }
         RE::ExtraDataList* xList_copy = xData::ConstructExtraDataList();
         if (!xData::UpdateExtras(&a_item->extraList, xList_copy)) {
             logger::warn("Failed to copy extra data list.");
@@ -653,21 +533,30 @@ bool Manager::DeRegister(RE::TESObjectREFR* chest, RE::TESObjectREFR* transfer_d
 
     if (!DeRegister_Sub(GetRealID(chestID), chestID)) {
         logger::critical("Failed to deregister chestID: {:x}", chestID);
-        RaiseMngrErr("Failed to deregister chest.");
         return false;
     }
 
     if (fake_loc) {
         fake_loc->RemoveItem(fake_bound, 1, RE::ITEM_REMOVE_REASON::kRemove, nullptr, nullptr);
     }
-    for (auto& [fst,snd] : chest->GetInventory()) {
-        chest->RemoveItem(fst, snd.first, RE::ITEM_REMOVE_REASON::kRemove, nullptr, transfer_dest);
+    if (transfer_dest) {
+        for (auto& [fst,snd] : chest->GetInventory()) {
+            if (snd.first > 0) chest->RemoveItem(fst, snd.first, RE::ITEM_REMOVE_REASON::kRemove, nullptr, transfer_dest);
+        }
     }
-    if (!chest->GetInventory().empty()) {
-        logger::critical("Chest inventory not empty after deregistration!");
+    if (!ChestManager::IsEmpty(chest)) ReportTransferFailure(chestID);
+    if (!ChestManager::GetSingleton()->ReturnChest(client_id, chest)) {
+        logger::critical("Failed to return chest {:x} for client {}", chestID, client_id);
         return false;
     }
     return true;
+}
+
+void Manager::ReportTransferFailure(const RefID chest_refid) {
+    logger::error("Could not return all stored items from chest {:x}", chest_refid);
+    MsgBoxesNotifs::InGame::CustomMsg(
+        "Some stored items could not be returned and will be discarded. "
+        "Load a previous save to recover them. Details are in Containerize.log.");
 }
 
 std::string Manager::GetWeightText_(RE::TESObjectREFR* a_chest) {
@@ -749,21 +638,8 @@ bool Manager::Init() {
         }
     }
 
-    const auto unownedChestOG = RE::TESForm::LookupByID<RE::TESObjectREFR>(0x000EA29A);
-    unownedChest = RE::TESForm::LookupByID<RE::TESObjectCONT>(UnownedStuff::unownedChestFormID);
-    unownedCell = RE::TESForm::LookupByID<RE::TESObjectCELL>(0x000EA28B);
-    if (!unownedChestOG || unownedChestOG->GetBaseObject()->GetFormID() != unownedChest->GetFormID() || !unownedCell ||
-        !unownedChest || !unownedChest->As<RE::TESBoundObject>()) {
-        logger::error("Missing unowned chest/cell");
+    if (!ChestManager::GetSingleton()->Init()) {
         init_failed = true;
-    }
-    if (Settings::is_pre_0_7_1 && unownedChestOG) {
-        for (auto& [fst,snd] : unownedChestOG->GetInventory()) {
-            unownedChestOG->RemoveItem(fst, snd.first, RE::ITEM_REMOVE_REASON::kRemove, nullptr, player_ref);
-            if (fst->IsDynamicForm())
-                player_ref->RemoveItem(fst, snd.first, RE::ITEM_REMOVE_REASON::kRemove, nullptr,
-                                       nullptr);
-        }
     }
     if (init_failed) {
         InitFailed();
@@ -1019,7 +895,7 @@ void Manager::OnActivateContainer(RE::TESObjectREFR* a_container, const int msgb
 void Manager::HandleFakePlacement(RE::TESObjectREFR* external_cont) {
     if (std::ranges::find(handled_external_conts, external_cont->GetFormID()) != handled_external_conts.end()) return;
     if (!external_cont->HasContainer()) return;
-    if (IsUnownedChest(external_cont->GetFormID())) return;
+    if (ChestManager::IsUnownedChest(external_cont->GetFormID())) return;
     const auto external_cont_refid = external_cont->GetFormID();
     if (!IsARegistry(external_cont_refid)) return;
     std::vector<std::pair<RefID, RefID>> chest_locs;
@@ -1125,7 +1001,8 @@ void Manager::OnChestExit(RE::TESObjectREFR* a_chest) {
                                                   containermenu_owner->GetFormID());
                                 }
                             } else if (containermenu_owner) {
-                                containermenu_owner->OpenContainer(0);
+                                RE::ContainerMenu::OpenMenu(containermenu_owner.get(),
+                                                            RE::ContainerMenu::ContainerMode::kLoot);
                             }
                             containermenu_owner.reset();
                         });
@@ -1394,9 +1271,14 @@ void Manager::ReceiveDataHandleUnmatchedChests(const std::map<RefID, FormFormID>
         logger::info("Trying to retrieve items from chest");
         if (const auto chest = RE::TESForm::LookupByID<RE::TESObjectREFR>(chestRef_)) {
             for (auto& [fst, snd] : chest->GetInventory()) {
+                if (snd.first <= 0) continue;
                 chest->RemoveItem(fst, snd.first, RE::ITEM_REMOVE_REASON::kRemove, nullptr, player_ref);
                 if (fst->GetFormID() == fakecontFormID)
                     player_ref->RemoveItem(fst, snd.first, RE::ITEM_REMOVE_REASON::kRemove, nullptr, nullptr);
+            }
+            if (!ChestManager::IsEmpty(chest)) ReportTransferFailure(chestRef_);
+            if (!ChestManager::GetSingleton()->ReturnChest(ContainerizeAPI::containerize_client, chest)) {
+                logger::error("Failed to return recovered chest {:x}", chestRef_);
             }
         }
     }
@@ -1532,64 +1414,28 @@ void Manager::Uninstall() {
     if (isUninstalled.load()) return;
     bool uninstall_successful = true;
     logger::info("Uninstalling...");
-    std::vector<std::pair<RefID, FormID>> all_chests_fakes;
+    std::vector<RefID> active_chests;
     {
         SHARED_GUARD;
-        for (const auto& [chest_refid, real_fake_formid] : ChestToFakeContainer) {
-            all_chests_fakes.emplace_back(chest_refid, real_fake_formid.innerKey);
-        }
+        for (const auto chest_refid : ChestToFakeContainer | std::views::keys) active_chests.push_back(chest_refid);
     }
 
-    if (all_chests_fakes.empty()) {
-        logger::info("No chests to uninstall.");
-        Reset();
-        isUninstalled.store(true);
+    const auto player_ref = RE::PlayerCharacter::GetSingleton();
+    for (const auto chest_refid : active_chests) {
+        if (!IsChest(chest_refid)) continue;
+        const auto chest = RE::TESForm::LookupByID<RE::TESObjectREFR>(chest_refid);
+        if (!chest || !DeRegister(chest, player_ref)) uninstall_successful = false;
+    }
+    if (!uninstall_successful) {
+        logger::critical("Uninstall failed to deregister Containerize's chests.");
+        MsgBoxesNotifs::InGame::UninstallFailed();
         return;
     }
 
-    logger::info("No of chests in cell: {}", GetNoChests());
-    const auto player_ref = RE::PlayerCharacter::GetSingleton();
-    for (const auto& chest_refid : all_chests_fakes | std::views::keys) {
-        if (const auto chest = RE::TESForm::LookupByID<RE::TESObjectREFR>(chest_refid); !chest) {
-            uninstall_successful = false;
-            logger::error("Chest not found");
-            break;
-        } else if (IsChest(chest_refid) && !DeRegister(chest, player_ref)) {
-            uninstall_successful = false;
-            logger::error("Failed to deregister chest during uninstall.");
-        }
-    }
-    logger::info("Removing all unowned chests");
-    {
-        RE::BSSpinLockGuard locker(unownedCell->GetRuntimeData().spinLock);
-        for (auto& unownedRuntimeData = unownedCell->GetRuntimeData(); const auto& ref : unownedRuntimeData.
-             references) {
-            if (!ref) continue;
-            if (ref->GetFormID() == UnownedStuff::unownedChestOGRefID) continue;
-            if (ref->GetBaseObject()->GetFormID() != UnownedStuff::unownedChestFormID) continue;
-            if (ref->IsDisabled() && ref->IsDeleted()) continue;
-            logger::info("Removing items from chest with refid {}", ref->GetFormID());
-            if (IsChest(ref->GetFormID()) && !DeRegister(ref.get(), player_ref)) {
-                uninstall_successful = false;
-                logger::error("Failed to deregister chest during uninstall.");
-            }
-            RE::GarbageCollector::GetSingleton()->Add(ref.get(), true);
-        }
-    }
-    logger::info("uninstall_successful: {}", uninstall_successful);
-    logger::info("No of chests in cell: {}", GetNoChests());
-    if (GetNoChests() != 1) uninstall_successful = false;
-    logger::info("uninstall_successful: {}", uninstall_successful);
-    if (uninstall_successful) {
-        Reset();
-        logger::info("Uninstall successful.");
-        MsgBoxesNotifs::InGame::UninstallSuccessful();
-    } else {
-        logger::critical("Uninstall failed.");
-        MsgBoxesNotifs::InGame::UninstallFailed();
-    }
-    DynamicFormTracker::GetSingleton()->DeleteAll();
+    Reset();
     isUninstalled.store(true);
+    logger::info("Uninstall successful.");
+    MsgBoxesNotifs::InGame::UninstallSuccessful();
 }
 
 RE::TESBoundObject* Manager::GetFakeBound(const RE::TESObjectREFR* a_loc) const {
@@ -1660,7 +1506,7 @@ RE::TESBoundObject* Manager::RegisterFromMenu(RE::InventoryEntryData* a_real_ent
         logger::error("No source found for real container {:x}", a_real->GetFormID());
         return nullptr;
     }
-    const auto ChestObjRef = FindNotMatchedChest();
+    const auto ChestObjRef = ChestManager::GetSingleton()->RentChest(client_id);
     if (!ChestObjRef) {
         logger::error("Failed to find a chest to register the container to.");
         return nullptr;
@@ -1669,6 +1515,9 @@ RE::TESBoundObject* Manager::RegisterFromMenu(RE::InventoryEntryData* a_real_ent
     const auto fake_formid = CreateFakeContainer(a_real, ChestRefID, nullptr);
     const auto fake_bound = RE::TESForm::LookupByID<RE::TESBoundObject>(fake_formid);
     if (!fake_bound) {
+        if (!ChestManager::GetSingleton()->ReturnChest(client_id, ChestObjRef)) {
+            logger::error("Failed to return chest {:x}", ChestRefID);
+        }
         RaiseMngrErr("Failed to lookup fake bound.");
         return nullptr;
     }

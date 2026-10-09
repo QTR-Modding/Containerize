@@ -11,7 +11,11 @@
     "xbyak",
     "rapidcsv",
     "clib-util",
-    "clib-utils-qtr",
+    {
+      "name": "clib-utils-qtr",
+      "default-features": false,
+      "features": [ "yaml-skyrim" ]
+    },
     "skse-mcp",
     "skyprompt-api",
     "daf-api",
@@ -21,7 +25,7 @@
   "overrides": [
     {
       "name": "fmt",
-      "version": "9.1.0"
+      "version": "10.1.0"
     }
   ],
   "builtin-baseline": "ee12231b20c95013c6638d845d04c91559a1d1ff"

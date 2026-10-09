@@ -13,4 +13,6 @@ set(headers ${headers}
 	include/Papyrus.h
 	include/SkyPrompt.h
 	include/Animations.h
+	include/Chest.h
+	include/API.h
 )
