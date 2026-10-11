@@ -705,6 +705,7 @@ public:
     }
 
     void Reset() {
+        Clear();
         // std::lock_guard<std::mutex> lock(mutex);
         //forms.clear();
         CleanseFormsets();
