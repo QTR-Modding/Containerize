@@ -1,5 +1,4 @@
 #include "Chest.h"
-#include "Settings.h"
 
 bool ChestManager::Init() {
     using namespace UnownedStuff;
@@ -11,16 +10,6 @@ bool ChestManager::Init() {
         !unownedChest->As<RE::TESBoundObject>()) {
         logger::error("Missing unowned chest/cell");
         return false;
-    }
-
-    if (Settings::is_pre_0_7_1 && unownedChestOG) {
-        const auto player_ref = RE::PlayerCharacter::GetSingleton();
-        if (!player_ref) return false;
-        for (auto& [fst, snd] : unownedChestOG->GetInventory()) {
-            unownedChestOG->RemoveItem(fst, snd.first, RE::ITEM_REMOVE_REASON::kRemove, nullptr, player_ref);
-            if (fst->IsDynamicForm())
-                player_ref->RemoveItem(fst, snd.first, RE::ITEM_REMOVE_REASON::kRemove, nullptr, nullptr);
-        }
     }
 
     return true;
@@ -165,6 +154,11 @@ void ChestManager::RestoreContainerizeChests(const std::vector<RefID>& chest_ref
     for (const auto chest_refid : chest_refids) {
         rental_state.rented.insert_or_assign(chest_refid, ContainerizeAPI::containerize_client);
     }
+}
+
+bool ChestManager::HasPendingDisposals() const {
+    std::shared_lock lock(register_mutex);
+    return !rental_state.returned.empty();
 }
 
 void ChestManager::ResumeDisposals() {

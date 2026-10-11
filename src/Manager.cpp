@@ -640,6 +640,13 @@ bool Manager::Init() {
 
     if (!ChestManager::GetSingleton()->Init()) {
         init_failed = true;
+    } else if (Settings::is_pre_0_7_1) {
+        const auto unownedChestOG = RE::TESForm::LookupByID<RE::TESObjectREFR>(UnownedStuff::unownedChestOGRefID);
+        for (auto& [fst, snd] : unownedChestOG->GetInventory()) {
+            unownedChestOG->RemoveItem(fst, snd.first, RE::ITEM_REMOVE_REASON::kRemove, nullptr, player_ref);
+            if (fst->IsDynamicForm())
+                player_ref->RemoveItem(fst, snd.first, RE::ITEM_REMOVE_REASON::kRemove, nullptr, nullptr);
+        }
     }
     if (init_failed) {
         InitFailed();
@@ -1388,8 +1395,10 @@ void Manager::ReceiveData() {
         }
     }
 
-    logger::info("Deleting unused fake forms from bank.");
-    DFT->DeleteInactives();
+    if (!ChestManager::GetSingleton()->HasPendingDisposals()) {
+        logger::info("Deleting unused fake forms from bank.");
+        DFT->DeleteInactives();
+    }
     if (DFT->GetNDeleted() > 0) {
         logger::warn("ReceiveData: Deleted forms exist. User is required to restart.");
         MsgBoxesNotifs::InGame::CustomMsg(

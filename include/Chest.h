@@ -57,6 +57,7 @@ class ChestManager final : public REX::Singleton<ChestManager> {
 public:
     [[nodiscard]] bool Init();
     [[nodiscard]] static bool IsEmpty(RE::TESObjectREFR* chest);
+    [[nodiscard]] bool HasPendingDisposals() const;
 
     static uint32_t GetNoChests();
     static bool IsUnownedChest(RefID refid);
