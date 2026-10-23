@@ -1,4 +1,5 @@
 #include "Events.h"
+#include "Chest.h"
 #include "SkyPrompt.h"
 
 void EventSink::SendPrompts(RE::TESObjectREFR* a_container) {
@@ -90,6 +91,7 @@ RE::BSEventNotifyControl EventSink::ProcessEvent(const RE::TESFormDeleteEvent* a
     if (!a_event) return RE::BSEventNotifyControl::kContinue;
     if (!a_event->formID) return RE::BSEventNotifyControl::kContinue;
     Manager::GetSingleton()->HandleFormDelete(a_event->formID);
+    ChestManager::GetSingleton()->HandleFormDelete(a_event->formID);
     return RE::BSEventNotifyControl::kContinue;
 }
 
