@@ -20,7 +20,7 @@ void __stdcall UI::RenderStatus() {
     ImGui::SameLine();
     ImGui::TextColored(color_operational, std::format("{} ({})", Strings::sources_label, n_sources).c_str());
     ImGui::SameLine();
-    if (ImGui::Button(Strings::uninstall_label.c_str())) Manager::GetSingleton()->Uninstall();
+    if (ImGui::Button(Strings::uninstall_label.c_str())) Manager::GetSingleton()->Uninstall(true);
 
     if (Settings::problems_in_YAML_sources) {
         ImGui::TextColored(color_not_operational, Strings::yaml_error.c_str());

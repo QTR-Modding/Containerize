@@ -93,7 +93,9 @@ RE::BSEventNotifyControl EventSink::ProcessEvent(const RE::TESFormDeleteEvent* a
     if (!a_event) return RE::BSEventNotifyControl::kContinue;
     if (!a_event->formID) return RE::BSEventNotifyControl::kContinue;
     Manager::GetSingleton()->HandleFormDelete(a_event->formID);
-    ChestManager::GetSingleton()->HandleFormDelete(a_event->formID);
+    if (ChestManager::GetSingleton()->HandleFormDelete(a_event->formID)) {
+        Manager::GetSingleton()->FinishUninstall();
+    }
     return RE::BSEventNotifyControl::kContinue;
 }
 
@@ -102,6 +104,7 @@ RE::BSEventNotifyControl EventSink::ProcessEvent(const RE::MenuOpenCloseEvent* a
     if (!a_event) return RE::BSEventNotifyControl::kContinue;
     RemoveMenuPrompts();
     RemovePrompts();
+    if (!a_event->opening) Manager::GetSingleton()->FinishUninstall();
 
     return RE::BSEventNotifyControl::kContinue;
 }
