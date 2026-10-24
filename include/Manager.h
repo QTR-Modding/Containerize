@@ -36,7 +36,7 @@ class Manager final : public Serialization::SaveLoadData,
 
     std::atomic<bool> uninstall_cleanup_pending = false;
 
-    void TakeBackReal(RE::TESBoundObject* real_obj, RE::TESObjectREFR* chest);
+    [[nodiscard]] bool TakeBackReal(RE::TESBoundObject* real_obj, RE::TESObjectREFR* chest);
 
     std::string GetChestName(const RE::TESObjectREFR* chest) const;
 
