@@ -327,7 +327,7 @@ RE::TESBoundObject* Manager::FakePlacement_Sub_Sub(const RefID chestID) {
     }
 
     const auto DFT = DynamicFormTracker::GetSingleton();
-    if (DFT->IsActive(fakeid_old)) {
+    if (fakeid_new != fakeid_old && DFT->IsActive(fakeid_old)) {
         DFT->SetInactive(fakeid_old);
         DFT->Reserve(real_formid, clib_util::editorID::get_editorID(real_bound), fakeid_old);
     }

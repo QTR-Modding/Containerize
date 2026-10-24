@@ -7,7 +7,6 @@ set(headers ${headers}
 	include/Hooks.h
 	include/MCP.h
 	include/Serialization.h
-	include/DynamicFormTracker.h
 	include/CustomObjects.h
 	include/Translations.h
 	include/Papyrus.h

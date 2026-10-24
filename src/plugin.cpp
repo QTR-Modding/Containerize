@@ -53,7 +53,7 @@ SKSEPluginLoad(const SKSE::LoadInterface *skse) {
     }
     Hooks::Install();
     Settings::LoadOtherSettings();
-    InitializeSerialization();
+    Serialization::InitializeSerialization();
     SKSE::GetMessagingInterface()->RegisterListener(OnMessage);
     return true;
 }

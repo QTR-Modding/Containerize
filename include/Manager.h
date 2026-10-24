@@ -1,10 +1,13 @@
 #pragma once
 #include <REX/REX/Singleton.h>
-#include "DynamicFormTracker.h"
+#include "Serialization.h"
 #include <shared_mutex>
+#include "CLibUtilsQTR/DynamicFormTracker.hpp"
 #include "API.h"
 
-class Manager final : public SaveLoadData,
+using clib_utilsQTR::DynamicFormTracker;
+
+class Manager final : public Serialization::SaveLoadData,
                       public REX::Singleton<Manager> {
     static constexpr ContainerizeAPI::ClientID client_id = ContainerizeAPI::containerize_client;
 
