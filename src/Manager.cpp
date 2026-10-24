@@ -73,17 +73,22 @@ Source* Manager::GetChestSource_NoLock(const RefID a_chestID) {
     return GetContainerSource_NoLock(GetRealID_NoLock(a_chestID));
 }
 
-void Manager::TakeBackReal(RE::TESBoundObject* real_obj, RE::TESObjectREFR* chest) {
+bool Manager::TakeBackReal(RE::TESBoundObject* real_obj, RE::TESObjectREFR* chest) {
     const auto unownedChestOG = RE::TESForm::LookupByID<RE::TESObjectREFR>(UnownedStuff::unownedChestOGRefID);
-    if (!unownedChestOG) return RaiseMngrErr("MsgBoxCallback unownedChestOG is null");
+    if (!unownedChestOG) {
+        logger::error("MsgBoxCallback unownedChestOG is null");
+        return false;
+    }
     if (!Inventory::HasItem(real_obj, unownedChestOG)) {
-        return RaiseMngrErr("Real container not found in unownedChestOG");
+        logger::error("Real container not found in unownedChestOG");
+        return false;
     }
 
     const auto temp_pair = std::make_pair(chest->GetFormID(), real_obj->GetFormID());
     bypass_CanBeAdded.insert(temp_pair);
     unownedChestOG->RemoveItem(real_obj, 1, RE::ITEM_REMOVE_REASON::kStoreInContainer, nullptr, chest);
     bypass_CanBeAdded.erase(temp_pair);
+    return Inventory::HasItem(real_obj, chest);
 }
 
 std::string Manager::GetChestName(const RE::TESObjectREFR* chest) const {
@@ -997,7 +1002,7 @@ void Manager::OnChestExit(RE::TESObjectREFR* a_chest) {
     const bool next_menu_is_chest = containermenu_owner && IsChest(containermenu_owner->GetFormID());
     const auto real_bound = GetRealBound(chest_id);
     if (reals_to_takeback.contains(chest_id)) {
-        TakeBackReal(real_bound, a_chest);
+        if (!TakeBackReal(real_bound, a_chest)) return RaiseMngrErr("Failed to retrieve original container.");
         reals_to_takeback.erase(chest_id);
         const auto fake_bound = GetFakeBound(chest_id);
         if (fake_bound && real_bound) fake_bound->formFlags = real_bound->formFlags;
@@ -1195,6 +1200,7 @@ void Manager::Reset() {
         ChestToFakeContainer.clear();
     }
     uninstall_cleanup_pending.store(false);
+    reals_to_takeback.clear();
     external_favs.clear();
     renames.clear();
     handled_external_conts.clear();
@@ -1444,6 +1450,13 @@ void Manager::Uninstall(const bool delete_fake_forms) {
     for (const auto chest_refid : active_chests) {
         if (!IsChest(chest_refid)) continue;
         const auto chest = RE::TESForm::LookupByID<RE::TESObjectREFR>(chest_refid);
+        if (chest && reals_to_takeback.contains(chest_refid)) {
+            if (!TakeBackReal(GetRealBound(chest_refid), chest)) {
+                uninstall_successful = false;
+                continue;
+            }
+            reals_to_takeback.erase(chest_refid);
+        }
         if (!chest || !DeRegister(chest, player_ref)) uninstall_successful = false;
     }
     if (!uninstall_successful) {
