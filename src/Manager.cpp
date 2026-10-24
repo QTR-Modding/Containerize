@@ -84,11 +84,13 @@ bool Manager::TakeBackReal(RE::TESBoundObject* real_obj, RE::TESObjectREFR* ches
         return false;
     }
 
+    const auto matches_real = [real_obj](RE::TESBoundObject& item) { return &item == real_obj; };
+    const auto previous_count = Inventory::GetItemCount(real_obj, chest->GetInventory(matches_real));
     const auto temp_pair = std::make_pair(chest->GetFormID(), real_obj->GetFormID());
     bypass_CanBeAdded.insert(temp_pair);
     unownedChestOG->RemoveItem(real_obj, 1, RE::ITEM_REMOVE_REASON::kStoreInContainer, nullptr, chest);
     bypass_CanBeAdded.erase(temp_pair);
-    return Inventory::HasItem(real_obj, chest);
+    return Inventory::GetItemCount(real_obj, chest->GetInventory(matches_real)) == previous_count + 1;
 }
 
 std::string Manager::GetChestName(const RE::TESObjectREFR* chest) const {
