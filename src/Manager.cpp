@@ -538,6 +538,7 @@ bool Manager::DeRegister(RE::TESObjectREFR* chest, RE::TESObjectREFR* transfer_d
         logger::critical("DeRegister: fake_bound null for chest {:x}", chestID);
         return false;
     }
+    const auto real_bound = GetRealBound(chestID);
     const auto fake_loc = GetContainerLocation(fake_bound->GetFormID());
 
     if (!DeRegister_Sub(GetRealID(chestID), chestID)) {
@@ -547,6 +548,9 @@ bool Manager::DeRegister(RE::TESObjectREFR* chest, RE::TESObjectREFR* transfer_d
 
     if (fake_loc) {
         fake_loc->RemoveItem(fake_bound, 1, RE::ITEM_REMOVE_REASON::kRemove, nullptr, nullptr);
+        if (real_bound && !fake_loc->IsDeleted() && fake_loc->GetBaseObject() == real_bound) {
+            RemoveItem(chest, nullptr, real_bound, RE::ITEM_REMOVE_REASON::kRemove);
+        }
     }
     if (transfer_dest) {
         for (auto& [fst,snd] : chest->GetInventory()) {
