@@ -33,7 +33,8 @@ void EventSink::Reset() {
 RE::BSEventNotifyControl EventSink::ProcessEvent(const SKSE::CrosshairRefEvent* a_event,
                                                  RE::BSTEventSource<SKSE::CrosshairRefEvent>*) {
     const auto a_crosshairRef = a_event->crosshairRef.get();
-    if (!a_crosshairRef || RE::PlayerCharacter::GetSingleton()->GetGrabbedRef().get() == a_crosshairRef) {
+    if (Manager::GetSingleton()->isUninstalled.load() || !a_crosshairRef ||
+        RE::PlayerCharacter::GetSingleton()->GetGrabbedRef().get() == a_crosshairRef) {
         RemovePrompts();
         return RE::BSEventNotifyControl::kContinue;
     }
@@ -60,7 +61,8 @@ RE::BSEventNotifyControl EventSink::ProcessEvent(const SKSE::CrosshairRefEvent* 
 
 RE::BSEventNotifyControl EventSink::ProcessEvent(const RE::TESFurnitureEvent* event,
                                                  RE::BSTEventSource<RE::TESFurnitureEvent>*) {
-    if (!event || !event->actor->IsPlayerRef()) return RE::BSEventNotifyControl::kContinue;
+    if (!event || !event->actor->IsPlayerRef() || Manager::GetSingleton()->isUninstalled.load())
+        return RE::BSEventNotifyControl::kContinue;
     if (furniture_entered && event->type == RE::TESFurnitureEvent::FurnitureEventType::kEnter)
         return RE::BSEventNotifyControl::kContinue;
     if (!furniture_entered && event->type == RE::TESFurnitureEvent::FurnitureEventType::kExit)

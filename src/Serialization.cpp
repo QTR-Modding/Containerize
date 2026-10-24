@@ -68,11 +68,6 @@ bool SaveLoadData::Load(SKSE::SerializationInterface* serializationInterface,
         logger::trace("FormID: ({},{}) serializationInterface->ReadRecordData:{}", formId.outerKey, formId.innerKey,
                       serializationInterface->ReadRecordData(formId));
 
-        if (!serializationInterface->ResolveFormID(formId.outerKey, formId.outerKey)) {
-            logger::error("Failed to resolve form ID, 0x{:X}.", formId.outerKey);
-            continue;
-        }
-
         if (is_older_version && !serializationInterface->ReadRecordData(value)) {
             logger::error("Failed to load value data for FormRefID: ({},{})", formId.outerKey,
                           formId.innerKey);
@@ -92,6 +87,11 @@ bool SaveLoadData::Load(SKSE::SerializationInterface* serializationInterface,
 
         if (!read_string(serializationInterface, value.outerKey.name)) {
             logger::error("Failed to load name data for FormRefID: ({},{})", formId.outerKey, formId.innerKey);
+        }
+
+        if (!serializationInterface->ResolveFormID(formId.outerKey, formId.outerKey)) {
+            logger::error("Failed to resolve form ID, 0x{:X}.", formId.outerKey);
+            formId.outerKey = 0;
         }
 
         m_Data[formId] = value;

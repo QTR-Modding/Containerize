@@ -1,4 +1,5 @@
 #include "Manager.h"
+#include "Events.h"
 #include "Papyrus.h"
 #include "Animations.h"
 #include "CLibUtilsQTR/DebugLocks.hpp"
@@ -170,6 +171,7 @@ std::vector<RefID> Manager::GetChildChests(const RefID parent_chestID, std::unor
 }
 
 void Manager::OpenChestFromMenu(RE::TESObjectREFR* a_chest) {
+    if (isUninstalled.load()) return;
     if (!closed_menu.empty()) {
         if (!RE::UI::GetSingleton()->IsMenuOpen(closed_menu)) {
             if (!ActivateChest(a_chest)) {
@@ -885,6 +887,7 @@ RE::TESBoundObject* Manager::FakeToRealContainer(const FormID fake) const {
 }
 
 void Manager::OnActivateContainer(RE::TESObjectREFR* a_container, const int msgbox_action, const int a_delay) {
+    if (isUninstalled.load()) return;
     if (!HandleRegistration(a_container)) return;
     if (msgbox_action == 0) {
         if (const auto chest = GetContainerChest(a_container)) queued_chests.insert(chest->GetFormID());
@@ -1443,6 +1446,8 @@ void Manager::Uninstall() {
 
     Reset();
     isUninstalled.store(true);
+    EventSink::RemovePrompts();
+    EventSink::RemoveMenuPrompts();
     logger::info("Uninstall successful.");
     MsgBoxesNotifs::InGame::UninstallSuccessful();
 }
@@ -1503,6 +1508,7 @@ void Manager::CloseMenu() {
 }
 
 RE::TESBoundObject* Manager::RegisterFromMenu(RE::InventoryEntryData* a_real_entry, RE::TESObjectREFR* a_owner) {
+    if (isUninstalled.load()) return nullptr;
     a_owner = a_owner ? a_owner : RE::PlayerCharacter::GetSingleton();
     if (!a_real_entry) return nullptr;
     const auto a_real = a_real_entry->GetObject();
@@ -1530,15 +1536,28 @@ RE::TESBoundObject* Manager::RegisterFromMenu(RE::InventoryEntryData* a_real_ent
         RaiseMngrErr("Failed to lookup fake bound.");
         return nullptr;
     }
+    RE::ExtraDataList* xList_real = nullptr;
     RE::ExtraDataList* xList_fake = nullptr;
     if (Inventory::EntryHasXDataList(a_real_entry)) {
+        xList_real = a_real_entry->extraLists->front();
         xList_fake = xData::ConstructExtraDataList();
-        if (!xData::UpdateExtras(a_real_entry->extraLists->front(), xList_fake)) {
+        if (!xData::UpdateExtras(xList_real, xList_fake)) {
             logger::error("Failed to update extras for fake object.");
         }
     }
+    const auto replacement_pair = std::make_pair(a_owner->GetFormID(), fake_formid);
+    bypass_CanBeAdded.insert(replacement_pair);
     a_owner->AddObjectToContainer(fake_bound, xList_fake, 1, nullptr);
-    a_owner->RemoveItem(a_real, 1, RE::ITEM_REMOVE_REASON::kStoreInContainer, nullptr, ChestObjRef);
+    bypass_CanBeAdded.erase(replacement_pair);
+    if (!Inventory::HasItem(fake_bound, a_owner)) {
+        logger::error("Failed to place fake container in its original inventory.");
+        DynamicFormTracker::GetSingleton()->SetInactive(fake_formid);
+        if (!ChestManager::GetSingleton()->ReturnChest(client_id, ChestObjRef)) {
+            logger::error("Failed to return chest {:x}", ChestRefID);
+        }
+        return nullptr;
+    }
+    a_owner->RemoveItem(a_real, 1, RE::ITEM_REMOVE_REASON::kStoreInContainer, xList_real, ChestObjRef);
     if (const auto initial_items_map = src->initial_items; !initial_items_map.empty()) {
         SKSE::GetTaskInterface()->AddTask([ChestRefID, initial_items_map] {
             const auto chest = RE::TESForm::LookupByID<RE::TESObjectREFR>(ChestRefID);

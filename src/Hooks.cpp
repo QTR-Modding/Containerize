@@ -362,7 +362,7 @@ void Hooks::OnIsWorn(RE::TESBoundObject* object_to_equip) {
 }
 
 void Hooks::OnHoverItem(const RE::TESBoundObject* a_bound) {
-    if (!is_open.load() || !inventory_loaded.load() || !a_bound) {
+    if (Manager::GetSingleton()->isUninstalled.load() || !is_open.load() || !inventory_loaded.load() || !a_bound) {
         return;
     }
     const auto a_formid = a_bound->GetFormID();

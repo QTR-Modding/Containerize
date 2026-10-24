@@ -41,6 +41,10 @@ RE::TESObjectREFR* ChestManager::MakeChest(const RE::NiPoint3 Pos3) {
     const auto newPropRef = RE::TESDataHandler::GetSingleton()
                             ->CreateReferenceAtLocation(item, Pos3, {0.0f, 0.0f, 0.0f}, UnownedStuff::unownedCell, nullptr, nullptr,
                                                         nullptr, {}, true, false).get().get();
+    if (!newPropRef) {
+        logger::error("Failed to create hidden chest.");
+        return nullptr;
+    }
     logger::info("Created Object! Type: {}, Base ID: {:x}, Ref ID: {:x},",
                  RE::FormTypeToString(item->GetFormType()), item->GetFormID(), newPropRef->GetFormID());
     return newPropRef;
