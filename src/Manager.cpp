@@ -1592,21 +1592,17 @@ RE::TESBoundObject* Manager::RegisterFromMenu(RE::InventoryEntryData* a_real_ent
         return nullptr;
     }
     a_owner->RemoveItem(a_real, 1, RE::ITEM_REMOVE_REASON::kStoreInContainer, xList_real, ChestObjRef);
-    if (const auto initial_items_map = src->initial_items; !initial_items_map.empty()) {
-        SKSE::GetTaskInterface()->AddTask([ChestRefID, initial_items_map] {
-            const auto chest = RE::TESForm::LookupByID<RE::TESObjectREFR>(ChestRefID);
-            if (!chest) return;
-            for (const auto& [item, count] : initial_items_map) {
-                if (count <= 0) continue;
-                const auto bound = RE::TESForm::LookupByID<RE::TESBoundObject>(item);
-                if (!bound) continue;
-                chest->AddObjectToContainer(bound, nullptr, count, nullptr);
-            }
-        });
-    }
     if (!Register_Sub(a_real->GetFormID(), fake_formid, ChestRefID, a_owner->GetFormID())) {
         RaiseMngrErr("Register_Sub failed in RegisterFromMenu.");
         return nullptr;
+    }
+    if (const auto initial_items_map = src->initial_items; !initial_items_map.empty()) {
+        for (const auto& [item, count] : initial_items_map) {
+            if (count <= 0) continue;
+            const auto bound = RE::TESForm::LookupByID<RE::TESBoundObject>(item);
+            if (!bound) continue;
+            ChestObjRef->AddObjectToContainer(bound, nullptr, count, nullptr);
+        }
     }
     return fake_bound;
 }
