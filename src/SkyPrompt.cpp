@@ -118,6 +118,7 @@ void MenuPromptSink::OnOpen(RE::TESBoundObject* a_fake, const bool is_worn) {
     using namespace ModCompatibility::Mods;
 
     const auto manager = Manager::GetSingleton();
+    if (manager->isUninstalled.load()) return;
 
     const auto a_real = manager->FakeToRealContainer(a_fake->GetFormID());
 

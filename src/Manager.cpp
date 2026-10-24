@@ -1,4 +1,5 @@
 #include "Manager.h"
+#include "Events.h"
 #include "Papyrus.h"
 #include "Animations.h"
 #include "CLibUtilsQTR/DebugLocks.hpp"
@@ -170,6 +171,7 @@ std::vector<RefID> Manager::GetChildChests(const RefID parent_chestID, std::unor
 }
 
 void Manager::OpenChestFromMenu(RE::TESObjectREFR* a_chest) {
+    if (isUninstalled.load()) return;
     if (!closed_menu.empty()) {
         if (!RE::UI::GetSingleton()->IsMenuOpen(closed_menu)) {
             if (!ActivateChest(a_chest)) {
@@ -885,6 +887,7 @@ RE::TESBoundObject* Manager::FakeToRealContainer(const FormID fake) const {
 }
 
 void Manager::OnActivateContainer(RE::TESObjectREFR* a_container, const int msgbox_action, const int a_delay) {
+    if (isUninstalled.load()) return;
     if (!HandleRegistration(a_container)) return;
     if (msgbox_action == 0) {
         if (const auto chest = GetContainerChest(a_container)) queued_chests.insert(chest->GetFormID());
@@ -1443,6 +1446,8 @@ void Manager::Uninstall() {
 
     Reset();
     isUninstalled.store(true);
+    EventSink::RemovePrompts();
+    EventSink::RemoveMenuPrompts();
     logger::info("Uninstall successful.");
     MsgBoxesNotifs::InGame::UninstallSuccessful();
 }
@@ -1503,6 +1508,7 @@ void Manager::CloseMenu() {
 }
 
 RE::TESBoundObject* Manager::RegisterFromMenu(RE::InventoryEntryData* a_real_entry, RE::TESObjectREFR* a_owner) {
+    if (isUninstalled.load()) return nullptr;
     a_owner = a_owner ? a_owner : RE::PlayerCharacter::GetSingleton();
     if (!a_real_entry) return nullptr;
     const auto a_real = a_real_entry->GetObject();
