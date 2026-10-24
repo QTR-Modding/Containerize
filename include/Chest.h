@@ -52,7 +52,7 @@ class ChestManager final : public REX::Singleton<ChestManager> {
     void ScheduleDisposal(RE::TESObjectREFR* chest);
     void DisposeReturnedChest(RE::ObjectRefHandle chest_handle);
     void RestoreContainerizeChests(const std::vector<RefID>& chest_refids);
-    void HandleFormDelete(RefID chest_refid);
+    [[nodiscard]] bool HandleFormDelete(RefID chest_refid);
 
 public:
     [[nodiscard]] bool Init();

@@ -34,6 +34,8 @@ class Manager final : public Serialization::SaveLoadData,
 
     mutable std::unordered_map<RefID, std::vector<std::pair<FormID, Count>>> transfer_cache;
 
+    std::atomic<bool> uninstall_cleanup_pending = false;
+
     void TakeBackReal(RE::TESBoundObject* real_obj, RE::TESObjectREFR* chest);
 
     std::string GetChestName(const RE::TESObjectREFR* chest) const;
@@ -196,7 +198,8 @@ public:
 
     std::vector<Source> GetSources() const;
 
-    void Uninstall();
+    void Uninstall(bool delete_fake_forms = false);
+    void FinishUninstall();
 
     RE::TESBoundObject* GetFakeBound(const RE::TESObjectREFR* a_loc) const;
     std::string GetWeightText(RE::TESObjectREFR* a_container);

@@ -210,10 +210,10 @@ void ChestManager::DisposeReturnedChest(const RE::ObjectRefHandle chest_handle) 
     }
 }
 
-void ChestManager::HandleFormDelete(const RefID chest_refid) {
+bool ChestManager::HandleFormDelete(const RefID chest_refid) {
     std::unique_lock lock(register_mutex);
     rental_state.rented.erase(chest_refid);
-    rental_state.returned.erase(chest_refid);
+    return rental_state.returned.erase(chest_refid) > 0 && rental_state.returned.empty();
 }
 
 bool ChestManager::ReturnChest(const ContainerizeAPI::ClientID client_id, RE::TESObjectREFR* chest) {

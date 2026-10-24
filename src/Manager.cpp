@@ -952,6 +952,7 @@ bool Manager::IsRealContainer(const RE::TESObjectREFR* ref) const {
 }
 
 void Manager::RenameContainer(const std::string& new_name, RE::TESBoundObject* a_fake) {
+    if (isUninstalled.load()) return;
     const auto fake_formid = a_fake->GetFormID();
     const std::string formtype(RE::FormTypeToString(a_fake->GetFormType()));
     if (formtype == "SCRL") Rename(new_name, a_fake->As<RE::ScrollItem>());
@@ -1193,6 +1194,7 @@ void Manager::Reset() {
         for (auto& src : sources) src.data.clear();
         ChestToFakeContainer.clear();
     }
+    uninstall_cleanup_pending.store(false);
     external_favs.clear();
     renames.clear();
     handled_external_conts.clear();
@@ -1422,8 +1424,14 @@ std::vector<Source> Manager::GetSources() const {
     return sources;
 }
 
-void Manager::Uninstall() {
-    if (isUninstalled.load()) return;
+void Manager::Uninstall(const bool delete_fake_forms) {
+    if (isUninstalled.load()) {
+        if (delete_fake_forms) {
+            uninstall_cleanup_pending.store(true);
+            FinishUninstall();
+        }
+        return;
+    }
     bool uninstall_successful = true;
     logger::info("Uninstalling...");
     std::vector<RefID> active_chests;
@@ -1446,10 +1454,21 @@ void Manager::Uninstall() {
 
     Reset();
     isUninstalled.store(true);
+    uninstall_cleanup_pending.store(delete_fake_forms);
+    FinishUninstall();
     EventSink::RemovePrompts();
     EventSink::RemoveMenuPrompts();
     logger::info("Uninstall successful.");
     MsgBoxesNotifs::InGame::UninstallSuccessful();
+}
+
+void Manager::FinishUninstall() {
+    if (!uninstall_cleanup_pending.load()) return;
+    SKSE::GetTaskInterface()->AddTask([this] {
+        if (!uninstall_cleanup_pending.load() || ChestManager::GetSingleton()->HasPendingDisposals() ||
+            RE::UI::GetSingleton()->IsItemMenuOpen()) return;
+        if (uninstall_cleanup_pending.exchange(false)) DynamicFormTracker::GetSingleton()->DeleteAll();
+    });
 }
 
 RE::TESBoundObject* Manager::GetFakeBound(const RE::TESObjectREFR* a_loc) const {
