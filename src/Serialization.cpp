@@ -3,6 +3,8 @@
 #include "Events.h"
 #include "Manager.h"
 
+using namespace Serialization;
+
 bool SaveLoadData::Save(SKSE::SerializationInterface* serializationInterface) {
     assert(serializationInterface);
     Locker locker(m_Lock);
@@ -108,111 +110,6 @@ std::vector<RefID> SaveLoadData::GetLoadedChestRefIDs() {
     return chest_refids;
 }
 
-bool DFSaveLoadData::Save(SKSE::SerializationInterface* serializationInterface) {
-    assert(serializationInterface);
-    Locker locker(m_Lock);
-
-    const auto numRecords = m_Data.size();
-    if (!serializationInterface->WriteRecordData(numRecords)) {
-        logger::error("Failed to save {} data records", numRecords);
-        return false;
-    }
-
-    for (const auto& [lhs, rhs] : m_Data) {
-        // we serialize formid, editorid, and refid separately
-        std::uint32_t formid = lhs.first;
-        logger::trace("Formid:{}", formid);
-        if (!serializationInterface->WriteRecordData(formid)) {
-            logger::error("Failed to save formid");
-            return false;
-        }
-
-        const std::string editorid = lhs.second;
-        logger::trace("Editorid:{}", editorid);
-        write_string(serializationInterface, editorid);
-
-        // save the number of rhs records
-        const auto numRhsRecords = rhs.size();
-        if (!serializationInterface->WriteRecordData(numRhsRecords)) {
-            logger::error("Failed to save the size {} of rhs records", numRhsRecords);
-            return false;
-        }
-
-        for (const auto& rhs_ : rhs) {
-            logger::trace("size of rhs_: {}", sizeof(rhs_));
-            if (!serializationInterface->WriteRecordData(rhs_)) {
-                logger::error("Failed to save data");
-                return false;
-            }
-        }
-    }
-    return true;
-}
-
-bool DFSaveLoadData::Save(SKSE::SerializationInterface* serializationInterface, const std::uint32_t type,
-                          const std::uint32_t version) {
-    if (!serializationInterface->OpenRecord(type, version)) {
-        logger::error("Failed to open record for Data Serialization!");
-        return false;
-    }
-
-    return Save(serializationInterface);
-}
-
-bool DFSaveLoadData::Load(SKSE::SerializationInterface* serializationInterface, [[maybe_unused]] const bool cond) {
-    assert(serializationInterface);
-
-    std::size_t recordDataSize;
-    serializationInterface->ReadRecordData(recordDataSize);
-    logger::info("Loading data from serialization interface with size: {}", recordDataSize);
-
-    Locker locker(m_Lock);
-    m_Data.clear();
-
-    logger::trace("Loading data from serialization interface.");
-    for (size_t i = 0; i < recordDataSize; i++) {
-        DFSaveDataRHS rhs;
-
-        std::uint32_t formid = 0;
-        logger::trace("ReadRecordData:{}", serializationInterface->ReadRecordData(formid));
-        if (!serializationInterface->ResolveFormID(formid, formid)) {
-            logger::error("Failed to resolve form ID, 0x{:x}.", formid);
-            continue;
-        }
-
-        std::string editorid;
-        if (!read_string(serializationInterface, editorid)) {
-            logger::error("Failed to read editorid");
-            return false;
-        }
-
-        logger::trace("Formid:{:x}", formid);
-        logger::trace("Editorid:{}", editorid);
-
-        DFSaveDataLHS lhs({formid, editorid});
-        logger::trace("Reading value...");
-
-        std::size_t rhsSize = 0;
-        logger::trace("ReadRecordData: {}", serializationInterface->ReadRecordData(rhsSize));
-        logger::trace("rhsSize: {}", rhsSize);
-
-        for (size_t j = 0; j < rhsSize; j++) {
-            DFSaveData rhs_;
-            logger::trace("ReadRecordData: {}", serializationInterface->ReadRecordData(rhs_));
-            logger::trace(
-                "rhs_ content: dyn_formid: {:x}, customid_bool: {},"
-                "customid: {}, acteff_elapsed: {}",
-                rhs_.dyn_formid, rhs_.custom_id.first, rhs_.custom_id.second, rhs_.acteff_elapsed);
-            rhs.push_back(rhs_);
-        }
-
-        m_Data[lhs] = rhs;
-        logger::info("Loaded data for formid {:x}, editorid {}", formid, editorid);
-    }
-
-    return true;
-}
-
 void Serialization::SaveCallback(SKSE::SerializationInterface* serializationInterface) {
     logger::trace("Saving Data to skse co-save.");
     const auto M = Manager::GetSingleton();
@@ -237,7 +134,9 @@ void Serialization::RevertCallback(SKSE::SerializationInterface*) {
     EventSink::GetSingleton()->Reset();
     Manager::GetSingleton()->Reset();
     ChestManager::GetSingleton()->Reset();
-    DynamicFormTracker::GetSingleton()->Reset();
+    auto* DFT = DynamicFormTracker::GetSingleton();
+    DFT->Clear();
+    DFT->Reset();
 }
 
 void Serialization::LoadCallback(SKSE::SerializationInterface* serializationInterface) {
@@ -312,7 +211,7 @@ void Serialization::LoadCallback(SKSE::SerializationInterface* serializationInte
             break;
             case Settings::kDFDataKey: {
                 logger::trace("Loading Record: {} - Version: {} - Length: {}", temp, version, length);
-                if (!DFT->Load(serializationInterface, is_before_0_7)) logger::critical("Failed to Load Data for DFT");
+                if (!DFT->Load(serializationInterface)) logger::critical("Failed to Load Data for DFT");
             }
             break;
             default:
