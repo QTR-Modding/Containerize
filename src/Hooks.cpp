@@ -346,17 +346,22 @@ int64_t Hooks::InventoryHoverHook::thunk(RE::InventoryEntryData* a1) {
 }
 
 void Hooks::OnIsWorn(RE::TESBoundObject* object_to_equip) {
+    objectNodes.clear();
     if (object_to_equip->GetFormType() == RE::FormType::Armor) {
         RE::PlayerCharacter* player = RE::PlayerCharacter::GetSingleton();
         RE::TESObjectARMO* armor = object_to_equip->As<RE::TESObjectARMO>();
         RE::TESRace* race = player->GetRace();
-        RE::TESObjectARMA* armorAddon = armor->GetArmorAddon(race);
-        char addonString[MAX_PATH]{'\0'};
-        armorAddon->GetNodeName(addonString, player, armor, -1.0f);
-        if (const auto a_node = player->GetNodeByName(addonString)) {
-            objectNode.reset(a_node);
-        } else {
-            logger::warn("Failed to get node by name: {}", addonString);
+        for (const auto armorAddon : armor->armorAddons) {
+            if (!armorAddon || !armorAddon->IsValidRace(race)) {
+                continue;
+            }
+            char addonString[MAX_PATH]{'\0'};
+            armorAddon->GetNodeName(addonString, player, armor, -1.0f);
+            if (const auto a_node = player->GetNodeByName(addonString)) {
+                objectNodes.emplace_back(a_node);
+            } else {
+                logger::warn("Failed to get node by name: {}", addonString);
+            }
         }
     }
 }

@@ -20,12 +20,12 @@ namespace Animations {
             const bool playing_open = !opened && a_event->tag == "AnimObjLoad";
             const bool playing_close = opened && a_event->tag == "AnimObjectUnequip";
             if (playing_open || playing_close) {
-                if (const auto a_node = Hooks::objectNode) {
+                for (const auto& a_node : Hooks::objectNodes) {
                     a_node->CullGeometry(playing_open);
                     a_node->CullNode(playing_open);
                 }
                 if (playing_close) {
-                    Hooks::objectNode.reset();
+                    Hooks::objectNodes.clear();
                     if (const auto a_actor = a_event->holder->As<RE::Actor>()) {
                         RemoveSink(a_actor);
                     }
