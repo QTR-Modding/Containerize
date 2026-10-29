@@ -837,6 +837,30 @@ void Manager::OnLongPressEquip(const RE::TESBoundObject* a_fake, const int delay
     }
 }
 
+RefID Manager::GetChest(const FormID target_id) const {
+    if (isUninstalled.load()) return 0;
+    RefID chest_id = 0;
+    {
+        SHARED_GUARD;
+        if (const auto ref = RE::TESForm::LookupByID<RE::TESObjectREFR>(target_id)) {
+            const auto base = ref->GetBaseObject();
+            if (!base) return 0;
+            const auto source = GetContainerSource_NoLock(base->GetFormID());
+            if (!source) return 0;
+            for (const auto& [chest, location] : source->data) {
+                if (location == target_id) {
+                    chest_id = chest;
+                    break;
+                }
+            }
+        } else {
+            chest_id = GetFakeContainerChestID_NoLock(target_id);
+        }
+    }
+    const auto chest = RE::TESForm::LookupByID<RE::TESObjectREFR>(chest_id);
+    return chest && !chest->IsDeleted() ? chest_id : 0;
+}
+
 bool Manager::Refresh(const RefID chest_refid) {
     if (isUninstalled.load()) return false;
     const auto chest = RE::TESForm::LookupByID<RE::TESObjectREFR>(chest_refid);

@@ -16,6 +16,7 @@ namespace ContainerizeAPI {
         bool (*ReturnChest)(ClientID client, RE::FormID chest);
         bool (*Uninstall)(ClientID client);
         bool (*Refresh)(RE::FormID chest);
+        RE::FormID (*GetChest)(RE::FormID target);
     };
 
     [[nodiscard]] inline const Interface* RequestAPI() {

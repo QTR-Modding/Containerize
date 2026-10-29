@@ -16,7 +16,8 @@ extern "C" __declspec(dllexport) const ContainerizeAPI::Interface* Containerize_
                    ChestManager::GetSingleton()->ReturnChest(client, RE::TESForm::LookupByID<RE::TESObjectREFR>(chest));
         },
         [](ContainerizeAPI::ClientID client) { return ChestManager::GetSingleton()->Uninstall(client); },
-        [](RE::FormID chest) { return Manager::GetSingleton()->Refresh(chest); }
+        [](RE::FormID chest) { return Manager::GetSingleton()->Refresh(chest); },
+        [](RE::FormID target) { return Manager::GetSingleton()->GetChest(target); }
     };
     return &api;
 }

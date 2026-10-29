@@ -51,6 +51,19 @@ This ends that client's rentals through the same return and cleanup path. Other 
 
 Your mod must first finish its own item transfers and stop using the chests. Containerize does not call your code or clear your mod's state. The registered name is retained, so registering it again keeps the same ClientID in that save. Uninstall does not disable future rentals.
 
+## Finding linked storage
+
+```cpp
+const RE::FormID chest = api->GetChest(target);
+if (!chest) return;  // No existing linked storage.
+```
+
+Pass a placed item's or furniture's reference FormID, or the fake item FormID of an already containerized item in an inventory. The fake item is the copy Containerize creates and displays in place of the original item. The result is the reference FormID of that target's existing storage chest.
+
+GetChest is a lookup only. It returns zero for an unregistered target, an original base FormID, missing or deleted storage, or after Containerize uninstall. Passing an actor or an ordinary container does not retrieve storage belonging to an item inside it. The call does not create storage or register the target.
+
+Linked storage belongs to Containerize. Use normal engine inventory operations for your own items, then call Refresh after changing the contents. Leave Containerize's internal original item untouched, and do not return this chest through another client's ReturnChest or Uninstall calls.
+
 ## Refreshing Containerize-managed storage
 
 Containerize-managed storage is a chest connected to an item or furniture through Containerize's own registration. After changing its contents, refresh that storage once for the completed operation:
