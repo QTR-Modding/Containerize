@@ -112,7 +112,6 @@ RE::BSEventNotifyControl EventSink::ProcessEvent(const RE::MenuOpenCloseEvent* a
 void EventSink::Install() {
     const auto eventSourceHolder = RE::ScriptEventSourceHolder::GetSingleton();
     eventSourceHolder->AddEventSink<RE::TESFurnitureEvent>(this);
-    eventSourceHolder->AddEventSink<RE::TESFormDeleteEvent>(this);
     SKSE::GetCrosshairRefEventSource()->AddEventSink(this);
     RE::UI::GetSingleton()->AddEventSink<RE::MenuOpenCloseEvent>(this);
 }

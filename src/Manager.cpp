@@ -651,9 +651,7 @@ bool Manager::Init() {
         }
     }
 
-    if (!ChestManager::GetSingleton()->Init()) {
-        init_failed = true;
-    } else if (Settings::is_pre_0_7_1) {
+    if (Settings::is_pre_0_7_1) {
         const auto unownedChestOG = RE::TESForm::LookupByID<RE::TESObjectREFR>(UnownedStuff::unownedChestOGRefID);
         for (auto& [fst, snd] : unownedChestOG->GetInventory()) {
             unownedChestOG->RemoveItem(fst, snd.first, RE::ITEM_REMOVE_REASON::kRemove, nullptr, player_ref);
