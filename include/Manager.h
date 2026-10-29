@@ -77,9 +77,9 @@ class Manager final : public Serialization::SaveLoadData,
 
     // Updates weight and value of fake container and uses Copy and applies renaming
     template <typename T>
-    void UpdateFakeWV(T* fake_form, RE::TESObjectREFR* chest_linked, float weight_ratio);
-    void UpdateFakeWV(RE::TESBoundObject* fake_form, RE::TESObjectREFR* chest_linked, float weight_ratio);
-    void UpdateFakeWV(RE::TESBoundObject* fake_form);
+    void UpdateFakeWV(T* fake_form, RE::TESBoundObject* real_container, RE::TESObjectREFR* chest_linked, float weight_ratio);
+    void UpdateFakeWV(RE::TESBoundObject* fake_form, RE::TESBoundObject* real_container, RE::TESObjectREFR* chest_linked, float weight_ratio);
+    bool Refresh(RE::TESBoundObject* fake_form, RE::TESObjectREFR* chest_linked);
 
     void HandleFormDelete_(RefID chest_refid);
 
@@ -200,6 +200,7 @@ public:
 
     void Uninstall(bool delete_fake_forms = false);
     void FinishUninstall();
+    bool Refresh(RefID chest_refid);
 
     RE::TESBoundObject* GetFakeBound(const RE::TESObjectREFR* a_loc) const;
     std::string GetWeightText(RE::TESObjectREFR* a_container);
@@ -249,11 +250,9 @@ RE::ObjectRefHandle Manager::RemoveItem(T* moveFrom, RE::TESObjectREFR* moveTo, 
 }
 
 template <typename T>
-void Manager::UpdateFakeWV(T* fake_form, RE::TESObjectREFR* chest_linked, const float weight_ratio) {
+void Manager::UpdateFakeWV(T* fake_form, RE::TESBoundObject* real_container, RE::TESObjectREFR* chest_linked, const float weight_ratio) {
     // assumes base container is already in the chest
-    if (!chest_linked || !fake_form) return RaiseMngrErr("Failed to get chest.");
     const auto fake_formid = fake_form->GetFormID();
-    auto real_container = FakeToRealContainer(fake_formid);
     // ReSharper disable once CppDependentTemplateWithoutTemplateKeyword
     fake_form->Copy(real_container->As<T>()); // NOLINT(clang-diagnostic-warning)
     if (renames.contains(fake_formid)) fake_form->fullName = renames.at(fake_form->GetFormID());
@@ -280,9 +279,7 @@ void Manager::UpdateFakeWV(T* fake_form, RE::TESObjectREFR* chest_linked, const 
 
     FunctionsSkyrim::FormTraits<T>::SetValue(fake_form, x_0);
 
-    const auto fake_bound = RE::TESForm::LookupByID<RE::TESBoundObject>(fake_form->GetFormID());
-    if (!fake_bound) return RaiseMngrErr("Fake bound is null");
-    const int f_0 = fake_bound->GetGoldValue() + extracost;
+    const int f_0 = fake_form->GetGoldValue() + extracost;
     // player_has_item ? Inventory::GetItemValue(fake_bound, player_ref->GetInventory()) : container_location->GetGoldValue();
     int f_search = f_0;
 
@@ -300,7 +297,7 @@ void Manager::UpdateFakeWV(T* fake_form, RE::TESObjectREFR* chest_linked, const 
     while (static_cast<float>(std::abs(f_search - target_value)) > tolerance_val && curr_iter > 0) {
         FunctionsSkyrim::FormTraits<T>::SetValue(fake_form, x_search);
         logger::trace("Setting fake value to: {}", x_search);
-        f_search = fake_bound->GetGoldValue() + extracost;
+        f_search = fake_form->GetGoldValue() + extracost;
         //player_has_item ? Inventory::GetItemValue(fake_bound, player_ref->GetInventory()) : container_location->GetGoldValue();
 
         logger::trace("x_search: {}, f_search: {}", x_search, f_search);

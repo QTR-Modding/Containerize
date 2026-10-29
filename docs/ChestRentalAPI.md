@@ -1,4 +1,4 @@
-# Chest rental API
+# Containerize API
 
 Include `API.h` from Containerize's `include` directory. This example rents an empty chest, then returns it:
 
@@ -51,6 +51,20 @@ This ends that client's rentals through the same return and cleanup path. Other 
 
 Your mod must first finish its own item transfers and stop using the chests. Containerize does not call your code or clear your mod's state. The registered name is retained, so registering it again keeps the same ClientID in that save. Uninstall does not disable future rentals.
 
+## Refreshing Containerize-managed storage
+
+Containerize-managed storage is a chest connected to an item or furniture through Containerize's own registration. After changing its contents, refresh that storage once for the completed operation:
+
+```cpp
+const bool refreshed = api->Refresh(chest);
+```
+
+Pass the storage chest's reference FormID. Refresh updates the associated containerized item's weight/value, then its enclosing managed containers from the inside out. It invalidates affected inventory weight caches and calls the engine's weight calculation before returning.
+
+If the requested storage or an enclosing container is open, its item weight/value update waits for Containerize's normal close routine, after the internal original item is restored. The open chest's actual inventory weight is still recalculated.
+
+This does not register storage, find a furniture's linked chest or change its contents. A bare chest rented by an external client has no associated containerized item and returns false. Refresh also returns false after Containerize uninstall, for invalid storage, or if a required ancestor cannot be refreshed. Inner containers may already have been updated before an ancestor failure; the operation does not roll back those updates.
+
 ## Interface availability
 
-`RequestAPI()` returns null when Containerize is unavailable or the interface version is unsupported. The interface contains the four function pointers shown above and remains valid while Containerize is loaded. Consumers need Windows and CommonLibVR-MIT headers; no Containerize implementation headers or import library are required.
+`RequestAPI()` returns null when Containerize is unavailable or the interface version is unsupported. The interface contains the function pointers shown above and remains valid while Containerize is loaded. Consumers need Windows and CommonLibVR-MIT headers; no Containerize implementation headers or import library are required.
