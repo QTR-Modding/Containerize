@@ -879,7 +879,7 @@ FormID Manager::Initialize(const FormID target_id, const RefID owner_id, RE::Ext
         if (entry == inventory.end() || entry->second.first <= 0 || !entry->second.second) return 0;
         if (instance && (!entry->second.second->extraLists ||
                          std::ranges::find(*entry->second.second->extraLists, instance) == entry->second.second->extraLists->end())) return 0;
-        fake = RegisterFromMenu(entry->second.second.get(), owner, instance);
+        fake = RegisterFromMenu(entry->second.second.get(), owner, instance, false);
     }
     return fake ? fake->GetFormID() : 0;
 }
@@ -1676,7 +1676,7 @@ void Manager::CloseMenu() {
     closed_menu = Menu::CloseMenu();
 }
 
-RE::TESBoundObject* Manager::RegisterFromMenu(RE::InventoryEntryData* a_real_entry, RE::TESObjectREFR* a_owner, RE::ExtraDataList* instance) {
+RE::TESBoundObject* Manager::RegisterFromMenu(RE::InventoryEntryData* a_real_entry, RE::TESObjectREFR* a_owner, RE::ExtraDataList* instance, const bool queue_equip) {
     if (isUninstalled.load()) return nullptr;
     a_owner = a_owner ? a_owner : RE::PlayerCharacter::GetSingleton();
     if (!a_real_entry) return nullptr;
@@ -1745,7 +1745,7 @@ RE::TESBoundObject* Manager::RegisterFromMenu(RE::InventoryEntryData* a_real_ent
     }
     if (const auto actor = a_owner->As<RE::Actor>(); actor && was_worn) {
         const auto slot = worn_left ? RE::BGSDefaultObjectManager::GetSingleton()->GetObject<RE::BGSEquipSlot>(RE::DEFAULT_OBJECT::kLeftHandEquip) : nullptr;
-        RE::ActorEquipManager::GetSingleton()->EquipObject(actor, fake_bound, nullptr, 1, slot, true, false, false, true);
+        RE::ActorEquipManager::GetSingleton()->EquipObject(actor, fake_bound, nullptr, 1, slot, queue_equip, false, false, true);
     }
     Refresh(fake_bound, ChestObjRef);
     if (const auto ui = RE::UI::GetSingleton();

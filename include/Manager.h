@@ -212,7 +212,7 @@ public:
     std::string GetWeightText(const RE::TESBoundObject* fake_or_real);
     std::string GetValueText(RE::TESObjectREFR* a_loc);
     void CloseMenu();
-    RE::TESBoundObject* RegisterFromMenu(RE::InventoryEntryData* a_real_entry, RE::TESObjectREFR* a_owner, RE::ExtraDataList* instance = nullptr);
+    RE::TESBoundObject* RegisterFromMenu(RE::InventoryEntryData* a_real_entry, RE::TESObjectREFR* a_owner, RE::ExtraDataList* instance = nullptr, bool queue_equip = true);
     bool IsInChestMenu() const { return !reals_to_takeback.empty(); }
     bool IsChestMenuQueued() const { return !queued_chests.empty(); }
     static void RenameCallback(RE::TESBoundObject* a_fake);
