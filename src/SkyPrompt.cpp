@@ -149,19 +149,6 @@ void RegistrationPromptSink::ProcessEvent(const SkyPromptAPI::PromptEvent event)
         }
         if (const auto a_fake = Manager::GetSingleton()->RegisterFromMenu(a_entry, a_owner.get());
             a_fake && Manager::GetSingleton()->IsFakeContainer(a_fake->GetFormID())) {
-            if (is_worn) {
-                RE::ActorEquipManager::GetSingleton()->EquipObject(RE::PlayerCharacter::GetSingleton(), a_fake, nullptr,
-                                                                   1, nullptr, true, false, false, true);
-            }
-
-            if (const auto ui = RE::UI::GetSingleton();
-                ui->IsMenuOpen(RE::InventoryMenu::MENU_NAME) || ui->IsMenuOpen(RE::ContainerMenu::MENU_NAME)) {
-                RE::SendUIMessage::SendInventoryUpdateMessage(RE::PlayerCharacter::GetSingleton(), nullptr);
-                if (a_owner) {
-                    RE::SendUIMessage::SendInventoryUpdateMessage(a_owner.get(), nullptr);
-                }
-            }
-
             if (event.prompt.eventID == 4) {
                 Manager::RenameCallback(a_fake);
                 return;

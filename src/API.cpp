@@ -17,7 +17,12 @@ extern "C" __declspec(dllexport) const ContainerizeAPI::Interface* Containerize_
         },
         [](ContainerizeAPI::ClientID client) { return ChestManager::GetSingleton()->Uninstall(client); },
         [](RE::FormID chest) { return Manager::GetSingleton()->Refresh(chest); },
-        [](RE::FormID target) { return Manager::GetSingleton()->GetChest(target); }
+        [](RE::FormID target) { return Manager::GetSingleton()->GetChest(target); },
+        [](RE::FormID target, RE::FormID owner, RE::ExtraDataList* instance) {
+            return Manager::GetSingleton()->Initialize(target, owner, instance);
+        },
+        [](RE::FormID fakeItem, const char* name) { return Manager::GetSingleton()->Rename(fakeItem, name); },
+        [](RE::FormID target) { return Manager::GetSingleton()->DeRegister(target); }
     };
     return &api;
 }
