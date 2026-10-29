@@ -5,7 +5,7 @@ namespace Hooks {
     void Install();
     void InstallUseOrTakeHooks();
 
-    inline RE::NiPointer<RE::NiAVObject> objectNode = nullptr;
+    inline std::vector<RE::NiPointer<RE::NiAVObject>> objectNodes;
     void OnIsWorn(RE::TESBoundObject* object_to_equip);
     void OnHoverItem(const RE::TESBoundObject* a_bound);
     void HidePrompts();
