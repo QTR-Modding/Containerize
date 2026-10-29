@@ -217,33 +217,32 @@ bool Manager::HasItemPlusCleanUp(RE::TESBoundObject* item, RE::TESObjectREFR* it
     return false;
 }
 
-void Manager::UpdateFakeWV(RE::TESBoundObject* fake_form, RE::TESObjectREFR* chest_linked, const float weight_ratio) {
-    if (!fake_form) return RaiseMngrErr("Fake form is null");
+void Manager::UpdateFakeWV(RE::TESBoundObject* fake_form, RE::TESBoundObject* real_container, RE::TESObjectREFR* chest_linked, const float weight_ratio) {
     std::string formtype(RE::FormTypeToString(fake_form->GetFormType()));
-    if (formtype == "SCRL") UpdateFakeWV<RE::ScrollItem>(fake_form->As<RE::ScrollItem>(), chest_linked, weight_ratio);
+    if (formtype == "SCRL") UpdateFakeWV<RE::ScrollItem>(fake_form->As<RE::ScrollItem>(), real_container, chest_linked, weight_ratio);
     else if (formtype == "ARMO")
-        UpdateFakeWV<RE::TESObjectARMO>(fake_form->As<RE::TESObjectARMO>(), chest_linked,
+        UpdateFakeWV<RE::TESObjectARMO>(fake_form->As<RE::TESObjectARMO>(), real_container, chest_linked,
                                         weight_ratio);
     else if (formtype == "BOOK")
-        UpdateFakeWV<RE::TESObjectBOOK>(fake_form->As<RE::TESObjectBOOK>(), chest_linked,
+        UpdateFakeWV<RE::TESObjectBOOK>(fake_form->As<RE::TESObjectBOOK>(), real_container, chest_linked,
                                         weight_ratio);
     else if (formtype == "INGR")
-        UpdateFakeWV<RE::IngredientItem>(fake_form->As<RE::IngredientItem>(), chest_linked,
+        UpdateFakeWV<RE::IngredientItem>(fake_form->As<RE::IngredientItem>(), real_container, chest_linked,
                                          weight_ratio);
     else if (formtype == "MISC")
-        UpdateFakeWV<RE::TESObjectMISC>(fake_form->As<RE::TESObjectMISC>(), chest_linked,
+        UpdateFakeWV<RE::TESObjectMISC>(fake_form->As<RE::TESObjectMISC>(), real_container, chest_linked,
                                         weight_ratio);
     else if (formtype == "WEAP")
-        UpdateFakeWV<RE::TESObjectWEAP>(fake_form->As<RE::TESObjectWEAP>(), chest_linked,
+        UpdateFakeWV<RE::TESObjectWEAP>(fake_form->As<RE::TESObjectWEAP>(), real_container, chest_linked,
                                         weight_ratio);
     else if (formtype == "SLGM")
-        UpdateFakeWV<RE::TESSoulGem>(fake_form->As<RE::TESSoulGem>(), chest_linked,
+        UpdateFakeWV<RE::TESSoulGem>(fake_form->As<RE::TESSoulGem>(), real_container, chest_linked,
                                      weight_ratio);
     else if (formtype == "ALCH")
-        UpdateFakeWV<RE::AlchemyItem>(fake_form->As<RE::AlchemyItem>(), chest_linked,
+        UpdateFakeWV<RE::AlchemyItem>(fake_form->As<RE::AlchemyItem>(), real_container, chest_linked,
                                       weight_ratio);
     else if (formtype == "FURN")
-        UpdateFakeWV<RE::TESFurniture>(fake_form->As<RE::TESFurniture>(), chest_linked,
+        UpdateFakeWV<RE::TESFurniture>(fake_form->As<RE::TESFurniture>(), real_container, chest_linked,
                                        weight_ratio);
     else RaiseMngrErr(std::format("Form type not supported: {}", formtype));
 }
@@ -435,7 +434,7 @@ void Manager::FakePlacement(RefID saved_loc, const RefID chest_refID, RE::TESObj
     if (!src) return RaiseMngrErr("Could not find source for container");
     fake_bound = RE::TESForm::LookupByID<RE::TESBoundObject>(fakeid);
     if (!fake_bound) return RaiseMngrErr("Fake bound not found");
-    UpdateFakeWV(fake_bound, chest, src->weight_ratio);
+    Refresh(fake_bound, chest);
 
     if (std::ranges::find(external_favs, fakeid) != external_favs.end()) {
         if (const auto inventory_changes = saved_loc_ref->GetInventoryChanges()) {
@@ -726,11 +725,9 @@ void Manager::BeforePickup(RE::TESObjectREFR* picked_up_by, RE::TESObjectREFR* a
         const auto chest_refid = chest->GetFormID();
 
         RE::TESBoundObject* fake_bound = nullptr;
-        float weight_ratio = 0.f;
         {
             UNIQUE_GUARD;
             if (const auto src = GetContainerSource_NoLock(GetRealID_NoLock(chest_refid))) {
-                weight_ratio = src->weight_ratio;
                 if (fake_bound = GetFakeBound_NoLock(chest_refid); fake_bound && src->data.contains(chest_refid)) {
                     src->data.at(chest_refid) = picked_up_by->GetFormID();
                 } else {
@@ -741,7 +738,7 @@ void Manager::BeforePickup(RE::TESObjectREFR* picked_up_by, RE::TESObjectREFR* a
 
         if (fake_bound) {
             WorldObject::SwapObjects(a_object, fake_bound, false);
-            UpdateFakeWV(fake_bound, chest, weight_ratio);
+            Refresh(fake_bound, chest);
             if (Settings::other_settings[Settings::otherstuffKeys[1]]) {
                 auto ref_handle = picked_up_by->GetHandle();
                 const auto fake_id = fake_bound->GetFormID();
@@ -781,6 +778,7 @@ void Manager::UpdateLoc_Private(const RefID chestID, const RefID loc_id) {
         logger::error("Chest ID not found in ChestToFakeContainer.");
         return;
     }
+    RefID old_location = 0;
     {
         UNIQUE_GUARD;
         const auto real_id = GetRealID_NoLock(chestID);
@@ -789,9 +787,13 @@ void Manager::UpdateLoc_Private(const RefID chestID, const RefID loc_id) {
             logger::error("UpdateLoc_Private: source null");
             return;
         }
-        if (src->data.contains(chestID)) src->data.at(chestID) = loc_id;
+        if (const auto location = src->data.find(chestID); location != src->data.end()) {
+            old_location = location->second;
+            location->second = loc_id;
+        }
     }
-    UpdateFakeWV(GetFakeBound(chestID));
+    Refresh(chestID);
+    if (old_location != loc_id && IsChest(old_location)) Refresh(old_location);
 }
 
 void Manager::TransferOnUse(const RefID a_chestID) const {
@@ -835,19 +837,59 @@ void Manager::OnLongPressEquip(const RE::TESBoundObject* a_fake, const int delay
     }
 }
 
-void Manager::UpdateFakeWV(RE::TESBoundObject* fake_form) {
-    const auto chestID = GetFakeContainerChestID(fake_form->GetFormID());
-    const auto chestRef = RE::TESForm::LookupByID<RE::TESObjectREFR>(chestID);
-    if (!chestRef) {
-        logger::error("Chest ref not found.");
-        return;
+bool Manager::Refresh(const RefID chest_refid) {
+    if (isUninstalled.load()) return false;
+    const auto chest = RE::TESForm::LookupByID<RE::TESObjectREFR>(chest_refid);
+    const auto fake = GetFakeBound(chest_refid);
+    return chest && fake && Refresh(fake, chest);
+}
+
+bool Manager::Refresh(RE::TESBoundObject* fake_form, RE::TESObjectREFR* chest_linked) {
+    auto inventory_changes = chest_linked->GetInventoryChanges(true);
+    if (inventory_changes) inventory_changes->InvalidateWeight();
+    std::unordered_set<RefID> visited;
+    for (;;) {
+        const auto chest_id = chest_linked->GetFormID();
+        if (!visited.insert(chest_id).second) {
+            logger::error("Refresh: detected cycle for chest {:x}", chest_id);
+            return false;
+        }
+        if (reals_to_takeback.contains(chest_id)) {
+            if (inventory_changes) inventory_changes->GetInventoryWeight();
+            return true;
+        }
+
+        RE::TESBoundObject* real_container;
+        RefID location_id;
+        float weight_ratio;
+        {
+            SHARED_GUARD;
+            real_container = RE::TESForm::LookupByID<RE::TESBoundObject>(GetRealID_NoLock(chest_id));
+            if (!real_container) return false;
+            const auto source = GetContainerSource_NoLock(real_container->GetFormID());
+            if (!source) return false;
+            const auto location = source->data.find(chest_id);
+            if (location == source->data.end()) return false;
+            location_id = location->second;
+            weight_ratio = source->weight_ratio;
+        }
+        UpdateFakeWV(fake_form, real_container, chest_linked, weight_ratio);
+
+        const auto owner = RE::TESForm::LookupByID<RE::TESObjectREFR>(location_id);
+        if (!owner) return true;
+        inventory_changes = owner->GetInventoryChanges(true);
+        if (inventory_changes) {
+            inventory_changes->InvalidateWeight();
+            inventory_changes->GetInventoryWeight();
+        }
+        {
+            SHARED_GUARD;
+            if (!IsChest_NoLock(location_id)) return true;
+            fake_form = GetFakeBound_NoLock(location_id);
+        }
+        if (!fake_form) return false;
+        chest_linked = owner;
     }
-    const auto src = GetChestSource(chestID);
-    if (!src) {
-        logger::error("Source not found.");
-        return;
-    }
-    UpdateFakeWV(fake_form, chestRef, src->weight_ratio);
 }
 
 Count Manager::CanBeAdded(const RE::TESBoundObject* a_item, const Count a_count, RefID a_chestID) {
@@ -1032,7 +1074,7 @@ void Manager::OnChestExit(RE::TESObjectREFR* a_chest) {
             }
             closed_menu = "";
         }
-        if (fake_bound) UpdateFakeWV(fake_bound);
+        if (fake_bound) Refresh(fake_bound, a_chest);
     }
     if (!next_menu_is_chest) {
         const auto fake_id = GetFakeID(chest_id);
@@ -1364,7 +1406,6 @@ void Manager::ReceiveData() {
     }
 
     const auto DFT = DynamicFormTracker::GetSingleton();
-    std::vector<std::pair<RefID, float>> pendingWV; // chest_refid, weight_ratio
 
     {
         SHARED_GUARD;
@@ -1374,9 +1415,6 @@ void Manager::ReceiveData() {
                                           ? FormReader::GetEditorID(source.formid)
                                           : source.editorid;
                 DFT->Reserve(source.formid, editorid, dyn_formid);
-            }
-            for (const auto& chest_refid : source.data | std::views::keys) {
-                pendingWV.emplace_back(chest_refid, source.weight_ratio);
             }
         }
     }
@@ -1399,12 +1437,12 @@ void Manager::ReceiveData() {
 
     ReceiveDataHandleEquipFavorite(chest_equipped_fav);
 
-    for (const auto& [chest_refid, weight_ratio] : pendingWV) {
+    for (const auto chest_refid : all_chestIDs) {
         const auto fake_formid = GetFakeID(chest_refid); // resolve NOW (post-placement)
         const auto fake_bound = RE::TESForm::LookupByID<RE::TESBoundObject>(fake_formid);
         const auto chest_ref = RE::TESForm::LookupByID<RE::TESObjectREFR>(chest_refid);
         if (fake_bound && chest_ref) {
-            UpdateFakeWV(fake_bound, chest_ref, weight_ratio);
+            Refresh(fake_bound, chest_ref);
         } else {
             logger::error("ReceiveData: missing fake_bound or chest_ref for chest {:x}", chest_refid);
         }
