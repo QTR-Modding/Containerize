@@ -22,3 +22,8 @@
 Automatically imports:
 - [CLibUtil](https://github.com/powerof3/CLibUtil) by powerof3
 - [SKSE Menu Framework](https://www.nexusmods.com/skyrimspecialedition/mods/120352) by Thiago099
+
+
+#### CHEST RENTAL API
+
+See [Chest rental API](docs/ChestRentalAPI.md) to rent storage from another SKSE plugin.

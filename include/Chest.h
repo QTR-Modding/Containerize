@@ -30,9 +30,11 @@ class ChestManager final : public REX::Singleton<ChestManager> {
     friend void Serialization::RevertCallback(SKSE::SerializationInterface* serializationInterface);
 
     static constexpr std::uint32_t kDataKey = 'CHTZ';
-    static constexpr std::uint32_t kSerializationVersion = 1;
+    static constexpr std::uint32_t kSerializationVersion = 2;
+    static constexpr std::uint32_t kLegacySerializationVersion = 1;
 
     struct RentalState {
+        std::map<ContainerizeAPI::ClientID, std::string> clients;
         std::unordered_map<RefID, ContainerizeAPI::ClientID> rented;
         std::unordered_set<RefID> returned;
     };
@@ -46,7 +48,7 @@ class ChestManager final : public REX::Singleton<ChestManager> {
     static RE::TESObjectREFR* AddChest(uint32_t chest_no);
 
     [[nodiscard]] bool Save(SKSE::SerializationInterface* serializationInterface);
-    [[nodiscard]] bool Load(SKSE::SerializationInterface* serializationInterface, std::uint32_t length);
+    [[nodiscard]] bool Load(SKSE::SerializationInterface* serializationInterface, std::uint32_t length, std::uint32_t version);
     void Reset();
     void ResumeDisposals();
     void ScheduleDisposal(RE::TESObjectREFR* chest);
@@ -61,6 +63,8 @@ public:
 
     static uint32_t GetNoChests();
     static bool IsUnownedChest(RefID refid);
+    [[nodiscard]] ContainerizeAPI::ClientID RegisterClient(const char* name);
+    [[nodiscard]] bool Uninstall(ContainerizeAPI::ClientID client_id);
     [[nodiscard]] bool ReturnChest(ContainerizeAPI::ClientID client_id, RE::TESObjectREFR* chest);
     [[nodiscard]] RE::TESObjectREFR* RentChest(ContainerizeAPI::ClientID client_id);
 };

@@ -8,6 +8,7 @@ bool ChestManager::Init() {
     if (!unownedChestOG || !unownedChestOG->GetBaseObject() || !unownedCell || !unownedChest ||
         unownedChestOG->GetBaseObject()->GetFormID() != unownedChest->GetFormID() ||
         !unownedChest->As<RE::TESBoundObject>()) {
+        unownedCell = nullptr;
         logger::error("Missing unowned chest/cell");
         return false;
     }
@@ -102,10 +103,20 @@ bool ChestManager::Save(SKSE::SerializationInterface* serializationInterface) {
     for (const auto chest_refid : rental_state.returned) {
         if (!serializationInterface->WriteRecordData(chest_refid)) return false;
     }
+    if (rental_state.clients.size() > std::numeric_limits<std::uint32_t>::max()) return false;
+    const auto client_count = static_cast<std::uint32_t>(rental_state.clients.size());
+    if (!serializationInterface->WriteRecordData(client_count)) return false;
+    for (const auto& [client_id, name] : rental_state.clients) {
+        if (name.size() > std::numeric_limits<std::uint32_t>::max()) return false;
+        const auto name_length = static_cast<std::uint32_t>(name.size());
+        if (!serializationInterface->WriteRecordData(client_id) ||
+            !serializationInterface->WriteRecordData(name_length) ||
+            !serializationInterface->WriteRecordData(name.data(), name_length)) return false;
+    }
     return true;
 }
 
-bool ChestManager::Load(SKSE::SerializationInterface* serializationInterface, std::uint32_t length) {
+bool ChestManager::Load(SKSE::SerializationInterface* serializationInterface, std::uint32_t length, const std::uint32_t version) {
     RentalState loaded;
     const auto read = [&]<typename T>(T& value) {
         if (length < sizeof(T) || serializationInterface->ReadRecordData(value) != sizeof(T)) return false;
@@ -140,6 +151,26 @@ bool ChestManager::Load(SKSE::SerializationInterface* serializationInterface, st
             logger::warn("Could not resolve returned chest {:x} during load", chest_refid);
         }
     }
+    if (version == kSerializationVersion) {
+        std::uint32_t client_count;
+        constexpr auto client_header_size = sizeof(ContainerizeAPI::ClientID) + sizeof(std::uint32_t);
+        if (!read(client_count) || client_count > length / client_header_size) return false;
+        std::unordered_set<std::string> names;
+        for (std::uint32_t i = 0; i < client_count; ++i) {
+            ContainerizeAPI::ClientID client_id;
+            std::uint32_t name_length;
+            if (!read(client_id) || client_id == ContainerizeAPI::containerize_client ||
+                !read(name_length) || name_length == 0 || name_length > length) return false;
+            std::string name(name_length, '\0');
+            if (serializationInterface->ReadRecordData(name.data(), name_length) != name_length) return false;
+            length -= name_length;
+            if (name.find('\0') != std::string::npos || !names.insert(name).second ||
+                !loaded.clients.emplace(client_id, std::move(name)).second) return false;
+        }
+    }
+    for (const auto client_id : loaded.rented | std::views::values) {
+        if (client_id != ContainerizeAPI::containerize_client && !loaded.clients.contains(client_id)) return false;
+    }
     if (length != 0) return false;
 
     std::unique_lock lock(register_mutex);
@@ -149,8 +180,7 @@ bool ChestManager::Load(SKSE::SerializationInterface* serializationInterface, st
 
 void ChestManager::Reset() {
     std::unique_lock lock(register_mutex);
-    rental_state.rented.clear();
-    rental_state.returned.clear();
+    rental_state = {};
 }
 
 void ChestManager::RestoreContainerizeChests(const std::vector<RefID>& chest_refids) {
@@ -216,6 +246,36 @@ bool ChestManager::HandleFormDelete(const RefID chest_refid) {
     return rental_state.returned.erase(chest_refid) > 0 && rental_state.returned.empty();
 }
 
+ContainerizeAPI::ClientID ChestManager::RegisterClient(const char* name) {
+    if (!name || !*name) return ContainerizeAPI::invalid_client;
+    std::unique_lock lock(register_mutex);
+    for (const auto& [client_id, registered_name] : rental_state.clients) {
+        if (registered_name == name) return client_id;
+    }
+    const auto last_id = rental_state.clients.empty() ? ContainerizeAPI::containerize_client :
+                         rental_state.clients.rbegin()->first;
+    if (last_id == std::numeric_limits<ContainerizeAPI::ClientID>::max()) return ContainerizeAPI::invalid_client;
+    const auto client_id = last_id + 1;
+    rental_state.clients.emplace(client_id, name);
+    return client_id;
+}
+
+bool ChestManager::Uninstall(const ContainerizeAPI::ClientID client_id) {
+    std::vector<RefID> chests;
+    {
+        std::shared_lock lock(register_mutex);
+        if (!rental_state.clients.contains(client_id)) return false;
+        for (const auto& [chest_refid, owner] : rental_state.rented) {
+            if (owner == client_id) chests.push_back(chest_refid);
+        }
+    }
+    bool success = true;
+    for (const auto chest_refid : chests) {
+        if (!ReturnChest(client_id, RE::TESForm::LookupByID<RE::TESObjectREFR>(chest_refid))) success = false;
+    }
+    return success;
+}
+
 bool ChestManager::ReturnChest(const ContainerizeAPI::ClientID client_id, RE::TESObjectREFR* chest) {
     if (!chest) return false;
     const auto empty = IsEmpty(chest);
@@ -231,7 +291,9 @@ bool ChestManager::ReturnChest(const ContainerizeAPI::ClientID client_id, RE::TE
 }
 
 RE::TESObjectREFR* ChestManager::RentChest(const ContainerizeAPI::ClientID client_id) {
+    if (!UnownedStuff::unownedCell) return nullptr;
     std::unique_lock lock(register_mutex);
+    if (client_id != ContainerizeAPI::containerize_client && !rental_state.clients.contains(client_id)) return nullptr;
     if (const auto a_chest = FindNotMatchedChest()) {
         if (rental_state.rented.emplace(a_chest->GetFormID(), client_id).second) {
             return a_chest;

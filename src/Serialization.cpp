@@ -157,8 +157,8 @@ void Serialization::LoadCallback(SKSE::SerializationInterface* serializationInte
     while (serializationInterface->GetNextRecordInfo(type, version, length)) {
         if (type == ChestManager::kDataKey) {
             rentals_present = true;
-            rentals_loaded = version == ChestManager::kSerializationVersion &&
-                             chest_manager->Load(serializationInterface, length);
+            rentals_loaded = (version == ChestManager::kLegacySerializationVersion || version == ChestManager::kSerializationVersion) &&
+                             chest_manager->Load(serializationInterface, length, version);
             if (!rentals_loaded) logger::critical("Failed to load chest rentals, version {}", version);
             continue;
         }

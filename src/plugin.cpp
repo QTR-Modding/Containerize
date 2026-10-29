@@ -1,4 +1,5 @@
 #include "Hooks.h"
+#include "Chest.h"
 #include "MCP.h"
 #include "SkyPrompt.h"
 #include "Translations.h"
@@ -8,6 +9,11 @@ namespace {
     void OnMessage(SKSE::MessagingInterface::Message* message) {
         if (message->type == SKSE::MessagingInterface::kDataLoaded) {
             SpeedProfiler prof("Loading Sources");
+            if (!ChestManager::GetSingleton()->Init()) {
+                MsgBoxesNotifs::InGame::InitErr();
+                return;
+            }
+            RE::ScriptEventSourceHolder::GetSingleton()->AddEventSink<RE::TESFormDeleteEvent>(EventSink::GetSingleton());
             // Start
             if (SkyPrompt::g_clientID == 0) {
                 SkyPrompt::g_clientID = SkyPromptAPI::RequestClientID();
