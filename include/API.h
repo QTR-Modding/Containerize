@@ -11,11 +11,15 @@ namespace ContainerizeAPI {
     constexpr std::uint32_t interface_version = 1;
 
     struct Interface {
+        // ChestManager: chest rentals owned by a registered client.
         ClientID (*RegisterClient)(const char* name);
         RE::FormID (*RentChest)(ClientID client);
         bool (*ReturnChest)(ClientID client, RE::FormID chest);
         bool (*Uninstall)(ClientID client);
+
+        // Containerize: storage linked to an item or furniture.
         bool (*Refresh)(RE::FormID chest);
+        RE::FormID (*GetChest)(RE::FormID target);
     };
 
     [[nodiscard]] inline const Interface* RequestAPI() {

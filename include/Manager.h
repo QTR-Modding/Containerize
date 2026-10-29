@@ -201,6 +201,7 @@ public:
     void Uninstall(bool delete_fake_forms = false);
     void FinishUninstall();
     bool Refresh(RefID chest_refid);
+    [[nodiscard]] RefID GetChest(FormID target_id) const;
 
     RE::TESBoundObject* GetFakeBound(const RE::TESObjectREFR* a_loc) const;
     std::string GetWeightText(RE::TESObjectREFR* a_container);
