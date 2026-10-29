@@ -109,6 +109,7 @@ class Manager final : public Serialization::SaveLoadData,
     void RemoveCarryWeightBoost(FormID item_formid, RE::TESObjectREFR* inventory_owner);
 
     bool HandleRegistration(RE::TESObjectREFR* a_item);
+    void CancelRegistration(RE::TESObjectREFR* chest, RE::TESBoundObject* fake, RE::TESObjectREFR* owner);
 
     // deregisters the chest, tries to move its contents to transfer_dest, removes the fake and returns the rental
     [[nodiscard]] bool DeRegister(RE::TESObjectREFR* chest, RE::TESObjectREFR* transfer_dest);
@@ -202,13 +203,16 @@ public:
     void FinishUninstall();
     bool Refresh(RefID chest_refid);
     [[nodiscard]] RefID GetChest(FormID target_id) const;
+    [[nodiscard]] FormID Initialize(FormID target_id, RefID owner_id, RE::ExtraDataList* instance);
+    bool Rename(FormID fake_id, const char* name);
+    bool DeRegister(FormID target_id);
 
     RE::TESBoundObject* GetFakeBound(const RE::TESObjectREFR* a_loc) const;
     std::string GetWeightText(RE::TESObjectREFR* a_container);
     std::string GetWeightText(const RE::TESBoundObject* fake_or_real);
     std::string GetValueText(RE::TESObjectREFR* a_loc);
     void CloseMenu();
-    RE::TESBoundObject* RegisterFromMenu(RE::InventoryEntryData* a_real_entry, RE::TESObjectREFR* a_owner);
+    RE::TESBoundObject* RegisterFromMenu(RE::InventoryEntryData* a_real_entry, RE::TESObjectREFR* a_owner, RE::ExtraDataList* instance = nullptr);
     bool IsInChestMenu() const { return !reals_to_takeback.empty(); }
     bool IsChestMenuQueued() const { return !queued_chests.empty(); }
     static void RenameCallback(RE::TESBoundObject* a_fake);
