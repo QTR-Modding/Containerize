@@ -57,34 +57,15 @@ Your mod must first finish its own item transfers and stop using the chests. Con
 
 ## Containerize: linked item/furniture storage
 
-GetChest and Refresh operate on Containerize's existing linked storage. Your mod does not rent that storage or take ownership of it.
+See [Containerize-linked storage](LinkedStorageAPI.md) for initialization, lookup, renaming, refresh and deregistration. These calls operate on storage owned by Containerize, rather than rentals owned by your mod.
 
 ### Finding linked storage
 
-```cpp
-const RE::FormID chest = api->GetChest(target);
-if (!chest) return;  // No existing linked storage.
-```
-
-Pass a placed item's or furniture's reference FormID, or the fake item FormID of an already containerized item in an inventory. The fake item is the copy Containerize creates and displays in place of the original item. The result is the reference FormID of that target's existing storage chest.
-
-GetChest is a lookup only. It returns zero for an unregistered target, an original base FormID, missing or deleted storage, or after Containerize uninstall. Passing an actor or an ordinary container does not retrieve storage belonging to an item inside it. The call does not create storage or register the target.
-
-Linked storage belongs to Containerize. Use normal engine inventory operations for your own items, then call Refresh after changing the contents. Leave Containerize's internal original item untouched, and do not return this chest through another client's ReturnChest or Uninstall calls.
+[GetChest](LinkedStorageAPI.md#finding-linked-storage) retrieves an existing linked chest without initializing storage.
 
 ### Refreshing Containerize-managed storage
 
-Containerize-managed storage is a chest connected to an item or furniture through Containerize's own registration. After changing its contents, refresh that storage once for the completed operation:
-
-```cpp
-const bool refreshed = api->Refresh(chest);
-```
-
-Pass the storage chest's reference FormID. Refresh updates the associated containerized item's weight/value, then its enclosing managed containers from the inside out. It invalidates affected inventory weight caches and calls the engine's weight calculation before returning.
-
-If the requested storage or an enclosing container is open, its item weight/value update waits for Containerize's normal close routine, after the internal original item is restored. The open chest's actual inventory weight is still recalculated.
-
-This does not register storage, find a furniture's linked chest or change its contents. A bare chest rented by an external client has no associated containerized item and returns false. Refresh also returns false after Containerize uninstall, for invalid storage, or if a required ancestor cannot be refreshed. Inner containers may already have been updated before an ancestor failure; the operation does not roll back those updates.
+[Refresh](LinkedStorageAPI.md#refreshing-containerize-managed-storage) updates the linked item's weight/value after external contents changes.
 
 ## Interface availability
 

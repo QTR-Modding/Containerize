@@ -496,6 +496,11 @@ bool Manager::HandleRegistration(RE::TESObjectREFR* a_item) {
             logger::warn("Failed to copy extra data list.");
         }
         ChestObjRef->AddObjectToContainer(a_item->GetBaseObject(), xList_copy, 1, nullptr);
+        if (!Inventory::HasItem(a_item->GetBaseObject(), ChestObjRef)) {
+            logger::error("Failed to store original container for reference {:x}", container_refid);
+            CancelRegistration(ChestObjRef, RE::TESForm::LookupByID<RE::TESBoundObject>(fake_formid), nullptr);
+            return false;
+        }
         // TODO: test
         if (const auto& initial_items_map = src->initial_items; !initial_items_map.empty()) {
             if (const auto chest = RE::TESForm::LookupByID<RE::TESObjectREFR>(ChestRefID)) {
@@ -507,7 +512,9 @@ bool Manager::HandleRegistration(RE::TESObjectREFR* a_item) {
                 }
             } else logger::error("Chest not found for initial items addition.");
         }
-        return Register_Sub(master_formid, fake_formid, ChestRefID, container_refid);
+        if (!Register_Sub(master_formid, fake_formid, ChestRefID, container_refid)) return false;
+        Refresh(RE::TESForm::LookupByID<RE::TESBoundObject>(fake_formid), ChestObjRef);
+        return true;
     }
     const auto chest_refid = GetContainerChestID(container_refid);
     const auto real_cont_id = GetRealID(chest_refid);
@@ -527,6 +534,14 @@ bool Manager::HandleRegistration(RE::TESObjectREFR* a_item) {
         DFT->EditCustomID(fake_cont_id, chest_refid);
     }
     return true;
+}
+
+void Manager::CancelRegistration(RE::TESObjectREFR* chest, RE::TESBoundObject* fake, RE::TESObjectREFR* owner) {
+    if (owner) owner->RemoveItem(fake, 1, RE::ITEM_REMOVE_REASON::kRemove, nullptr, nullptr);
+    DynamicFormTracker::GetSingleton()->SetInactive(fake->GetFormID());
+    if (!ChestManager::GetSingleton()->ReturnChest(client_id, chest)) {
+        logger::error("Failed to return chest {:x}", chest->GetFormID());
+    }
 }
 
 bool Manager::DeRegister(RE::TESObjectREFR* chest, RE::TESObjectREFR* transfer_dest) {
@@ -553,7 +568,11 @@ bool Manager::DeRegister(RE::TESObjectREFR* chest, RE::TESObjectREFR* transfer_d
     }
     if (transfer_dest) {
         for (auto& [fst,snd] : chest->GetInventory()) {
-            if (snd.first > 0) chest->RemoveItem(fst, snd.first, RE::ITEM_REMOVE_REASON::kRemove, nullptr, transfer_dest);
+            if (snd.first <= 0) continue;
+            const auto replacement_pair = std::make_pair(transfer_dest->GetFormID(), fst->GetFormID());
+            bypass_CanBeAdded.insert(replacement_pair);
+            chest->RemoveItem(fst, snd.first, RE::ITEM_REMOVE_REASON::kRemove, nullptr, transfer_dest);
+            bypass_CanBeAdded.erase(replacement_pair);
         }
     }
     if (!ChestManager::IsEmpty(chest)) ReportTransferFailure(chestID);
@@ -601,6 +620,8 @@ bool Manager::Register_Sub(const FormID master_formID, const FormID fake_formID,
         src->data.erase(chest_refID);
         return false;
     }
+    renames.erase(fake_formID);
+    std::erase(external_favs, fake_formID);
     return true;
 }
 
@@ -609,7 +630,10 @@ bool Manager::DeRegister_Sub(const FormID master_formID, const RefID chest_refID
     Source* src = GetContainerSource_NoLock(master_formID);
     if (!src) return false;
     if (!src->data.erase(chest_refID)) return false;
+    const auto fake_id = GetFakeID_NoLock(chest_refID);
     if (!ChestToFakeContainer.erase(chest_refID)) return false;
+    renames.erase(fake_id);
+    std::erase(external_favs, fake_id);
     return true;
 }
 
@@ -835,6 +859,53 @@ void Manager::OnLongPressEquip(const RE::TESBoundObject* a_fake, const int delay
     } else {
         SKSE::GetTaskInterface()->AddUITask([this,chest] { OpenChestFromMenu(chest); });
     }
+}
+
+FormID Manager::Initialize(const FormID target_id, const RefID owner_id, RE::ExtraDataList* instance) {
+    if (isUninstalled.load()) return 0;
+    if (const auto chest_id = GetChest(target_id)) return GetFakeID(chest_id);
+
+    RE::TESBoundObject* fake = nullptr;
+    if (!owner_id) {
+        const auto reference = RE::TESForm::LookupByID<RE::TESObjectREFR>(target_id);
+        if (!IsRealContainer(reference) || instance || !HandleRegistration(reference)) return 0;
+        fake = GetFakeBound(reference);
+    } else {
+        const auto owner = RE::TESForm::LookupByID<RE::TESObjectREFR>(owner_id);
+        const auto item = RE::TESForm::LookupByID<RE::TESBoundObject>(target_id);
+        if (!owner || owner->IsDeleted() || !owner->HasContainer() || !item || !IsRealContainer(target_id)) return 0;
+        const auto inventory = owner->GetInventory([item](RE::TESBoundObject& candidate) { return &candidate == item; });
+        const auto entry = inventory.find(item);
+        if (entry == inventory.end() || entry->second.first <= 0 || !entry->second.second) return 0;
+        if (instance && (!entry->second.second->extraLists ||
+                         std::ranges::find(*entry->second.second->extraLists, instance) == entry->second.second->extraLists->end())) return 0;
+        fake = RegisterFromMenu(entry->second.second.get(), owner, instance, false);
+    }
+    return fake ? fake->GetFormID() : 0;
+}
+
+bool Manager::Rename(const FormID fake_id, const char* name) {
+    if (isUninstalled.load() || !name || !*name) return false;
+    const auto fake = GetFakeBound(GetFakeContainerChestID(fake_id));
+    if (!fake) return false;
+    RenameContainer(name, fake);
+    return true;
+}
+
+bool Manager::DeRegister(const FormID target_id) {
+    if (isUninstalled.load()) return false;
+    const auto chest_id = GetChest(target_id);
+    if (!chest_id || reals_to_takeback.contains(chest_id) || queued_chests.contains(chest_id) ||
+        (containermenu_owner && containermenu_owner->GetFormID() == chest_id)) return false;
+    if (const auto loan = transfer_cache.find(chest_id); loan != transfer_cache.end() && !loan->second.empty()) return false;
+    const auto chest = RE::TESForm::LookupByID<RE::TESObjectREFR>(chest_id);
+    const auto fake_id = GetFakeID(chest_id);
+    auto destination = GetContainerLocation(fake_id);
+    if (!destination || destination->IsDeleted() || !destination->HasContainer()) destination = RE::PlayerCharacter::GetSingleton();
+    if (!DeRegister(chest, destination)) return false;
+    if (IsChest(destination->GetFormID())) Refresh(destination->GetFormID());
+    else if (const auto changes = destination->GetInventoryChanges(true)) changes->GetInventoryWeight();
+    return true;
 }
 
 RefID Manager::GetChest(const FormID target_id) const {
@@ -1605,7 +1676,7 @@ void Manager::CloseMenu() {
     closed_menu = Menu::CloseMenu();
 }
 
-RE::TESBoundObject* Manager::RegisterFromMenu(RE::InventoryEntryData* a_real_entry, RE::TESObjectREFR* a_owner) {
+RE::TESBoundObject* Manager::RegisterFromMenu(RE::InventoryEntryData* a_real_entry, RE::TESObjectREFR* a_owner, RE::ExtraDataList* instance, const bool queue_equip) {
     if (isUninstalled.load()) return nullptr;
     a_owner = a_owner ? a_owner : RE::PlayerCharacter::GetSingleton();
     if (!a_real_entry) return nullptr;
@@ -1636,26 +1707,30 @@ RE::TESBoundObject* Manager::RegisterFromMenu(RE::InventoryEntryData* a_real_ent
     }
     RE::ExtraDataList* xList_real = nullptr;
     RE::ExtraDataList* xList_fake = nullptr;
-    if (Inventory::EntryHasXDataList(a_real_entry)) {
-        xList_real = a_real_entry->extraLists->front();
+    if (instance || Inventory::EntryHasXDataList(a_real_entry)) {
+        xList_real = instance ? instance : a_real_entry->extraLists->front();
         xList_fake = xData::ConstructExtraDataList();
         if (!xData::UpdateExtras(xList_real, xList_fake)) {
             logger::error("Failed to update extras for fake object.");
         }
     }
+    const bool worn_left = xList_real && xList_real->HasType<RE::ExtraWornLeft>();
+    const bool was_worn = worn_left || (xList_real && xList_real->HasType<RE::ExtraWorn>());
     const auto replacement_pair = std::make_pair(a_owner->GetFormID(), fake_formid);
     bypass_CanBeAdded.insert(replacement_pair);
     a_owner->AddObjectToContainer(fake_bound, xList_fake, 1, nullptr);
     bypass_CanBeAdded.erase(replacement_pair);
     if (!Inventory::HasItem(fake_bound, a_owner)) {
         logger::error("Failed to place fake container in its original inventory.");
-        DynamicFormTracker::GetSingleton()->SetInactive(fake_formid);
-        if (!ChestManager::GetSingleton()->ReturnChest(client_id, ChestObjRef)) {
-            logger::error("Failed to return chest {:x}", ChestRefID);
-        }
+        CancelRegistration(ChestObjRef, fake_bound, nullptr);
         return nullptr;
     }
     a_owner->RemoveItem(a_real, 1, RE::ITEM_REMOVE_REASON::kStoreInContainer, xList_real, ChestObjRef);
+    if (!Inventory::HasItem(a_real, ChestObjRef)) {
+        logger::error("Failed to move original container into chest {:x}", ChestRefID);
+        CancelRegistration(ChestObjRef, fake_bound, a_owner);
+        return nullptr;
+    }
     if (!Register_Sub(a_real->GetFormID(), fake_formid, ChestRefID, a_owner->GetFormID())) {
         RaiseMngrErr("Register_Sub failed in RegisterFromMenu.");
         return nullptr;
@@ -1667,6 +1742,16 @@ RE::TESBoundObject* Manager::RegisterFromMenu(RE::InventoryEntryData* a_real_ent
             if (!bound) continue;
             ChestObjRef->AddObjectToContainer(bound, nullptr, count, nullptr);
         }
+    }
+    if (const auto actor = a_owner->As<RE::Actor>(); actor && was_worn) {
+        const auto slot = worn_left ? RE::BGSDefaultObjectManager::GetSingleton()->GetObject<RE::BGSEquipSlot>(RE::DEFAULT_OBJECT::kLeftHandEquip) : nullptr;
+        RE::ActorEquipManager::GetSingleton()->EquipObject(actor, fake_bound, nullptr, 1, slot, queue_equip, false, false, true);
+    }
+    Refresh(fake_bound, ChestObjRef);
+    if (const auto ui = RE::UI::GetSingleton();
+        ui->IsMenuOpen(RE::InventoryMenu::MENU_NAME) || ui->IsMenuOpen(RE::ContainerMenu::MENU_NAME)) {
+        RE::SendUIMessage::SendInventoryUpdateMessage(RE::PlayerCharacter::GetSingleton(), nullptr);
+        if (a_owner->GetFormID() != player_refid) RE::SendUIMessage::SendInventoryUpdateMessage(a_owner, nullptr);
     }
     return fake_bound;
 }

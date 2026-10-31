@@ -4,6 +4,8 @@
 #include <RE/B/BSCoreTypes.h>
 #include <Windows.h>
 
+namespace RE { class ExtraDataList; }
+
 namespace ContainerizeAPI {
     using ClientID = std::uint32_t;
     constexpr ClientID containerize_client = 0;
@@ -20,6 +22,9 @@ namespace ContainerizeAPI {
         // Containerize: storage linked to an item or furniture.
         bool (*Refresh)(RE::FormID chest);
         RE::FormID (*GetChest)(RE::FormID target);
+        RE::FormID (*Initialize)(RE::FormID target, RE::FormID owner, RE::ExtraDataList* instance);
+        bool (*Rename)(RE::FormID fakeItem, const char* name);
+        bool (*DeRegister)(RE::FormID target);
     };
 
     [[nodiscard]] inline const Interface* RequestAPI() {
