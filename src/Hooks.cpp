@@ -43,6 +43,10 @@ bool Hooks::HandleEquip(RE::InputEvent* event) {
             rightEquip) {
             if (const auto selected_item = GetSelectedItemInMenu();
                 selected_item && Manager::GetSingleton()->IsFakeContainer(selected_item->GetFormID())) {
+                if (Manager::GetSingleton()->IsTokenMode(selected_item->GetFormID())) {
+                    equip_was_pressed.store(false);
+                    return false;
+                }
                 if (button_event->IsDown()) {
                     equip_was_pressed.store(true);
                 }

@@ -55,6 +55,7 @@ struct Source {
     std::map<FormID, Count> initial_items;
     float capacity;
     bool transfer_on_use;
+    bool token_mode = false;
     FormID formid;
     std::string editorid;
     SourceData data; // ChestRefID -> LocRefID

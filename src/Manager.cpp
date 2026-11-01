@@ -821,6 +821,7 @@ void Manager::UpdateLoc_Private(const RefID chestID, const RefID loc_id) {
 }
 
 void Manager::TransferOnUse(const RefID a_chestID) const {
+    if (IsTokenMode(a_chestID)) return;
     if (const auto chest = RE::TESForm::LookupByID<RE::TESObjectREFR>(a_chestID)) {
         const auto player_ref = RE::PlayerCharacter::GetSingleton();
         const auto a_inv = chest->GetInventoryCounts();
@@ -1081,6 +1082,14 @@ bool Manager::IsFakeContainer(const FormID formid) const {
     return std::ranges::any_of(ChestToFakeContainer, [formid](const auto& pair) {
         return pair.second.innerKey == formid;
     });
+}
+
+bool Manager::IsTokenMode(const FormID formid) const {
+    SHARED_GUARD;
+    if (const auto src = GetContainerSource_NoLock(formid)) return src->token_mode;
+    const auto chest_id = IsChest_NoLock(formid) ? formid : GetFakeContainerChestID_NoLock(formid);
+    const auto src = GetContainerSource_NoLock(GetRealID_NoLock(chest_id));
+    return src && src->token_mode;
 }
 
 bool Manager::IsRealContainer(const FormID formid) const {

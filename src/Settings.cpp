@@ -52,6 +52,13 @@ namespace {
         }
 
         Source source(formid, editorid, temp_weight_limit, cloud_storage, transfer_on_use);
+        if (config["token_mode"] && !config["token_mode"].IsNull()) {
+            try {
+                source.token_mode = config["token_mode"].as<bool>();
+            } catch (const std::exception&) {
+                logger::warn("token_mode value is invalid. Using default value.");
+            }
+        }
 
         // add initial items
         if (config["initial_items"] && config["initial_items"].size() > 0) {

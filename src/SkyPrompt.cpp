@@ -17,6 +17,9 @@ void RefPromptSink::Start(RE::TESObjectREFR* a_ref) {
     }
 
     const auto manager = Manager::GetSingleton();
+    if (manager->IsTokenMode(a_ref->GetBaseObject()->GetFormID())) {
+        std::erase_if(prompts, [this](const auto& prompt) { return prompt.eventID == open_prompt.eventID; });
+    }
 
     if (const auto a_weight_text = manager->GetWeightText(a_ref); !a_weight_text.empty()) {
         weight_text.append(Strings::weight).append(" ").append(a_weight_text);
@@ -41,6 +44,7 @@ void RefPromptSink::ProcessEvent(const SkyPromptAPI::PromptEvent event) const {
     if (const auto crosshairref = RE::CrosshairPickData::GetSingleton()->target) {
         if (const auto a_ref = crosshairref->get().get()) {
             if (const auto prompt_eventid = event.prompt.eventID; prompt_eventid == 0) {
+                if (Manager::GetSingleton()->IsTokenMode(a_ref->GetBaseObject()->GetFormID())) return;
                 const auto duration = Animations::SetUpAnimationOnOpen(a_ref, true);
                 Manager::GetSingleton()->OnActivateContainer(a_ref, 0, duration);
             } else if (prompt_eventid == 1) {
@@ -98,6 +102,10 @@ void MenuPromptSink::Show(const RE::TESBoundObject* a_fake) const {
         prompts = {open_prompt};
     }
 
+    if (Manager::GetSingleton()->IsTokenMode(a_fake->GetFormID())) {
+        std::erase_if(prompts, [this](const auto& prompt) { return prompt.eventID == open_prompt.eventID; });
+    }
+
     const auto a_weight_text = Manager::GetSingleton()->GetWeightText(a_fake);
     if (!a_weight_text.empty()) {
         weight_text.append(Strings::weight).append(" ").append(a_weight_text);
@@ -118,7 +126,7 @@ void MenuPromptSink::OnOpen(RE::TESBoundObject* a_fake, const bool is_worn) {
     using namespace ModCompatibility::Mods;
 
     const auto manager = Manager::GetSingleton();
-    if (manager->isUninstalled.load()) return;
+    if (manager->isUninstalled.load() || manager->IsTokenMode(a_fake->GetFormID())) return;
 
     const auto a_real = manager->FakeToRealContainer(a_fake->GetFormID());
 
@@ -181,6 +189,10 @@ void RegistrationPromptSink::Show(const RE::TESBoundObject* a_item) const {
         prompts = {open_prompt, rename_prompt};
     } else {
         prompts = {open_prompt};
+    }
+
+    if (Manager::GetSingleton()->IsTokenMode(a_item->GetFormID())) {
+        std::erase_if(prompts, [this](const auto& prompt) { return prompt.eventID == open_prompt.eventID; });
     }
 
     if (const auto a_weight_text = Manager::GetSingleton()->GetWeightText(a_item); !a_weight_text.empty()) {

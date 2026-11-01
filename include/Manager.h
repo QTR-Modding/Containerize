@@ -162,6 +162,8 @@ public:
 
     [[nodiscard]] bool IsFakeContainer(FormID formid) const;
 
+    [[nodiscard]] bool IsTokenMode(FormID formid) const;
+
     // Checks if realcontainer_formid is in the sources
     [[nodiscard]] bool IsRealContainer(FormID formid) const;
     // Checks if ref has formid in the sources
