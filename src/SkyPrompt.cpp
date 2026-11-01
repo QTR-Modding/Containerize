@@ -19,6 +19,7 @@ void RefPromptSink::Start(RE::TESObjectREFR* a_ref) {
     const auto manager = Manager::GetSingleton();
     if (manager->IsTokenMode(a_ref->GetBaseObject()->GetFormID())) {
         prompts.clear();
+        return;
     }
 
     if (const auto a_weight_text = manager->GetWeightText(a_ref); !a_weight_text.empty()) {
@@ -103,7 +104,8 @@ void MenuPromptSink::Show(const RE::TESBoundObject* a_fake) const {
     }
 
     if (Manager::GetSingleton()->IsTokenMode(a_fake->GetFormID())) {
-        prompts.clear();
+        Hide();
+        return;
     }
 
     const auto a_weight_text = Manager::GetSingleton()->GetWeightText(a_fake);
@@ -192,7 +194,8 @@ void RegistrationPromptSink::Show(const RE::TESBoundObject* a_item) const {
     }
 
     if (Manager::GetSingleton()->IsTokenMode(a_item->GetFormID())) {
-        prompts.clear();
+        Hide();
+        return;
     }
 
     if (const auto a_weight_text = Manager::GetSingleton()->GetWeightText(a_item); !a_weight_text.empty()) {
