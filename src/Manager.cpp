@@ -108,7 +108,6 @@ bool Manager::ActivateChest(RE::TESObjectREFR* chest) const {
         logger::error("ActivateChest: Chest reference is null.");
         return false;
     }
-    if (IsTokenMode(chest->GetFormID())) return false;
     UnownedStuff::unownedChest->fullName = GetChestName(chest);
     if (const auto a_obj = chest->GetBaseObject()->As<RE::TESObjectCONT>()) {
         RE::TESObjectCONT::SetOpenState(chest, false, true);
@@ -848,7 +847,6 @@ void Manager::TransferOnUse(const RefID a_chestID) const {
 }
 
 void Manager::OnLongPressEquip(const RE::TESBoundObject* a_fake, const int delay) {
-    if (IsTokenMode(a_fake->GetFormID())) return;
     auto chest = GetFakeContainerChest(a_fake);
     if (!chest) {
         logger::error("OnLongPressEquip: chest null");
@@ -1037,7 +1035,6 @@ RE::TESBoundObject* Manager::FakeToRealContainer(const FormID fake) const {
 
 void Manager::OnActivateContainer(RE::TESObjectREFR* a_container, const int msgbox_action, const int a_delay) {
     if (isUninstalled.load()) return;
-    if (msgbox_action == 0 && IsTokenMode(a_container->GetBaseObject()->GetFormID())) return;
     if (!HandleRegistration(a_container)) return;
     if (msgbox_action == 0) {
         if (const auto chest = GetContainerChest(a_container)) queued_chests.insert(chest->GetFormID());
@@ -1278,7 +1275,6 @@ void Manager::HandleCraftingExit() {
 }
 
 void Manager::OnConsume(const FormID fake_formid, RE::TESObjectREFR* consumed_by) {
-    if (IsTokenMode(fake_formid)) return;
     const auto fake_obj = RE::TESForm::LookupByID<RE::TESBoundObject>(fake_formid);
     const auto chest = GetFakeContainerChest(fake_obj);
     if (!chest) return;

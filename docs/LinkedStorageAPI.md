@@ -39,7 +39,7 @@ containers:
   token_mode: true
 ```
 
-The item can be taken, equipped or removed normally. Containerize hides its Open prompt and blocks access to its contents through opening, consumption or crafting. Initialize, Rename, Refresh and DeRegister work normally. Omitted or false keeps normal container behavior.
+The item can be taken, equipped or removed normally. Containerize hides its Open prompt and prevents opening the storage or using its contents as crafting ingredients. Initialize, Rename, Refresh and DeRegister work normally. Omitted or false keeps normal container behavior.
 
 ## Finding linked storage
 
