@@ -1278,6 +1278,7 @@ void Manager::HandleCraftingExit() {
 }
 
 void Manager::OnConsume(const FormID fake_formid, RE::TESObjectREFR* consumed_by) {
+    if (IsTokenMode(fake_formid)) return;
     const auto fake_obj = RE::TESForm::LookupByID<RE::TESBoundObject>(fake_formid);
     const auto chest = GetFakeContainerChest(fake_obj);
     if (!chest) return;
