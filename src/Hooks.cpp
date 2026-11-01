@@ -43,6 +43,10 @@ bool Hooks::HandleEquip(RE::InputEvent* event) {
             rightEquip) {
             if (const auto selected_item = GetSelectedItemInMenu();
                 selected_item && Manager::GetSingleton()->IsFakeContainer(selected_item->GetFormID())) {
+                if (Manager::GetSingleton()->IsTokenMode(selected_item->GetFormID())) {
+                    equip_was_pressed.store(false);
+                    return true;
+                }
                 if (button_event->IsDown()) {
                     equip_was_pressed.store(true);
                 }
@@ -200,6 +204,10 @@ RE::ObjectRefHandle* Hooks::MoveItemHooks<RefType>::RemoveItem(RefType* a_this,
 
     if (!a_move_to_ref) {
         if (const auto a_formid = a_item->GetFormID(); M->IsFakeContainer(a_formid)) {
+            if (M->IsTokenMode(a_formid)) {
+                a_hidden_return_argument.reset();
+                return &a_hidden_return_argument;
+            }
             if (!ModCompatibility::Mods::doppelgangers.contains(a_this->GetBaseObject()->GetFormID())) {
             }
             RE::ObjectRefHandle* res = remove_item_(a_this, a_hidden_return_argument, a_item, a_count, a_reason,

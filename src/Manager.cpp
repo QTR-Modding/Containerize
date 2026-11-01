@@ -108,6 +108,7 @@ bool Manager::ActivateChest(RE::TESObjectREFR* chest) const {
         logger::error("ActivateChest: Chest reference is null.");
         return false;
     }
+    if (IsTokenMode(chest->GetFormID())) return false;
     UnownedStuff::unownedChest->fullName = GetChestName(chest);
     if (const auto a_obj = chest->GetBaseObject()->As<RE::TESObjectCONT>()) {
         RE::TESObjectCONT::SetOpenState(chest, false, true);
@@ -821,6 +822,7 @@ void Manager::UpdateLoc_Private(const RefID chestID, const RefID loc_id) {
 }
 
 void Manager::TransferOnUse(const RefID a_chestID) const {
+    if (IsTokenMode(a_chestID)) return;
     if (const auto chest = RE::TESForm::LookupByID<RE::TESObjectREFR>(a_chestID)) {
         const auto player_ref = RE::PlayerCharacter::GetSingleton();
         const auto a_inv = chest->GetInventoryCounts();
@@ -846,6 +848,7 @@ void Manager::TransferOnUse(const RefID a_chestID) const {
 }
 
 void Manager::OnLongPressEquip(const RE::TESBoundObject* a_fake, const int delay) {
+    if (IsTokenMode(a_fake->GetFormID())) return;
     auto chest = GetFakeContainerChest(a_fake);
     if (!chest) {
         logger::error("OnLongPressEquip: chest null");
@@ -1034,6 +1037,7 @@ RE::TESBoundObject* Manager::FakeToRealContainer(const FormID fake) const {
 
 void Manager::OnActivateContainer(RE::TESObjectREFR* a_container, const int msgbox_action, const int a_delay) {
     if (isUninstalled.load()) return;
+    if (msgbox_action == 0 && IsTokenMode(a_container->GetBaseObject()->GetFormID())) return;
     if (!HandleRegistration(a_container)) return;
     if (msgbox_action == 0) {
         if (const auto chest = GetContainerChest(a_container)) queued_chests.insert(chest->GetFormID());
@@ -1081,6 +1085,14 @@ bool Manager::IsFakeContainer(const FormID formid) const {
     return std::ranges::any_of(ChestToFakeContainer, [formid](const auto& pair) {
         return pair.second.innerKey == formid;
     });
+}
+
+bool Manager::IsTokenMode(const FormID formid) const {
+    SHARED_GUARD;
+    if (const auto src = GetContainerSource_NoLock(formid)) return src->token_mode;
+    const auto chest_id = IsChest_NoLock(formid) ? formid : GetFakeContainerChestID_NoLock(formid);
+    const auto src = GetContainerSource_NoLock(GetRealID_NoLock(chest_id));
+    return src && src->token_mode;
 }
 
 bool Manager::IsRealContainer(const FormID formid) const {

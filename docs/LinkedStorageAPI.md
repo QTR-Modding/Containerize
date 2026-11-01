@@ -29,6 +29,18 @@ Each call converts one original inventory item. Null instance uses normal regist
 
 Passing an already linked reference or fake item returns its existing fake ID without adding initial items again. Missing, unconfigured or unavailable targets return zero. Initialization never opens a menu or plays an opening animation.
 
+## Token items
+
+Set `token_mode: true` in a container preset when another mod should manage its storage:
+
+```yaml
+containers:
+- FormEditorID: MyStorageToken
+  token_mode: true
+```
+
+The item remains visible and takeable, but Containerize hides its Open prompt and blocks opening, consumption and crafting access to its contents. Initialize, Rename, Refresh and DeRegister work normally. Omitted or false keeps normal container behavior.
+
 ## Finding linked storage
 
 ```cpp
