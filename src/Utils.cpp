@@ -1,4 +1,5 @@
 #include "Utils.h"
+#include "Chest.h"
 #include "Translations.h"
 #include "CLibUtilsQTR/FormReader.hpp"
 
@@ -882,6 +883,16 @@ void MsgBoxesNotifs::SkyrimMessageBox::Show(const std::string& bodyText,
     messagebox->bodyText = bodyText;
     for (auto& text : buttonTextValues) messagebox->buttonText.push_back(text.c_str());
     RE::MessageBoxMenu::QueueMessage(messagebox);
+}
+
+bool Menu::ActivateChest(RE::TESObjectREFR* chest, const std::string& name) {
+    UnownedStuff::unownedChest->fullName = name;
+    if (const auto a_obj = chest->GetBaseObject()->As<RE::TESObjectCONT>()) {
+        RE::TESObjectCONT::SetOpenState(chest, false, true);
+        return a_obj->Activate(chest, RE::PlayerCharacter::GetSingleton(), 0, a_obj, 1);
+    }
+    logger::error("ActivateChest: Chest is not a container.");
+    return false;
 }
 
 std::string_view Menu::CloseMenu() {

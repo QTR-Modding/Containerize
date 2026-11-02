@@ -108,13 +108,7 @@ bool Manager::ActivateChest(RE::TESObjectREFR* chest) const {
         logger::error("ActivateChest: Chest reference is null.");
         return false;
     }
-    UnownedStuff::unownedChest->fullName = GetChestName(chest);
-    if (const auto a_obj = chest->GetBaseObject()->As<RE::TESObjectCONT>()) {
-        RE::TESObjectCONT::SetOpenState(chest, false, true);
-        return a_obj->Activate(chest, RE::PlayerCharacter::GetSingleton(), 0, a_obj, 1);
-    }
-    logger::error("ActivateChest: Chest is not a container.");
-    return false;
+    return Menu::ActivateChest(chest, GetChestName(chest));
 }
 
 RE::TESObjectREFR* Manager::GetContainerChest(const RE::TESObjectREFR* a_loc) const {

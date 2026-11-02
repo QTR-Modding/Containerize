@@ -439,6 +439,8 @@ namespace DynamicForm {
 };
 
 namespace Menu {
+    bool ActivateChest(RE::TESObjectREFR* chest, const std::string& name);
+
     std::string_view CloseMenu();
 
     bool IsOpen(const RE::BSFixedString& menu_name);
