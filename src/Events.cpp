@@ -37,7 +37,14 @@ RE::BSEventNotifyControl EventSink::ProcessEvent(const SKSE::CrosshairRefEvent* 
     const auto a_crosshairRef = a_event->crosshairRef.get();
     if (Manager::GetSingleton()->isUninstalled.load() || !a_crosshairRef ||
         RE::PlayerCharacter::GetSingleton()->GetGrabbedRef().get() == a_crosshairRef) {
-        QuickLootIntegration::Close();
+        if (!a_crosshairRef) {
+            SKSE::GetTaskInterface()->AddTask([] {
+                const auto target = RE::CrosshairPickData::GetSingleton()->GetActiveTarget().get();
+                QuickLootIntegration::Update(target.get());
+            });
+        } else {
+            QuickLootIntegration::Close();
+        }
         RemovePrompts();
         return RE::BSEventNotifyControl::kContinue;
     }
