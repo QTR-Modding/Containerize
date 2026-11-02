@@ -13,5 +13,6 @@ set(headers ${headers}
 	include/SkyPrompt.h
 	include/Animations.h
 	include/Chest.h
+	include/WorldStorage.h
 	include/API.h
 )

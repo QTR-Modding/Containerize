@@ -575,19 +575,12 @@ bool Manager::DeRegister(RE::TESObjectREFR* chest, RE::TESObjectREFR* transfer_d
             bypass_CanBeAdded.erase(replacement_pair);
         }
     }
-    if (!ChestManager::IsEmpty(chest)) ReportTransferFailure(chestID);
+    if (!ChestManager::IsEmpty(chest)) MsgBoxesNotifs::InGame::ReportTransferFailure(chestID);
     if (!ChestManager::GetSingleton()->ReturnChest(client_id, chest)) {
         logger::critical("Failed to return chest {:x} for client {}", chestID, client_id);
         return false;
     }
     return true;
-}
-
-void Manager::ReportTransferFailure(const RefID chest_refid) {
-    logger::error("Could not return all stored items from chest {:x}", chest_refid);
-    MsgBoxesNotifs::InGame::CustomMsg(
-        "Some stored items could not be returned and will be discarded. "
-        "Load a previous save to recover them. Details are in Containerize.log.");
 }
 
 std::string Manager::GetWeightText_(RE::TESObjectREFR* a_chest) {
@@ -1444,7 +1437,7 @@ void Manager::ReceiveDataHandleUnmatchedChests(const std::map<RefID, FormFormID>
                 if (fst->GetFormID() == fakecontFormID)
                     player_ref->RemoveItem(fst, snd.first, RE::ITEM_REMOVE_REASON::kRemove, nullptr, nullptr);
             }
-            if (!ChestManager::IsEmpty(chest)) ReportTransferFailure(chestRef_);
+            if (!ChestManager::IsEmpty(chest)) MsgBoxesNotifs::InGame::ReportTransferFailure(chestRef_);
             if (!ChestManager::GetSingleton()->ReturnChest(ContainerizeAPI::containerize_client, chest)) {
                 logger::error("Failed to return recovered chest {:x}", chestRef_);
             }

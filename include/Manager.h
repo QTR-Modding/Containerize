@@ -113,7 +113,6 @@ class Manager final : public Serialization::SaveLoadData,
 
     // deregisters the chest, tries to move its contents to transfer_dest, removes the fake and returns the rental
     [[nodiscard]] bool DeRegister(RE::TESObjectREFR* chest, RE::TESObjectREFR* transfer_dest);
-    static void ReportTransferFailure(RefID chest_refid);
 
     std::string GetWeightText_(RE::TESObjectREFR* a_chest);
 

@@ -14,4 +14,5 @@ set(sources ${sources}
 	src/Animations.cpp
 	src/API.cpp
 	src/Chest.cpp
+	src/WorldStorage.cpp
 )

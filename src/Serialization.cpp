@@ -2,6 +2,7 @@
 #include "Chest.h"
 #include "Events.h"
 #include "Manager.h"
+#include "WorldStorage.h"
 
 using namespace Serialization;
 
@@ -124,6 +125,9 @@ void Serialization::SaveCallback(SKSE::SerializationInterface* serializationInte
             logger::critical("Failed to save Data");
         }
     }
+    if (!WorldStorage::GetSingleton()->Save(serializationInterface)) {
+        logger::critical("Failed to save world storage");
+    }
     if (!ChestManager::GetSingleton()->Save(serializationInterface)) {
         logger::critical("Failed to save chest rentals");
     }
@@ -133,6 +137,7 @@ void Serialization::SaveCallback(SKSE::SerializationInterface* serializationInte
 void Serialization::RevertCallback(SKSE::SerializationInterface*) {
     EventSink::GetSingleton()->Reset();
     Manager::GetSingleton()->Reset();
+    WorldStorage::GetSingleton()->Reset();
     ChestManager::GetSingleton()->Reset();
     auto* DFT = DynamicFormTracker::GetSingleton();
     DFT->Clear();
@@ -160,6 +165,14 @@ void Serialization::LoadCallback(SKSE::SerializationInterface* serializationInte
             rentals_loaded = (version == ChestManager::kLegacySerializationVersion || version == ChestManager::kSerializationVersion) &&
                              chest_manager->Load(serializationInterface, length, version);
             if (!rentals_loaded) logger::critical("Failed to load chest rentals, version {}", version);
+            continue;
+        }
+        if (type == WorldStorage::kDataKey) {
+            if (version != WorldStorage::kSerializationVersion ||
+                !WorldStorage::GetSingleton()->Load(serializationInterface, length)) {
+                logger::critical("Failed to load world storage, version {}", version);
+                MsgBoxesNotifs::InGame::CustomMsg("Failed to load Containerize world storage.");
+            }
             continue;
         }
         bool is_before_0_7 = false;

@@ -210,6 +210,8 @@ namespace MsgBoxesNotifs {
     };
 
     namespace InGame {
+        void ReportTransferFailure(RefID chest_refid);
+
         inline void CustomMsg(const std::string& msg) { RE::DebugMessageBox((mod_name + ": " + msg).c_str()); };
 
         inline void GeneralErr() {

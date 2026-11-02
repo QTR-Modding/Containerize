@@ -1022,3 +1022,10 @@ void ModCompatibility::Load() {
         }
     }
 }
+
+void MsgBoxesNotifs::InGame::ReportTransferFailure(const RefID chest_refid) {
+    logger::error("Could not return all stored items from chest {:x}", chest_refid);
+    MsgBoxesNotifs::InGame::CustomMsg(
+        "Some stored items could not be returned and will be discarded. "
+        "Load a previous save to recover them. Details are in Containerize.log.");
+}

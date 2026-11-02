@@ -1,0 +1,22 @@
+#pragma once
+#include <REX/REX/Singleton.h>
+#include <shared_mutex>
+
+class WorldStorage final : public REX::Singleton<WorldStorage> {
+    static constexpr auto client_name = "CTRZ_WS";
+
+    mutable std::shared_mutex mutex_;
+    std::unordered_map<RefID, RefID> chests;
+
+public:
+    static constexpr std::uint32_t kDataKey = 'WSTZ';
+    static constexpr std::uint32_t kSerializationVersion = 1;
+
+    [[nodiscard]] bool Save(SKSE::SerializationInterface* serializationInterface);
+    [[nodiscard]] bool Load(SKSE::SerializationInterface* serializationInterface, std::uint32_t length);
+    void Reset();
+
+    [[nodiscard]] RefID Register(RE::TESObjectREFR* target);
+    [[nodiscard]] RefID GetChest(RefID target) const;
+    [[nodiscard]] bool DeRegister(RefID target);
+};
