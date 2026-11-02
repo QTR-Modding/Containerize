@@ -195,7 +195,6 @@ public:
     std::string GetWeightText(const RE::TESBoundObject* fake_or_real);
     std::string GetValueText(RE::TESObjectREFR* a_loc);
     RE::TESBoundObject* RegisterFromMenu(RE::InventoryEntryData* a_real_entry, RE::TESObjectREFR* a_owner, RE::ExtraDataList* instance = nullptr, bool queue_equip = true);
-    static void RenameCallback(RE::TESBoundObject* a_fake);
 
     template <typename T>
     static void Rename(const std::string& new_name, T item) {

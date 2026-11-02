@@ -98,6 +98,15 @@ RefID WorldStorage::GetChest(const RefID target) const {
     return it != chests.end() ? it->second.innerKey : 0;
 }
 
+bool WorldStorage::Rename(RE::TESObjectREFR* target, const char* name) {
+    const auto chest = RE::TESForm::LookupByID<RE::TESObjectREFR>(GetChest(target->GetFormID()));
+    if (!chest) return false;
+    const auto text = target->extraList.GetByType<RE::ExtraTextDisplayData>();
+    // Check before SetDisplayName: a false return does not guarantee no changes.
+    if (text && (text->ownerQuest || text->displayNameText)) return false;
+    return target->SetDisplayName(name, false) && chest->SetDisplayName(name, true);
+}
+
 bool WorldStorage::DeRegister(const RefID target, const bool uninstall) {
     RE::TESObjectREFR* chest;
     RefID chest_id;

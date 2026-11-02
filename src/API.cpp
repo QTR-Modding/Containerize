@@ -22,7 +22,7 @@ extern "C" __declspec(dllexport) const ContainerizeAPI::Interface* Containerize_
         [](RE::FormID target, RE::FormID owner, RE::ExtraDataList* instance) {
             return MainManager::GetSingleton()->Initialize(target, owner, instance);
         },
-        [](RE::FormID fakeItem, const char* name) { return Manager::GetSingleton()->Rename(fakeItem, name); },
+        [](RE::FormID target, const char* name) { return MainManager::GetSingleton()->Rename(target, name); },
         [](RE::FormID target) { return MainManager::GetSingleton()->DeRegister(target); }
     };
     return &api;

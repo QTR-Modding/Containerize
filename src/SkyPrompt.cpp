@@ -15,7 +15,7 @@ void RefPromptSink::Start(RE::TESObjectREFR* a_ref) {
     prompts.clear();
     if (manager->IsTokenMode(a_ref)) return;
     prompts = {open_prompt};
-    if (manager->CanRename(a_ref)) prompts.push_back(rename_prompt);
+    if (manager->CanRename()) prompts.push_back(rename_prompt);
 
     if (const auto a_weight_text = manager->GetWeightText(a_ref); !a_weight_text.empty()) {
         weight_text.append(Strings::weight).append(" ").append(a_weight_text);
@@ -70,7 +70,7 @@ void MenuPromptSink::ProcessEvent(const SkyPromptAPI::PromptEvent event) const {
         if (const auto a_fake = a_entry->GetObject();
             a_fake && Manager::GetSingleton()->IsFakeContainer(a_fake->GetFormID())) {
             if (event.prompt.eventID == 1) {
-                Manager::RenameCallback(a_fake);
+                MainManager::RenameCallback(a_fake);
                 return;
             }
             OnOpen(a_fake, RE::UI::GetSingleton()->IsMenuOpen(RE::InventoryMenu::MENU_NAME) && a_entry->IsWorn());
@@ -155,7 +155,7 @@ void RegistrationPromptSink::ProcessEvent(const SkyPromptAPI::PromptEvent event)
         if (const auto a_fake = Manager::GetSingleton()->RegisterFromMenu(a_entry, a_owner.get());
             a_fake && Manager::GetSingleton()->IsFakeContainer(a_fake->GetFormID())) {
             if (event.prompt.eventID == 4) {
-                Manager::RenameCallback(a_fake);
+                MainManager::RenameCallback(a_fake);
                 return;
             }
             clib_utilsQTR::Tasker::GetSingleton()->PushTask([a_fake, is_worn] {

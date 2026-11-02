@@ -23,7 +23,7 @@ namespace ContainerizeAPI {
         bool (*Refresh)(RE::FormID chest);
         RE::FormID (*GetChest)(RE::FormID target);
         RE::FormID (*Initialize)(RE::FormID target, RE::FormID owner, RE::ExtraDataList* instance);
-        bool (*Rename)(RE::FormID fakeItem, const char* name);
+        bool (*Rename)(RE::FormID target, const char* name);
         bool (*DeRegister)(RE::FormID target);
     };
 

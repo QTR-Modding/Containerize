@@ -2,7 +2,6 @@
 #include "MainManager.h"
 #include "WorldStorage.h"
 #include "Events.h"
-#include "Papyrus.h"
 #include "Animations.h"
 #include "CLibUtilsQTR/DebugLocks.hpp"
 #include "CLibUtilsQTR/FormReader.hpp"
@@ -771,7 +770,6 @@ FormID Manager::Initialize(const FormID target_id, const RefID owner_id, RE::Ext
 }
 
 bool Manager::Rename(const FormID fake_id, const char* name) {
-    if (isUninstalled.load() || !name || !*name) return false;
     const auto fake = GetFakeBound(GetFakeContainerChestID(fake_id));
     if (!fake) return false;
     RenameContainer(name, fake);
@@ -1574,19 +1572,4 @@ RE::TESBoundObject* Manager::RegisterFromMenu(RE::InventoryEntryData* a_real_ent
         if (a_owner->GetFormID() != player_refid) RE::SendUIMessage::SendInventoryUpdateMessage(a_owner, nullptr);
     }
     return fake_bound;
-}
-
-void Manager::RenameCallback(RE::TESBoundObject* a_fake) {
-    if (!ModCompatibility::Mods::ui_extensions_installed) return;
-    const char* container_name = a_fake->GetName();
-    if (Papyrus::CallFunction("UIExtensions", "SetMenuPropertyString", {}, "UITextEntryMenu", "text", container_name)) {
-        RE::TESForm* dummy1 = nullptr;
-        RE::TESForm* dummy2 = nullptr;
-        const auto smart = RE::make_smart<Papyrus::RenameCallbackFunctor>(a_fake);
-        if (!CallFunction("UIExtensions", "OpenMenu", smart.get(), "UITextEntryMenu", dummy1, dummy2)) {
-            logger::error("Failed to open UIExtensions menu.");
-        }
-    } else {
-        logger::error("Failed to call UIExtensions functions.");
-    }
 }

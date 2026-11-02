@@ -3,6 +3,7 @@
 #include "WorldStorage.h"
 #include "Chest.h"
 #include "Animations.h"
+#include "Papyrus.h"
 #include "CLibUtilsQTR/Tasker.hpp"
 
 bool MainManager::ActivateChest(RE::TESObjectREFR* chest) const {
@@ -43,7 +44,11 @@ void MainManager::Gateway(const int result, const RE::ObjectRefHandle& a_current
     if (!a_chest) {
         logger::warn("Current container is null.");
     } else if (result) {
-        Manager::RenameCallback(Manager::GetSingleton()->GetFakeBound(a_chest_handle.get()));
+        if (std::ranges::contains(WorldStorage::form_types, a_chest_handle->GetBaseObject()->GetFormType())) {
+            RenameCallback(a_chest_handle.get());
+        } else {
+            RenameCallback(Manager::GetSingleton()->GetFakeBound(a_chest_handle.get()));
+        }
     } else if (!ActivateChest(a_chest)) {
         if (!WorldStorage::GetSingleton()->GetTarget(a_chest->GetFormID())) Manager::GetSingleton()->OnOpenFailed();
         open_chest = 0;
@@ -75,7 +80,7 @@ void MainManager::OnActivateContainer(RE::TESObjectREFR* a_container, const int 
     if (std::ranges::contains(WorldStorage::form_types, base->GetFormType())) {
         const auto world_storage = WorldStorage::GetSingleton();
         const auto source = world_storage->GetSource(base->GetFormID());
-        if (msgbox_action != 0 || !source || source->token_mode || !world_storage->Initialize(a_container, nullptr)) return;
+        if (!source || source->token_mode || !world_storage->Initialize(a_container, nullptr)) return;
     } else if (!Manager::GetSingleton()->HandleRegistration(a_container)) {
         return;
     }
@@ -252,9 +257,17 @@ bool MainManager::IsTokenMode(const RE::TESObjectREFR* target) const {
     return Manager::GetSingleton()->IsTokenMode(base->GetFormID());
 }
 
-bool MainManager::CanRename(const RE::TESObjectREFR* target) const {
-    return ModCompatibility::Mods::ui_extensions_installed &&
-        !std::ranges::contains(WorldStorage::form_types, target->GetBaseObject()->GetFormType());
+bool MainManager::CanRename() const {
+    return ModCompatibility::Mods::ui_extensions_installed;
+}
+
+bool MainManager::Rename(const FormID target, const char* name) {
+    if (Manager::GetSingleton()->isUninstalled.load() || !name || !*name) return false;
+    const auto reference = RE::TESForm::LookupByID<RE::TESObjectREFR>(target);
+    if (reference && std::ranges::contains(WorldStorage::form_types, reference->GetBaseObject()->GetFormType())) {
+        return WorldStorage::GetSingleton()->Rename(reference, name);
+    }
+    return Manager::GetSingleton()->Rename(target, name);
 }
 
 FormID MainManager::Initialize(const FormID target, const RefID owner, RE::ExtraDataList* instance) {
@@ -303,4 +316,22 @@ bool MainManager::IsContainer(const RE::TESObjectREFR* target) const {
             WorldStorage::GetSingleton()->GetSource(target->GetBaseObject()->GetFormID());
     }
     return Manager::GetSingleton()->IsRealContainer(target);
+}
+
+void MainManager::RenameCallback(RE::TESForm* target) {
+    if (!GetSingleton()->CanRename()) return;
+    const auto reference = target->As<RE::TESObjectREFR>();
+    const char* container_name = reference ? reference->GetDisplayFullName() : target->GetName();
+    if (Papyrus::CallFunction("UIExtensions", "SetMenuPropertyString", {}, "UITextEntryMenu", "text", container_name)) {
+        RE::TESForm* dummy1 = nullptr;
+        RE::TESForm* dummy2 = nullptr;
+        const auto smart = reference
+            ? RE::make_smart<Papyrus::RenameCallbackFunctor>(reference->GetHandle())
+            : RE::make_smart<Papyrus::RenameCallbackFunctor>(target->As<RE::TESBoundObject>());
+        if (!Papyrus::CallFunction("UIExtensions", "OpenMenu", smart.get(), "UITextEntryMenu", dummy1, dummy2)) {
+            logger::error("Failed to open UIExtensions menu.");
+        }
+    } else {
+        logger::error("Failed to call UIExtensions functions.");
+    }
 }

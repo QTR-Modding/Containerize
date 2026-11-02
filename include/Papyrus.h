@@ -29,7 +29,7 @@ namespace Papyrus {
     // Thanks and credits to Bloc: https://discord.com/channels/874895328938172446/945560222670393406/1093262407989731338
     class ConversationCallbackFunctor final : public RE::BSScript::IStackCallbackFunctor {
         std::string rename;
-        RE::TESBoundObject* fake;
+        std::variant<RE::TESBoundObject*, RE::ObjectRefHandle> target;
 
         void operator()(RE::BSScript::Variable a_result) override;
 
@@ -37,12 +37,12 @@ namespace Papyrus {
         }
 
     public:
-        explicit ConversationCallbackFunctor(RE::TESBoundObject* a_fake) : fake(a_fake) {
+        explicit ConversationCallbackFunctor(std::variant<RE::TESBoundObject*, RE::ObjectRefHandle> a_target) : target(std::move(a_target)) {
         }
     };
 
     class RenameCallbackFunctor final : public RE::BSScript::IStackCallbackFunctor {
-        RE::TESBoundObject* fake;
+        std::variant<RE::TESBoundObject*, RE::ObjectRefHandle> target;
 
         void operator()([[maybe_unused]] const RE::BSScript::Variable a_result) override {
             OnRename();
@@ -54,7 +54,7 @@ namespace Papyrus {
         }
 
     public:
-        explicit RenameCallbackFunctor(RE::TESBoundObject* a_fake) : fake(a_fake) {
+        explicit RenameCallbackFunctor(std::variant<RE::TESBoundObject*, RE::ObjectRefHandle> a_target) : target(std::move(a_target)) {
         }
     };
 }
