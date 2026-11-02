@@ -1,4 +1,5 @@
 #include "Serialization.h"
+#include "MenuManager.h"
 #include "Chest.h"
 #include "Events.h"
 #include "Manager.h"
@@ -135,6 +136,7 @@ void Serialization::SaveCallback(SKSE::SerializationInterface* serializationInte
 }
 
 void Serialization::RevertCallback(SKSE::SerializationInterface*) {
+    MenuManager::GetSingleton()->Reset();
     EventSink::GetSingleton()->Reset();
     Manager::GetSingleton()->Reset();
     WorldStorage::GetSingleton()->Reset();

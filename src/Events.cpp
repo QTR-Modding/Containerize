@@ -1,4 +1,5 @@
 #include "Events.h"
+#include "MenuManager.h"
 #include "Chest.h"
 #include "SkyPrompt.h"
 
@@ -48,7 +49,7 @@ RE::BSEventNotifyControl EventSink::ProcessEvent(const SKSE::CrosshairRefEvent* 
     }
 
     if (const auto M = Manager::GetSingleton();
-        M->IsChestMenuQueued() || M->IsInChestMenu()) {
+        MenuManager::GetSingleton()->IsChestMenuQueued() || MenuManager::GetSingleton()->IsInChestMenu()) {
         RemovePrompts();
     } else if (M->IsRealContainer(a_crosshairRef)) {
         SendPrompts(a_crosshairRef);

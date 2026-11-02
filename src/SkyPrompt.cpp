@@ -1,4 +1,5 @@
 #include "SkyPrompt.h"
+#include "MenuManager.h"
 #include "Animations.h"
 #include "Events.h"
 #include "Hooks.h"
@@ -47,9 +48,9 @@ void RefPromptSink::ProcessEvent(const SkyPromptAPI::PromptEvent event) const {
             if (const auto prompt_eventid = event.prompt.eventID; prompt_eventid == 0) {
                 if (Manager::GetSingleton()->IsTokenMode(a_ref->GetBaseObject()->GetFormID())) return;
                 const auto duration = Animations::SetUpAnimationOnOpen(a_ref, true);
-                Manager::GetSingleton()->OnActivateContainer(a_ref, 0, duration);
+                MenuManager::GetSingleton()->OnActivateContainer(a_ref, 0, duration);
             } else if (prompt_eventid == 1) {
-                Manager::GetSingleton()->OnActivateContainer(a_ref, 1);
+                MenuManager::GetSingleton()->OnActivateContainer(a_ref, 1);
             }
         }
     }
@@ -136,9 +137,9 @@ void MenuPromptSink::OnOpen(RE::TESBoundObject* a_fake, const bool is_worn) {
         Hooks::OnIsWorn(a_fake);
     }
 
-    manager->CloseMenu();
+    MenuManager::GetSingleton()->CloseMenu();
 
-    Manager::GetSingleton()->OnLongPressEquip(a_fake, Animations::SetUpAnimationOnOpen(a_real, is_worn));
+    MenuManager::GetSingleton()->OnLongPressEquip(a_fake, Animations::SetUpAnimationOnOpen(a_real, is_worn));
 }
 
 void RegistrationPromptSink::ProcessEvent(const SkyPromptAPI::PromptEvent event) const {

@@ -3,6 +3,7 @@ set(headers ${headers}
 	include/PCH.h
 	include/Settings.h
 	include/Manager.h
+	include/MenuManager.h
 	include/Events.h
 	include/Hooks.h
 	include/MCP.h

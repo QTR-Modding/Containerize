@@ -23,10 +23,6 @@ class Manager final : public Serialization::SaveLoadData,
     std::vector<RefID> handled_external_conts; // runtime specific to prevent unnecessary checks in HandleFakePlacement
     std::map<FormID, std::string> renames; // runtime specific, custom names for fake containers
     std::set<RefID> reals_to_takeback = {};
-    std::set<RefID> queued_chests = {};
-    // allows opening chest within another chest instead of reopening the original menu
-    std::string closed_menu;
-    RE::TESObjectREFRPtr containermenu_owner = nullptr;
 
     mutable std::shared_mutex mutex_;
 
@@ -38,18 +34,10 @@ class Manager final : public Serialization::SaveLoadData,
 
     [[nodiscard]] bool TakeBackReal(RE::TESBoundObject* real_obj, RE::TESObjectREFR* chest);
 
-    std::string GetChestName(const RE::TESObjectREFR* chest) const;
-
-    [[nodiscard]] bool ActivateChest(RE::TESObjectREFR* chest) const;
-
-    [[nodiscard]] RE::TESObjectREFR* GetContainerChest(const RE::TESObjectREFR* a_loc) const;
-    [[nodiscard]] RE::TESObjectREFR* GetFakeContainerChest(const RE::TESBoundObject* a_fake) const;
     [[nodiscard]] RE::TESObjectREFR* GetContainerLocation(FormID a_fake_id) const;
 
     // parent_chestID nin icindeki chestler
     [[nodiscard]] std::vector<RefID> GetChildChests(RefID parent_chestID, std::unordered_set<RefID>* parents);
-
-    void OpenChestFromMenu(RE::TESObjectREFR* a_chest);
 
     // Locking-aware helpers
     [[nodiscard]] const Source* GetContainerSource(FormID real_id) const;
@@ -108,7 +96,6 @@ class Manager final : public Serialization::SaveLoadData,
 
     void RemoveCarryWeightBoost(FormID item_formid, RE::TESObjectREFR* inventory_owner);
 
-    bool HandleRegistration(RE::TESObjectREFR* a_item);
     void CancelRegistration(RE::TESObjectREFR* chest, RE::TESBoundObject* fake, RE::TESObjectREFR* owner);
 
     // deregisters the chest, tries to move its contents to transfer_dest, removes the fake and returns the rental
@@ -142,19 +129,19 @@ class Manager final : public Serialization::SaveLoadData,
     void TransferOnUse(RefID a_chestID) const;
 
 public:
+    std::string GetChestName(const RE::TESObjectREFR* chest) const;
+    [[nodiscard]] RE::TESObjectREFR* GetContainerChest(const RE::TESObjectREFR* a_loc) const;
+    [[nodiscard]] RE::TESObjectREFR* GetFakeContainerChest(const RE::TESBoundObject* a_fake) const;
+    bool HandleRegistration(RE::TESObjectREFR* a_item);
+
     std::atomic<bool> isUninstalled = false;
 
     const char* GetType() override { return "Manager"; }
     [[nodiscard]] bool Init(std::vector<Source> configured_sources);
 
-    void Gateway(int result, const RE::ObjectRefHandle& a_current_container);
-
     void UpdateLoc(FormID fakeID, RefID loc_id);
-    void OnLongPressEquip(const RE::TESBoundObject* a_fake, int delay = 0);
     Count CanBeAdded(const RE::TESBoundObject* a_item, Count a_count, RefID a_chestID);
     [[nodiscard]] RE::TESBoundObject* FakeToRealContainer(FormID fake) const;
-
-    void OnActivateContainer(RE::TESObjectREFR* a_container, int msgbox_action, int a_delay = 0);
 
     // places fake objects in external containers after load game
     void HandleFakePlacement(RE::TESObjectREFR* external_cont);
@@ -170,8 +157,10 @@ public:
 
     void RenameContainer(const std::string& new_name, RE::TESBoundObject* a_fake);
 
-    void OnChestExit(RE::TESObjectREFR* a_chest);
-    void OnChestEnter(RE::TESObjectREFR* a_chest);
+    [[nodiscard]] bool OnChestExit(RE::TESObjectREFR* a_chest);
+    [[nodiscard]] bool OnChestEnter(RE::TESObjectREFR* a_chest);
+    void PlayCloseAnimation(RE::TESObjectREFR* a_chest);
+    void OnOpenFailed() { reals_to_takeback.clear(); }
 
     [[nodiscard]] bool IsARegistry(RefID registry) const;
 
@@ -212,10 +201,7 @@ public:
     std::string GetWeightText(RE::TESObjectREFR* a_container);
     std::string GetWeightText(const RE::TESBoundObject* fake_or_real);
     std::string GetValueText(RE::TESObjectREFR* a_loc);
-    void CloseMenu();
     RE::TESBoundObject* RegisterFromMenu(RE::InventoryEntryData* a_real_entry, RE::TESObjectREFR* a_owner, RE::ExtraDataList* instance = nullptr, bool queue_equip = true);
-    bool IsInChestMenu() const { return !reals_to_takeback.empty(); }
-    bool IsChestMenuQueued() const { return !queued_chests.empty(); }
     static void RenameCallback(RE::TESBoundObject* a_fake);
 
     template <typename T>

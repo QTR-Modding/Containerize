@@ -1,4 +1,5 @@
 #include "Animations.h"
+#include "MenuManager.h"
 #include "Manager.h"
 
 namespace {
@@ -8,14 +9,13 @@ namespace {
             return 0;
         }
         using namespace ModCompatibility::Mods;
-        const auto manager = Manager::GetSingleton();
 
         int duration = 0;
 
         const bool play_only_if_equipped = Settings::other_settings.at(Settings::otherstuffKeys.at(7));
         const bool is_in_third_person =
             RE::PlayerCharacter::GetSingleton()->GetPlayerRuntimeData().playerFlags.isInThirdPersonMode;
-        if (!manager->IsInChestMenu() && (!play_only_if_equipped || is_worn) &&
+        if (!MenuManager::GetSingleton()->IsInChestMenu() && (!play_only_if_equipped || is_worn) &&
             (is_in_third_person || improved_cam_path_installed)) {
             const bool should_delay = Settings::AnimationsDelayMenuOpen();
             if (souls_unpaused_installed || should_delay) {
