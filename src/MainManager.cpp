@@ -236,6 +236,12 @@ RefID MainManager::GetChest(const FormID target) const {
     return Manager::GetSingleton()->GetChest(target);
 }
 
+bool MainManager::Refresh(const RefID chest) {
+    const auto world_storage = WorldStorage::GetSingleton();
+    if (world_storage->GetTarget(chest)) return world_storage->Refresh(chest);
+    return Manager::GetSingleton()->Refresh(chest);
+}
+
 std::string MainManager::GetWeightText(RE::TESObjectREFR* target) const {
     if (std::ranges::contains(WorldStorage::form_types, target->GetBaseObject()->GetFormType())) {
         return WorldStorage::GetSingleton()->GetWeightText(target);

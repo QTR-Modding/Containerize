@@ -1,6 +1,5 @@
 #include "API.h"
 #include "Chest.h"
-#include "Manager.h"
 #include "MainManager.h"
 
 extern "C" __declspec(dllexport) const ContainerizeAPI::Interface* Containerize_RequestAPI(std::uint32_t version) {
@@ -17,7 +16,7 @@ extern "C" __declspec(dllexport) const ContainerizeAPI::Interface* Containerize_
                    ChestManager::GetSingleton()->ReturnChest(client, RE::TESForm::LookupByID<RE::TESObjectREFR>(chest));
         },
         [](ContainerizeAPI::ClientID client) { return ChestManager::GetSingleton()->Uninstall(client); },
-        [](RE::FormID chest) { return Manager::GetSingleton()->Refresh(chest); },
+        [](RE::FormID chest) { return MainManager::GetSingleton()->Refresh(chest); },
         [](RE::FormID target) { return MainManager::GetSingleton()->GetChest(target); },
         [](RE::FormID target, RE::FormID owner, RE::ExtraDataList* instance) {
             return MainManager::GetSingleton()->Initialize(target, owner, instance);

@@ -29,6 +29,17 @@ RefID WorldStorage::GetTarget(const RefID chest) const {
     return found != chests.end() ? found->first : 0;
 }
 
+bool WorldStorage::Refresh(const RefID chest_id) const {
+    if (Manager::GetSingleton()->isUninstalled.load()) return false;
+    const auto chest = RE::TESForm::LookupByID<RE::TESObjectREFR>(chest_id);
+    if (!chest) return false;
+    const auto changes = chest->GetInventoryChanges(true);
+    if (!changes) return false;
+    changes->InvalidateWeight();
+    changes->GetInventoryWeight();
+    return true;
+}
+
 Count WorldStorage::CanBeAdded(const RE::TESBoundObject* item, const Count count, RE::TESObjectREFR* chest) const {
     const Source* source;
     {

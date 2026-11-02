@@ -17,6 +17,7 @@ class MainManager final : public REX::Singleton<MainManager> {
 
 public:
     [[nodiscard]] RefID GetChest(FormID target) const;
+    [[nodiscard]] bool Refresh(RefID chest);
     [[nodiscard]] std::string GetWeightText(RE::TESObjectREFR* target) const;
     [[nodiscard]] std::string GetValueText(RE::TESObjectREFR* target) const;
     [[nodiscard]] bool IsTokenMode(const RE::TESObjectREFR* target) const;
