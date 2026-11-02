@@ -154,6 +154,15 @@ void MenuManager::ClearOpenChest(const RefID chest) {
     if (open_chest == chest) open_chest = 0;
 }
 
+void MenuManager::ForgetChest(const RefID chest) {
+    ClearOpenChest(chest);
+    queued_chests.erase(chest);
+    if (containermenu_owner && containermenu_owner->GetFormID() == chest) {
+        containermenu_owner.reset();
+        closed_menu.clear();
+    }
+}
+
 void MenuManager::Reset() {
     queued_chests.clear();
     open_chest = 0;

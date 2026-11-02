@@ -28,5 +28,6 @@ public:
     [[nodiscard]] RefID Initialize(RE::TESObjectREFR* target, RE::ExtraDataList* instance);
     [[nodiscard]] RefID Register(RE::TESObjectREFR* target);
     [[nodiscard]] RefID GetChest(RefID target) const;
-    [[nodiscard]] bool DeRegister(RefID target);
+    [[nodiscard]] bool DeRegister(RefID target, bool uninstall = false);
+    [[nodiscard]] bool Uninstall();
 };

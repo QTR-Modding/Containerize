@@ -72,19 +72,20 @@ RefID WorldStorage::GetChest(const RefID target) const {
     return it != chests.end() ? it->second : 0;
 }
 
-bool WorldStorage::DeRegister(const RefID target) {
+bool WorldStorage::DeRegister(const RefID target, const bool uninstall) {
     RE::TESObjectREFR* chest;
     RefID chest_id;
     {
         std::unique_lock lock(mutex_);
         const auto it = chests.find(target);
-        if (it == chests.end() || MenuManager::GetSingleton()->IsInUse(it->second)) return false;
+        if (it == chests.end() || (!uninstall && MenuManager::GetSingleton()->IsInUse(it->second))) return false;
         chest_id = it->second;
         chest = RE::TESForm::LookupByID<RE::TESObjectREFR>(chest_id);
         if (!chest) return false;
         chests.erase(it);
     }
 
+    if (uninstall) MenuManager::GetSingleton()->ForgetChest(chest_id);
     const auto player = RE::PlayerCharacter::GetSingleton();
     for (auto& [item, entry] : chest->GetInventory()) {
         if (entry.first <= 0) continue;
@@ -100,6 +101,20 @@ bool WorldStorage::DeRegister(const RefID target) {
     }
     if (const auto changes = player->GetInventoryChanges(true)) changes->GetInventoryWeight();
     return true;
+}
+
+bool WorldStorage::Uninstall() {
+    std::vector<RefID> targets;
+    {
+        std::shared_lock lock(mutex_);
+        targets.reserve(chests.size());
+        for (const auto target : chests | std::views::keys) targets.push_back(target);
+    }
+    bool success = true;
+    for (const auto target : targets) {
+        if (!DeRegister(target, true)) success = false;
+    }
+    return success;
 }
 
 bool WorldStorage::Save(SKSE::SerializationInterface* serializationInterface) {
