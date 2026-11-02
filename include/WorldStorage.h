@@ -34,6 +34,7 @@ public:
     [[nodiscard]] RefID Register(RE::TESObjectREFR* target);
     [[nodiscard]] RefID GetChest(RefID target) const;
     [[nodiscard]] bool Rename(RE::TESObjectREFR* target, const char* name);
-    [[nodiscard]] bool DeRegister(RefID target, bool uninstall = false);
+    [[nodiscard]] bool DeRegister(RefID target, bool force = false);
     [[nodiscard]] bool Uninstall();
+    void HandleFormDelete(RefID target);
 };

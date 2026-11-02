@@ -44,5 +44,6 @@ public:
     bool IsContainer(const RE::TESObjectREFR* target) const;
     void ClearOpenChest(RefID chest);
     void ForgetChest(RefID chest);
+    void HandleFormDelete(RefID target);
     void Reset();
 };

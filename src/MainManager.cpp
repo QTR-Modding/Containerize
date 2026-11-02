@@ -215,12 +215,18 @@ void MainManager::ClearOpenChest(const RefID chest) {
 }
 
 void MainManager::ForgetChest(const RefID chest) {
+    transfer_cache.erase(chest);
     ClearOpenChest(chest);
     queued_chests.erase(chest);
     if (containermenu_owner && containermenu_owner->GetFormID() == chest) {
         containermenu_owner.reset();
         closed_menu.clear();
     }
+}
+
+void MainManager::HandleFormDelete(const RefID target) {
+    Manager::GetSingleton()->HandleFormDelete(target);
+    WorldStorage::GetSingleton()->HandleFormDelete(target);
 }
 
 void MainManager::Reset() {

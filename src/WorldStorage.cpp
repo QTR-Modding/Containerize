@@ -129,20 +129,20 @@ bool WorldStorage::Rename(RE::TESObjectREFR* target, const char* name) {
     return target->SetDisplayName(name, false) && chest->SetDisplayName(name, true);
 }
 
-bool WorldStorage::DeRegister(const RefID target, const bool uninstall) {
+bool WorldStorage::DeRegister(const RefID target, const bool force) {
     RE::TESObjectREFR* chest;
     RefID chest_id;
     {
         std::unique_lock lock(mutex_);
         const auto it = chests.find(target);
-        if (it == chests.end() || (!uninstall && MainManager::GetSingleton()->IsInUse(it->second.innerKey))) return false;
+        if (it == chests.end() || (!force && MainManager::GetSingleton()->IsInUse(it->second.innerKey))) return false;
         chest_id = it->second.innerKey;
         chest = RE::TESForm::LookupByID<RE::TESObjectREFR>(chest_id);
         if (!chest) return false;
         chests.erase(it);
     }
 
-    if (uninstall) MainManager::GetSingleton()->ForgetChest(chest_id);
+    if (force) MainManager::GetSingleton()->ForgetChest(chest_id);
     const auto player = RE::PlayerCharacter::GetSingleton();
     for (auto& [item, entry] : chest->GetInventory()) {
         if (entry.first <= 0) continue;
@@ -158,6 +158,16 @@ bool WorldStorage::DeRegister(const RefID target, const bool uninstall) {
     }
     if (const auto changes = player->GetInventoryChanges(true)) changes->GetInventoryWeight();
     return true;
+}
+
+void WorldStorage::HandleFormDelete(const RefID target) {
+    if (!GetChest(target)) return;
+    logger::warn("World storage target {:x} was deleted. Returning its stored items.", target);
+    MsgBoxesNotifs::InGame::CustomMsg("A storage container was deleted. Its stored items will be returned to your inventory.");
+    if (!DeRegister(target, true)) {
+        logger::error("Failed to deregister deleted world storage {:x}", target);
+        MsgBoxesNotifs::InGame::CustomMsg("Failed to clean up the deleted container's storage. Details are in Containerize.log.");
+    }
 }
 
 bool WorldStorage::Uninstall() {

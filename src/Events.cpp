@@ -93,7 +93,7 @@ RE::BSEventNotifyControl EventSink::ProcessEvent(const RE::TESFormDeleteEvent* a
                                                  RE::BSTEventSource<RE::TESFormDeleteEvent>*) {
     if (!a_event) return RE::BSEventNotifyControl::kContinue;
     if (!a_event->formID) return RE::BSEventNotifyControl::kContinue;
-    Manager::GetSingleton()->HandleFormDelete(a_event->formID);
+    MainManager::GetSingleton()->HandleFormDelete(a_event->formID);
     if (ChestManager::GetSingleton()->HandleFormDelete(a_event->formID)) {
         Manager::GetSingleton()->FinishUninstall();
     }
