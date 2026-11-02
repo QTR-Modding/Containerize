@@ -152,9 +152,13 @@ void Hooks::MoveItemHooks<RefType>::addObjectToContainer(RefType* a_this, RE::TE
     const auto original_count = a_count;
 
     auto M = Manager::GetSingleton();
-    a_count = std::max(0, MainManager::GetSingleton()->CanBeAdded(a_object, a_count, a_this));
+    const auto main_manager = MainManager::GetSingleton();
+    a_count = std::max(0, main_manager->CanBeAdded(a_object, a_count, a_this));
     if (a_fromRefr && a_count < original_count) {
+        const auto return_pair = std::make_pair(a_fromRefr->GetFormID(), a_object->GetFormID());
+        main_manager->SetCapacityBypass(return_pair, true);
         a_fromRefr->AddObjectToContainer(a_object, a_extraList, original_count - a_count, a_this);
+        main_manager->SetCapacityBypass(return_pair, false);
         if (a_count == 0) {
             return;
         }

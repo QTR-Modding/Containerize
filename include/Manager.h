@@ -138,7 +138,7 @@ public:
     [[nodiscard]] bool Init(std::vector<Source> configured_sources);
 
     void UpdateLoc(FormID fakeID, RefID loc_id);
-    Count CanBeAdded(const RE::TESBoundObject* a_item, Count a_count, RefID a_chestID);
+    Count CanBeAdded(const RE::TESBoundObject* a_item, Count a_count, RE::TESObjectREFR* chest);
     [[nodiscard]] RE::TESBoundObject* FakeToRealContainer(FormID fake) const;
 
     // places fake objects in external containers after load game

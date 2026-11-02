@@ -196,7 +196,7 @@ Count MainManager::CanBeAdded(const RE::TESBoundObject* item, const Count count,
     if (chest->GetBaseObject() != UnownedStuff::unownedChest) return count;
     if (bypass_CanBeAdded.contains({chest_id, item->GetFormID()})) return count;
     const auto manager = Manager::GetSingleton();
-    if (manager->IsChest(chest_id)) return manager->CanBeAdded(item, count, chest_id);
+    if (manager->IsChest(chest_id)) return manager->CanBeAdded(item, count, chest);
     return WorldStorage::GetSingleton()->CanBeAdded(item, count, chest);
 }
 

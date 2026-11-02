@@ -906,8 +906,9 @@ bool Manager::Refresh(RE::TESBoundObject* fake_form, RE::TESObjectREFR* chest_li
     }
 }
 
-Count Manager::CanBeAdded(const RE::TESBoundObject* a_item, const Count a_count, RefID a_chestID) {
+Count Manager::CanBeAdded(const RE::TESBoundObject* a_item, const Count a_count, RE::TESObjectREFR* chest) {
     if (!a_item) return 0;
+    const auto a_chestID = chest->GetFormID();
     if (const auto item_id = a_item->GetFormID(); IsFakeContainer(item_id)) {
         if (a_chestID == GetFakeContainerChestID(item_id)) {
             logger::warn("Avoided transferring fake container into its own chest.");
@@ -922,11 +923,6 @@ Count Manager::CanBeAdded(const RE::TESBoundObject* a_item, const Count a_count,
             }
         }
     }
-    const auto chestRef = RE::TESForm::LookupByID<RE::TESObjectREFR>(a_chestID);
-    if (!chestRef) {
-        logger::error("Chest ref not found.");
-        return 0;
-    }
     SHARED_GUARD;
     const auto itChest = ChestToFakeContainer.find(a_chestID);
     if (itChest == ChestToFakeContainer.end()) return 0;
@@ -935,7 +931,7 @@ Count Manager::CanBeAdded(const RE::TESBoundObject* a_item, const Count a_count,
         logger::error("Source not found.");
         return 0;
     }
-    return src->CanBeAdded(a_item, a_count, chestRef);
+    return src->CanBeAdded(a_item, a_count, chest);
 }
 
 RE::TESBoundObject* Manager::FakeToRealContainer(const FormID fake) const {
