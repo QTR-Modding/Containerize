@@ -13,6 +13,9 @@ class MainManager final : public REX::Singleton<MainManager> {
     [[nodiscard]] RE::TESObjectREFR* GetContainerChest(const RE::TESObjectREFR* target) const;
 
 public:
+    [[nodiscard]] RefID GetChest(FormID target) const;
+    [[nodiscard]] FormID Initialize(FormID target, RefID owner, RE::ExtraDataList* instance);
+    [[nodiscard]] bool DeRegister(FormID target);
     void OnActivateContainer(RE::TESObjectREFR* target, int action, int delay = 0);
     void OnLongPressEquip(const RE::TESBoundObject* fake, int delay = 0);
     void CloseMenu();

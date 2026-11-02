@@ -170,6 +170,26 @@ void MainManager::Reset() {
     containermenu_owner.reset();
 }
 
+RefID MainManager::GetChest(const FormID target) const {
+    if (const auto chest = WorldStorage::GetSingleton()->GetChest(target)) return chest;
+    return Manager::GetSingleton()->GetChest(target);
+}
+
+FormID MainManager::Initialize(const FormID target, const RefID owner, RE::ExtraDataList* instance) {
+    const auto reference = owner ? nullptr : RE::TESForm::LookupByID<RE::TESObjectREFR>(target);
+    const auto base = reference ? reference->GetBaseObject() : nullptr;
+    if (base && std::ranges::contains(WorldStorage::form_types, base->GetFormType())) {
+        return WorldStorage::GetSingleton()->Initialize(reference, instance);
+    }
+    return Manager::GetSingleton()->Initialize(target, owner, instance);
+}
+
+bool MainManager::DeRegister(const FormID target) {
+    const auto world_storage = WorldStorage::GetSingleton();
+    if (world_storage->GetChest(target)) return world_storage->DeRegister(target);
+    return Manager::GetSingleton()->DeRegister(target);
+}
+
 RE::TESObjectREFR* MainManager::GetContainerChest(const RE::TESObjectREFR* target) const {
     if (std::ranges::contains(WorldStorage::form_types, target->GetBaseObject()->GetFormType())) {
         return RE::TESForm::LookupByID<RE::TESObjectREFR>(WorldStorage::GetSingleton()->GetChest(target->GetFormID()));
