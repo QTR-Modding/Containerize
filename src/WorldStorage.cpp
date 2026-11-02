@@ -1,14 +1,24 @@
 #include "WorldStorage.h"
 #include "Chest.h"
+#include "Manager.h"
 #include "Utils.h"
 
 void WorldStorage::LoadSources(std::vector<Source> configured_sources) {
     sources = std::move(configured_sources);
 }
 
+RefID WorldStorage::Initialize(RE::TESObjectREFR* target, RE::ExtraDataList* instance) {
+    if (instance || target->IsDisabled() || target->IsDeleted() ||
+        Manager::GetSingleton()->isUninstalled.load()) return 0;
+    return Register(target) ? target->GetFormID() : 0;
+}
+
 RefID WorldStorage::Register(RE::TESObjectREFR* target) {
     const auto target_id = target->GetFormID();
     if (const auto chest_id = GetChest(target_id)) return chest_id;
+
+    const auto source = std::ranges::find(sources, target->GetBaseObject()->GetFormID(), &Source::formid);
+    if (source == sources.end()) return 0;
 
     const auto chest_manager = ChestManager::GetSingleton();
     const auto client_id = chest_manager->RegisterClient(client_name);
@@ -16,6 +26,11 @@ RefID WorldStorage::Register(RE::TESObjectREFR* target) {
     const auto chest = chest_manager->RentChest(client_id);
     if (!chest) return 0;
 
+    for (const auto& [formid, count] : source->initial_items) {
+        if (const auto item = RE::TESForm::LookupByID<RE::TESBoundObject>(formid)) {
+            chest->AddObjectToContainer(item, nullptr, count, nullptr);
+        }
+    }
     const auto chest_id = chest->GetFormID();
     RefID registered_chest;
     {

@@ -22,6 +22,7 @@ public:
 
     void LoadSources(std::vector<Source> configured_sources);
 
+    [[nodiscard]] RefID Initialize(RE::TESObjectREFR* target, RE::ExtraDataList* instance);
     [[nodiscard]] RefID Register(RE::TESObjectREFR* target);
     [[nodiscard]] RefID GetChest(RefID target) const;
     [[nodiscard]] bool DeRegister(RefID target);

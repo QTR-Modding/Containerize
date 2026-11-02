@@ -22,7 +22,12 @@ extern "C" __declspec(dllexport) const ContainerizeAPI::Interface* Containerize_
             if (const auto chest = WorldStorage::GetSingleton()->GetChest(target)) return chest;
             return Manager::GetSingleton()->GetChest(target);
         },
-        [](RE::FormID target, RE::FormID owner, RE::ExtraDataList* instance) {
+        [](RE::FormID target, RE::FormID owner, RE::ExtraDataList* instance) -> RE::FormID {
+            const auto reference = owner ? nullptr : RE::TESForm::LookupByID<RE::TESObjectREFR>(target);
+            const auto base = reference ? reference->GetBaseObject() : nullptr;
+            if (base && std::ranges::contains(WorldStorage::form_types, base->GetFormType())) {
+                return WorldStorage::GetSingleton()->Initialize(reference, instance);
+            }
             return Manager::GetSingleton()->Initialize(target, owner, instance);
         },
         [](RE::FormID fakeItem, const char* name) { return Manager::GetSingleton()->Rename(fakeItem, name); },
