@@ -7,7 +7,7 @@ class WorldStorage final : public REX::Singleton<WorldStorage> {
     static constexpr auto client_name = "CTRZ_WS";
 
     mutable std::shared_mutex mutex_;
-    std::unordered_map<RefID, RefID> chests;
+    std::unordered_map<RefID, FormRefID> chests;
     std::unordered_map<FormID, Source> sources;
 
 public:

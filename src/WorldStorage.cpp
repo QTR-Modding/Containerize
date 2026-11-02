@@ -18,7 +18,7 @@ const Source* WorldStorage::GetSource(const FormID formid) const {
 
 RefID WorldStorage::GetTarget(const RefID chest) const {
     std::shared_lock lock(mutex_);
-    const auto found = std::ranges::find_if(chests, [chest](const auto& entry) { return entry.second == chest; });
+    const auto found = std::ranges::find_if(chests, [chest](const auto& entry) { return entry.second.innerKey == chest; });
     return found != chests.end() ? found->first : 0;
 }
 
@@ -57,9 +57,9 @@ RefID WorldStorage::Register(RE::TESObjectREFR* target) {
     RefID registered_chest;
     {
         std::unique_lock lock(mutex_);
-        const auto [it, inserted] = chests.emplace(target_id, chest_id);
+        const auto [it, inserted] = chests.emplace(target_id, FormRefID(source->formid, chest_id));
         if (inserted) return chest_id;
-        registered_chest = it->second;
+        registered_chest = it->second.innerKey;
     }
     chest->extraList.RemoveByType(RE::ExtraDataType::kTextDisplayData);
     if (!chest_manager->ReturnChest(client_id, chest)) {
@@ -71,7 +71,7 @@ RefID WorldStorage::Register(RE::TESObjectREFR* target) {
 RefID WorldStorage::GetChest(const RefID target) const {
     std::shared_lock lock(mutex_);
     const auto it = chests.find(target);
-    return it != chests.end() ? it->second : 0;
+    return it != chests.end() ? it->second.innerKey : 0;
 }
 
 bool WorldStorage::DeRegister(const RefID target, const bool uninstall) {
@@ -80,8 +80,8 @@ bool WorldStorage::DeRegister(const RefID target, const bool uninstall) {
     {
         std::unique_lock lock(mutex_);
         const auto it = chests.find(target);
-        if (it == chests.end() || (!uninstall && MainManager::GetSingleton()->IsInUse(it->second))) return false;
-        chest_id = it->second;
+        if (it == chests.end() || (!uninstall && MainManager::GetSingleton()->IsInUse(it->second.innerKey))) return false;
+        chest_id = it->second.innerKey;
         chest = RE::TESForm::LookupByID<RE::TESObjectREFR>(chest_id);
         if (!chest) return false;
         chests.erase(it);
@@ -124,23 +124,27 @@ bool WorldStorage::Save(SKSE::SerializationInterface* serializationInterface) {
     if (!serializationInterface->OpenRecord(kDataKey, kSerializationVersion)) return false;
     for (const auto& [target, chest] : chests) {
         if (!serializationInterface->WriteRecordData(target) ||
-            !serializationInterface->WriteRecordData(chest)) return false;
+            !serializationInterface->WriteRecordData(chest.innerKey) ||
+            !serializationInterface->WriteRecordData(chest.outerKey)) return false;
     }
     return true;
 }
 
 bool WorldStorage::Load(SKSE::SerializationInterface* serializationInterface, const std::uint32_t length) {
-    constexpr auto entry_size = sizeof(RefID) + sizeof(RefID);
+    constexpr auto entry_size = sizeof(RefID) + sizeof(RefID) + sizeof(FormID);
     if (length % entry_size != 0) return false;
-    std::unordered_map<RefID, RefID> loaded;
+    std::unordered_map<RefID, FormRefID> loaded;
     for (std::uint32_t i = 0; i < length / entry_size; ++i) {
         RefID target;
-        RefID chest;
+        FormRefID chest;
         if (serializationInterface->ReadRecordData(target) != sizeof(target) ||
-            serializationInterface->ReadRecordData(chest) != sizeof(chest)) return false;
+            serializationInterface->ReadRecordData(chest.innerKey) != sizeof(chest.innerKey) ||
+            serializationInterface->ReadRecordData(chest.outerKey) != sizeof(chest.outerKey)) return false;
         if (!serializationInterface->ResolveFormID(target, target) ||
-            !serializationInterface->ResolveFormID(chest, chest)) {
-            logger::warn("Could not resolve world storage {:x}, chest {:x} during load", target, chest);
+            !serializationInterface->ResolveFormID(chest.innerKey, chest.innerKey) ||
+            !serializationInterface->ResolveFormID(chest.outerKey, chest.outerKey)) {
+            logger::warn("Could not resolve world storage {:x}, chest {:x}, source {:x} during load",
+                         target, chest.innerKey, chest.outerKey);
             continue;
         }
         if (!loaded.emplace(target, chest).second) return false;
