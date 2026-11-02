@@ -209,6 +209,23 @@ bool WorldStorage::Load(SKSE::SerializationInterface* serializationInterface, co
     return true;
 }
 
+void WorldStorage::ReceiveData() {
+    std::vector<std::pair<RefID, FormID>> unmatched;
+    {
+        std::shared_lock lock(mutex_);
+        for (const auto& [target, chest] : chests) {
+            if (!sources.contains(chest.outerKey)) unmatched.emplace_back(target, chest.outerKey);
+        }
+    }
+    for (const auto& [target, formid] : unmatched) {
+        logger::warn("FormID {:x} not found in world storage sources.", formid);
+        if (Settings::other_settings[Settings::otherstuffKeys[0]]) {
+            MsgBoxesNotifs::InGame::ProblemWithContainer(formid);
+        }
+        if (!DeRegister(target)) logger::error("Failed to deregister world storage {:x}", target);
+    }
+}
+
 void WorldStorage::Reset() {
     std::unique_lock lock(mutex_);
     chests.clear();

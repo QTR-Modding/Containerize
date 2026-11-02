@@ -243,8 +243,9 @@ void Serialization::LoadCallback(SKSE::SerializationInterface* serializationInte
     chest_manager->ResumeDisposals();
     if (manager_failed || (rentals_present && !rentals_loaded)) {
         MsgBoxesNotifs::InGame::CustomMsg("Failed to load Containerize data.");
-    } else if (manager_loaded) {
-        Manager::GetSingleton()->ReceiveData();
+    } else {
+        if (manager_loaded) manager->ReceiveData();
+        WorldStorage::GetSingleton()->ReceiveData();
     }
     logger::info("Data loaded from skse co-save.");
 }

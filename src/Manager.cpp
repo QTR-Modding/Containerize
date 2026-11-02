@@ -332,7 +332,10 @@ void Manager::FakePlacement_Sub(RE::TESObjectREFR* chest, RE::TESObjectREFR* sav
             logger::critical("Real container not found in chest inventory!");
         }
     }
+    const auto replacement_pair = std::make_pair(saved_loc->GetFormID(), fake_bound_new->GetFormID());
+    MainManager::GetSingleton()->SetCapacityBypass(replacement_pair, true);
     saved_loc->AddObjectToContainer(fake_bound_new, xList_fake, 1, nullptr);
+    MainManager::GetSingleton()->SetCapacityBypass(replacement_pair, false);
 }
 
 void Manager::FakePlacementCeption(const RefID chest_ref, std::vector<RefID>& ha) {
@@ -372,7 +375,7 @@ void Manager::FakePlacement(RefID saved_loc, const RefID chest_refID, RE::TESObj
     if (Settings::is_pre_0_10_0) {
         if (chest_refID == saved_loc) saved_loc = player_refid;
     }
-    if (!external_cont && saved_loc != player_refid && !IsChest(saved_loc)) return;
+    if (!external_cont && saved_loc != player_refid && !MainManager::GetSingleton()->IsChest(saved_loc)) return;
 
     if (IsRealContainer(external_cont)) {
         logger::critical("saved_loc should not be realcontainer out in the world!");

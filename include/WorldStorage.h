@@ -19,6 +19,7 @@ public:
     [[nodiscard]] bool Save(SKSE::SerializationInterface* serializationInterface);
     [[nodiscard]] bool Load(SKSE::SerializationInterface* serializationInterface, std::uint32_t length);
     void Reset();
+    void ReceiveData();
 
     void LoadSources(std::vector<Source> configured_sources);
     [[nodiscard]] std::unordered_map<FormID, Source> GetSources() const;
