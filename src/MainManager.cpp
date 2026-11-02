@@ -4,6 +4,7 @@
 #include "Chest.h"
 #include "Animations.h"
 #include "Papyrus.h"
+#include "QuickLoot.h"
 #include "CLibUtilsQTR/Tasker.hpp"
 
 bool MainManager::ActivateChest(RE::TESObjectREFR* chest) const {
@@ -11,6 +12,8 @@ bool MainManager::ActivateChest(RE::TESObjectREFR* chest) const {
         logger::error("ActivateChest: Chest reference is null.");
         return false;
     }
+    QuickLootIntegration::Close();
+    if (Manager::GetSingleton()->isUninstalled.load()) return false;
     if (WorldStorage::GetSingleton()->GetTarget(chest->GetFormID())) {
         return Menu::ActivateChest(chest, chest->GetDisplayFullName());
     }
@@ -206,7 +209,7 @@ void MainManager::HandleCraftingExit() {
 
 bool MainManager::IsInUse(const RefID chest) const {
     if (const auto loan = transfer_cache.find(chest); loan != transfer_cache.end() && !loan->second.empty()) return true;
-    return open_chest == chest || queued_chests.contains(chest) ||
+    return QuickLootIntegration::IsInUse(chest) || open_chest == chest || queued_chests.contains(chest) ||
         (containermenu_owner && containermenu_owner->GetFormID() == chest);
 }
 
@@ -215,6 +218,7 @@ void MainManager::ClearOpenChest(const RefID chest) {
 }
 
 void MainManager::ForgetChest(const RefID chest) {
+    if (QuickLootIntegration::IsInUse(chest)) QuickLootIntegration::Close();
     transfer_cache.erase(chest);
     ClearOpenChest(chest);
     queued_chests.erase(chest);
@@ -225,11 +229,15 @@ void MainManager::ForgetChest(const RefID chest) {
 }
 
 void MainManager::HandleFormDelete(const RefID target) {
+    if (QuickLootIntegration::IsInUse(target) || QuickLootIntegration::IsInUse(GetChest(target))) {
+        QuickLootIntegration::Close();
+    }
     Manager::GetSingleton()->HandleFormDelete(target);
     WorldStorage::GetSingleton()->HandleFormDelete(target);
 }
 
 void MainManager::Reset() {
+    QuickLootIntegration::Reset();
     transfer_cache.clear();
     queued_chests.clear();
     open_chest = 0;

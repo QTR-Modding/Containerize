@@ -4,10 +4,13 @@
 #include "SkyPrompt.h"
 #include "Translations.h"
 #include "WorldStorage.h"
+#include "QuickLoot.h"
 
 namespace {
     // ReSharper disable once CppParameterMayBeConstPtrOrRef
     void OnMessage(SKSE::MessagingInterface::Message* message) {
+        if (message->type == SKSE::MessagingInterface::kSaveGame ||
+            message->type == SKSE::MessagingInterface::kPreLoadGame) QuickLootIntegration::Close();
         if (message->type == SKSE::MessagingInterface::kDataLoaded) {
             SpeedProfiler prof("Loading Sources");
             if (!ChestManager::GetSingleton()->Init()) {
@@ -41,6 +44,7 @@ namespace {
                 logger::info("EventSinks added.");
 
                 ModCompatibility::Load();
+                QuickLootIntegration::Install();
                 SKSE::Translation::ParseTranslation("Containerize");
             } else {
                 logger::critical("Failed to get client ID from SkyPrompt API. Plugin will not work properly.");

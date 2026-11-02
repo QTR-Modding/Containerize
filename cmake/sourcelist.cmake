@@ -14,6 +14,7 @@ set(sources ${sources}
 	src/SkyPrompt.cpp
 	src/Animations.cpp
 	src/API.cpp
+	src/QuickLoot.cpp
 	src/Chest.cpp
 	src/WorldStorage.cpp
 )

@@ -2,6 +2,7 @@
 #include "MainManager.h"
 #include "Chest.h"
 #include "SkyPrompt.h"
+#include "QuickLoot.h"
 
 void EventSink::SendPrompts(RE::TESObjectREFR* a_container) {
     if (SkyPrompt::IsAnyMenuOpen()) {
@@ -36,6 +37,7 @@ RE::BSEventNotifyControl EventSink::ProcessEvent(const SKSE::CrosshairRefEvent* 
     const auto a_crosshairRef = a_event->crosshairRef.get();
     if (Manager::GetSingleton()->isUninstalled.load() || !a_crosshairRef ||
         RE::PlayerCharacter::GetSingleton()->GetGrabbedRef().get() == a_crosshairRef) {
+        QuickLootIntegration::Close();
         RemovePrompts();
         return RE::BSEventNotifyControl::kContinue;
     }
@@ -47,6 +49,8 @@ RE::BSEventNotifyControl EventSink::ProcessEvent(const SKSE::CrosshairRefEvent* 
         logger::warn("Fake object not found in ChestToFakeContainer.");
         WorldObject::SwapObjects(a_crosshairRef, skyrim_cast<RE::TESBoundObject*>(baseform), false);
     }
+
+    QuickLootIntegration::Update(a_crosshairRef);
 
     if (const auto menus = MainManager::GetSingleton();
         menus->IsChestMenuQueued() || menus->IsInChestMenu()) {
@@ -106,6 +110,8 @@ RE::BSEventNotifyControl EventSink::ProcessEvent(const RE::MenuOpenCloseEvent* a
     RemoveMenuPrompts();
     RemovePrompts();
     if (!a_event->opening) Manager::GetSingleton()->FinishUninstall();
+    const auto target = RE::CrosshairPickData::GetSingleton()->target;
+    QuickLootIntegration::Update(target ? target->get().get() : nullptr);
 
     return RE::BSEventNotifyControl::kContinue;
 }
