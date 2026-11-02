@@ -1,5 +1,6 @@
 #include "Manager.h"
 #include "MenuManager.h"
+#include "WorldStorage.h"
 #include "Events.h"
 #include "Papyrus.h"
 #include "Animations.h"
@@ -1475,8 +1476,8 @@ void Manager::Uninstall(const bool delete_fake_forms) {
         }
         return;
     }
-    bool uninstall_successful = true;
     logger::info("Uninstalling...");
+    bool uninstall_successful = WorldStorage::GetSingleton()->Uninstall();
     std::vector<RefID> active_chests;
     {
         SHARED_GUARD;
