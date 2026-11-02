@@ -26,8 +26,6 @@ class Manager final : public Serialization::SaveLoadData,
 
     mutable std::shared_mutex mutex_;
 
-    mutable std::unordered_map<RefID, std::vector<std::pair<FormID, Count>>> transfer_cache;
-
     std::atomic<bool> uninstall_cleanup_pending = false;
 
     [[nodiscard]] bool TakeBackReal(RE::TESBoundObject* real_obj, RE::TESObjectREFR* chest);
@@ -110,8 +108,6 @@ class Manager final : public Serialization::SaveLoadData,
 
     // [locks chest2fake_mutex_ (shared)]
     FormID GetFakeID(RefID chest_id) const;
-    // [locks chest2fake_mutex_ (shared)]
-    FormID GetRealID(RefID chest_id) const;
 
     // [locks source_mutex_ (shared)]
     [[nodiscard]] RefID GetContainerChestID(RefID a_loc_refid) const;
@@ -124,9 +120,10 @@ class Manager final : public Serialization::SaveLoadData,
 
     void UpdateLoc_Private(RefID chestID, RefID loc_id);
 
-    void TransferOnUse(RefID a_chestID) const;
 
 public:
+    // [locks chest2fake_mutex_ (shared)]
+    FormID GetRealID(RefID chest_id) const;
     std::string GetChestName(const RE::TESObjectREFR* chest) const;
     [[nodiscard]] RE::TESObjectREFR* GetContainerChest(const RE::TESObjectREFR* a_loc) const;
     [[nodiscard]] RE::TESObjectREFR* GetFakeContainerChest(const RE::TESBoundObject* a_fake) const;
@@ -162,8 +159,7 @@ public:
 
     [[nodiscard]] bool IsARegistry(RefID registry) const;
 
-    void HandleCraftingEnter(RefID a_furn) const;
-    void HandleCraftingExit();
+    void UpdateExtrasAfterCrafting();
 
     void HandleDrop(RE::TESObjectREFR* fake_object);
     void BeforePickup(RE::TESObjectREFR* picked_up_by, RE::TESObjectREFR* a_object);

@@ -75,10 +75,10 @@ RE::BSEventNotifyControl EventSink::ProcessEvent(const RE::TESFurnitureEvent* ev
     if (event->type == RE::TESFurnitureEvent::FurnitureEventType::kEnter) {
         furniture_entered = true;
         furniture = event->targetFurniture;
-        Manager::GetSingleton()->HandleCraftingEnter(furniture->GetFormID());
+        MainManager::GetSingleton()->HandleCraftingEnter(furniture.get());
     } else if (event->type == RE::TESFurnitureEvent::FurnitureEventType::kExit) {
         if (event->targetFurniture == furniture) {
-            Manager::GetSingleton()->HandleCraftingExit();
+            MainManager::GetSingleton()->HandleCraftingExit();
             furniture_entered = false;
             furniture = nullptr;
         }

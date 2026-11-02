@@ -146,7 +146,61 @@ void MainManager::OnChestExit(RE::TESObjectREFR* chest) {
     }
 }
 
+void MainManager::TransferOnUse(const RefID a_chestID) {
+    const auto manager = Manager::GetSingleton();
+    if (manager->IsTokenMode(a_chestID)) return;
+    if (const auto chest = RE::TESForm::LookupByID<RE::TESObjectREFR>(a_chestID)) {
+        const auto player_ref = RE::PlayerCharacter::GetSingleton();
+        const auto a_inv = chest->GetInventoryCounts();
+        const auto a_realID = manager->GetRealID(a_chestID);
+        std::vector<std::pair<FormID, Count>> a_cache;
+        for (const auto& [item, count] : a_inv) {
+            auto a_formid = item->GetFormID();
+            auto a_count = count;
+            if (manager->IsFakeContainer(a_formid)) {
+                TransferOnUse(GetChest(a_formid));
+                continue;
+            }
+            if (a_realID == a_formid) {
+                a_count -= 1;
+            }
+            if (a_count > 0) {
+                a_cache.emplace_back(a_formid, a_count);
+                chest->RemoveItem(item, a_count, RE::ITEM_REMOVE_REASON::kRemove, nullptr, player_ref);
+            }
+        }
+        transfer_cache[a_chestID] = std::move(a_cache);
+    }
+}
+
+void MainManager::HandleCraftingEnter(RE::TESObjectREFR* furniture) {
+    const auto world_storage = WorldStorage::GetSingleton();
+    const auto source = world_storage->GetSource(furniture->GetBaseObject()->GetFormID());
+    if (source && source->transfer_on_use && !source->token_mode) {
+        if (const auto chest = world_storage->GetChest(furniture->GetFormID())) TransferOnUse(chest);
+    }
+}
+
+void MainManager::HandleCraftingExit() {
+    const auto player_ref = RE::PlayerCharacter::GetSingleton();
+    for (auto& [a_chestID,a_cache] : transfer_cache) {
+        if (!a_cache.empty()) {
+            if (const auto chest = RE::TESForm::LookupByID<RE::TESObjectREFR>(a_chestID)) {
+                for (const auto& [item_formid, count] : a_cache) {
+                    if (const auto item = RE::TESForm::LookupByID<RE::TESBoundObject>(item_formid)) {
+                        player_ref->RemoveItem(item, count, RE::ITEM_REMOVE_REASON::kRemove, nullptr, chest);
+                    }
+                }
+            }
+        }
+    }
+    transfer_cache.clear();
+
+    Manager::GetSingleton()->UpdateExtrasAfterCrafting();
+}
+
 bool MainManager::IsInUse(const RefID chest) const {
+    if (const auto loan = transfer_cache.find(chest); loan != transfer_cache.end() && !loan->second.empty()) return true;
     return open_chest == chest || queued_chests.contains(chest) ||
         (containermenu_owner && containermenu_owner->GetFormID() == chest);
 }
@@ -165,6 +219,7 @@ void MainManager::ForgetChest(const RefID chest) {
 }
 
 void MainManager::Reset() {
+    transfer_cache.clear();
     queued_chests.clear();
     open_chest = 0;
     closed_menu.clear();

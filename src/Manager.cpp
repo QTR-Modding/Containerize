@@ -755,32 +755,6 @@ void Manager::UpdateLoc_Private(const RefID chestID, const RefID loc_id) {
     if (old_location != loc_id && IsChest(old_location)) Refresh(old_location);
 }
 
-void Manager::TransferOnUse(const RefID a_chestID) const {
-    if (IsTokenMode(a_chestID)) return;
-    if (const auto chest = RE::TESForm::LookupByID<RE::TESObjectREFR>(a_chestID)) {
-        const auto player_ref = RE::PlayerCharacter::GetSingleton();
-        const auto a_inv = chest->GetInventoryCounts();
-        const auto a_realID = GetRealID(a_chestID);
-        std::vector<std::pair<FormID, Count>> a_cache;
-        for (const auto& [item, count] : a_inv) {
-            auto a_formid = item->GetFormID();
-            auto a_count = count;
-            if (IsFakeContainer(a_formid)) {
-                TransferOnUse(GetFakeContainerChestID(a_formid));
-                continue;
-            }
-            if (a_realID == a_formid) {
-                a_count -= 1;
-            }
-            if (a_count > 0) {
-                a_cache.emplace_back(a_formid, a_count);
-                chest->RemoveItem(item, a_count, RE::ITEM_REMOVE_REASON::kRemove, nullptr, player_ref);
-            }
-        }
-        transfer_cache[a_chestID] = std::move(a_cache);
-    }
-}
-
 FormID Manager::Initialize(const FormID target_id, const RefID owner_id, RE::ExtraDataList* instance) {
     if (isUninstalled.load()) return 0;
     if (const auto chest_id = GetChest(target_id)) return GetFakeID(chest_id);
@@ -816,7 +790,6 @@ bool Manager::DeRegister(const FormID target_id) {
     if (isUninstalled.load()) return false;
     const auto chest_id = GetChest(target_id);
     if (!chest_id || reals_to_takeback.contains(chest_id) || MainManager::GetSingleton()->IsInUse(chest_id)) return false;
-    if (const auto loan = transfer_cache.find(chest_id); loan != transfer_cache.end() && !loan->second.empty()) return false;
     const auto chest = RE::TESForm::LookupByID<RE::TESObjectREFR>(chest_id);
     const auto fake_id = GetFakeID(chest_id);
     auto destination = GetContainerLocation(fake_id);
@@ -1086,30 +1059,8 @@ bool Manager::IsARegistry(const RefID registry) const {
     return false;
 }
 
-void Manager::HandleCraftingEnter(const RefID a_furn) const {
-    if (const auto a_chestID = GetContainerChestID(a_furn); a_chestID > 0) {
-        const auto a_real_id = GetRealID(a_chestID);
-        if (const auto src = GetContainerSource(a_real_id); src && src->transfer_on_use) {
-            TransferOnUse(a_chestID);
-        }
-    }
-}
-
-void Manager::HandleCraftingExit() {
+void Manager::UpdateExtrasAfterCrafting() {
     const auto player_ref = RE::PlayerCharacter::GetSingleton();
-    for (auto& [a_chestID,a_cache] : transfer_cache) {
-        if (!a_cache.empty()) {
-            if (const auto chest = RE::TESForm::LookupByID<RE::TESObjectREFR>(a_chestID)) {
-                for (const auto& [item_formid, count] : a_cache) {
-                    if (const auto item = RE::TESForm::LookupByID<RE::TESBoundObject>(item_formid)) {
-                        player_ref->RemoveItem(item, count, RE::ITEM_REMOVE_REASON::kRemove, nullptr, chest);
-                    }
-                }
-            }
-        }
-    }
-    transfer_cache.clear();
-
     bool error = false;
     {
         SHARED_GUARD;
@@ -1144,7 +1095,7 @@ void Manager::HandleCraftingExit() {
     }
 
     if (error) {
-        RaiseMngrErr("Error in HandleCraftingExit");
+        RaiseMngrErr("Error in UpdateExtrasAfterCrafting");
     }
 }
 
