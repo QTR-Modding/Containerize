@@ -231,6 +231,12 @@ void MainManager::Reset() {
     containermenu_owner.reset();
 }
 
+std::unordered_map<FormID, Source> MainManager::GetSources() const {
+    auto sources = Manager::GetSingleton()->GetSources();
+    sources.merge(WorldStorage::GetSingleton()->GetSources());
+    return sources;
+}
+
 RefID MainManager::GetChest(const FormID target) const {
     if (const auto chest = WorldStorage::GetSingleton()->GetChest(target)) return chest;
     return Manager::GetSingleton()->GetChest(target);

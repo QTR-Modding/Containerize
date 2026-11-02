@@ -1,5 +1,6 @@
 #pragma once
 #include <REX/REX/Singleton.h>
+#include "CustomObjects.h"
 
 class MainManager final : public REX::Singleton<MainManager> {
     std::set<RefID> queued_chests;
@@ -16,6 +17,7 @@ class MainManager final : public REX::Singleton<MainManager> {
     [[nodiscard]] RE::TESObjectREFR* GetContainerChest(const RE::TESObjectREFR* target) const;
 
 public:
+    [[nodiscard]] std::unordered_map<FormID, Source> GetSources() const;
     [[nodiscard]] RefID GetChest(FormID target) const;
     [[nodiscard]] bool Refresh(RefID chest);
     [[nodiscard]] std::string GetWeightText(RE::TESObjectREFR* target) const;

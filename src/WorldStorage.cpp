@@ -11,6 +11,17 @@ void WorldStorage::LoadSources(std::vector<Source> configured_sources) {
     for (auto& source : configured_sources) sources.try_emplace(source.formid, std::move(source));
 }
 
+std::unordered_map<FormID, Source> WorldStorage::GetSources() const {
+    auto result = sources;
+    std::shared_lock lock(mutex_);
+    for (const auto& [target, chest] : chests) {
+        if (const auto source = result.find(chest.outerKey); source != result.end()) {
+            source->second.data.emplace(chest.innerKey, target);
+        }
+    }
+    return result;
+}
+
 const Source* WorldStorage::GetSource(const FormID formid) const {
     const auto source = sources.find(formid);
     return source != sources.end() ? &source->second : nullptr;

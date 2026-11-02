@@ -1,4 +1,5 @@
 #include "MCP.h"
+#include "MainManager.h"
 
 namespace ImGui = ImGuiMCP;
 
@@ -184,7 +185,7 @@ void UI::Register() {
     SKSEMenuFramework::AddSectionItem(Strings::sources_label, RenderSources);
     SKSEMenuFramework::AddSectionItem(Strings::inspect, RenderInspect);
     SKSEMenuFramework::AddSectionItem(Strings::log, RenderLog);
-    n_sources = Manager::GetSingleton()->GetSources().size();
+    n_sources = MainManager::GetSingleton()->GetSources().size();
     logger::info("MCP registered.");
 }
 
@@ -212,8 +213,9 @@ void UI::Refresh() {
     }
 
     collapse_states.clear();
+    sources.clear();
     data.clear();
-    const auto& sources_temp = Manager::GetSingleton()->GetSources();
+    const auto& sources_temp = MainManager::GetSingleton()->GetSources();
     n_sources = sources_temp.size();
     for (const auto& source : sources_temp | std::views::values) {
         ManagerSource mcp_source;

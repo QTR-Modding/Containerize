@@ -21,6 +21,7 @@ public:
     void Reset();
 
     void LoadSources(std::vector<Source> configured_sources);
+    [[nodiscard]] std::unordered_map<FormID, Source> GetSources() const;
     [[nodiscard]] const Source* GetSource(FormID formid) const;
     [[nodiscard]] RefID GetTarget(RefID chest) const;
     [[nodiscard]] bool Refresh(RefID chest) const;
