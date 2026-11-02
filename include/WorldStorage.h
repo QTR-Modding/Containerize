@@ -10,6 +10,8 @@ class WorldStorage final : public REX::Singleton<WorldStorage> {
     std::unordered_map<RefID, FormRefID> chests;
     std::unordered_map<FormID, Source> sources;
 
+    [[nodiscard]] bool ReturnChest(RE::TESObjectREFR* chest);
+
 public:
     static constexpr std::array form_types{RE::TESFurniture::FORMTYPE};
 
@@ -17,9 +19,9 @@ public:
     static constexpr std::uint32_t kSerializationVersion = 1;
 
     [[nodiscard]] bool Save(SKSE::SerializationInterface* serializationInterface);
-    [[nodiscard]] bool Load(SKSE::SerializationInterface* serializationInterface, std::uint32_t length);
+    [[nodiscard]] bool Load(SKSE::SerializationInterface* serializationInterface, std::uint32_t length, std::vector<RefID>& orphaned_chests);
     void Reset();
-    void ReceiveData();
+    void ReceiveData(const std::vector<RefID>& orphaned_chests);
 
     void LoadSources(std::vector<Source> configured_sources);
     [[nodiscard]] std::unordered_map<FormID, Source> GetSources() const;

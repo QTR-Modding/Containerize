@@ -156,6 +156,7 @@ void Serialization::LoadCallback(SKSE::SerializationInterface* serializationInte
     bool rentals_loaded = false;
     bool manager_loaded = false;
     bool manager_failed = false;
+    std::vector<RefID> orphaned_world_chests;
 
     std::uint32_t type;
     std::uint32_t version;
@@ -171,7 +172,7 @@ void Serialization::LoadCallback(SKSE::SerializationInterface* serializationInte
         }
         if (type == WorldStorage::kDataKey) {
             if (version != WorldStorage::kSerializationVersion ||
-                !WorldStorage::GetSingleton()->Load(serializationInterface, length)) {
+                !WorldStorage::GetSingleton()->Load(serializationInterface, length, orphaned_world_chests)) {
                 logger::critical("Failed to load world storage, version {}", version);
                 MsgBoxesNotifs::InGame::CustomMsg("Failed to load Containerize world storage.");
             }
@@ -245,7 +246,7 @@ void Serialization::LoadCallback(SKSE::SerializationInterface* serializationInte
         MsgBoxesNotifs::InGame::CustomMsg("Failed to load Containerize data.");
     } else {
         if (manager_loaded) manager->ReceiveData();
-        WorldStorage::GetSingleton()->ReceiveData();
+        WorldStorage::GetSingleton()->ReceiveData(orphaned_world_chests);
     }
     logger::info("Data loaded from skse co-save.");
 }

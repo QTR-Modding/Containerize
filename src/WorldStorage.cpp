@@ -143,6 +143,11 @@ bool WorldStorage::DeRegister(const RefID target, const bool force) {
     }
 
     if (force) MainManager::GetSingleton()->ForgetChest(chest_id);
+    return ReturnChest(chest);
+}
+
+bool WorldStorage::ReturnChest(RE::TESObjectREFR* chest) {
+    const auto chest_id = chest->GetFormID();
     const auto player = RE::PlayerCharacter::GetSingleton();
     for (auto& [item, entry] : chest->GetInventory()) {
         if (entry.first <= 0) continue;
@@ -195,19 +200,24 @@ bool WorldStorage::Save(SKSE::SerializationInterface* serializationInterface) {
     return true;
 }
 
-bool WorldStorage::Load(SKSE::SerializationInterface* serializationInterface, const std::uint32_t length) {
+bool WorldStorage::Load(SKSE::SerializationInterface* serializationInterface, const std::uint32_t length, std::vector<RefID>& orphaned_chests) {
     constexpr auto entry_size = sizeof(RefID) + sizeof(RefID) + sizeof(FormID);
     if (length % entry_size != 0) return false;
     std::unordered_map<RefID, FormRefID> loaded;
+    std::vector<RefID> orphaned;
     for (std::uint32_t i = 0; i < length / entry_size; ++i) {
         RefID target;
         FormRefID chest;
         if (serializationInterface->ReadRecordData(target) != sizeof(target) ||
             serializationInterface->ReadRecordData(chest.innerKey) != sizeof(chest.innerKey) ||
             serializationInterface->ReadRecordData(chest.outerKey) != sizeof(chest.outerKey)) return false;
+        if (!serializationInterface->ResolveFormID(chest.innerKey, chest.innerKey)) {
+            logger::warn("Could not resolve world storage chest {:x} during load", chest.innerKey);
+            continue;
+        }
         if (!serializationInterface->ResolveFormID(target, target) ||
-            !serializationInterface->ResolveFormID(chest.innerKey, chest.innerKey) ||
             !serializationInterface->ResolveFormID(chest.outerKey, chest.outerKey)) {
+            orphaned.push_back(chest.innerKey);
             logger::warn("Could not resolve world storage {:x}, chest {:x}, source {:x} during load",
                          target, chest.innerKey, chest.outerKey);
             continue;
@@ -216,10 +226,18 @@ bool WorldStorage::Load(SKSE::SerializationInterface* serializationInterface, co
     }
     std::unique_lock lock(mutex_);
     chests = std::move(loaded);
+    orphaned_chests = std::move(orphaned);
     return true;
 }
 
-void WorldStorage::ReceiveData() {
+void WorldStorage::ReceiveData(const std::vector<RefID>& orphaned_chests) {
+    for (const auto chest_id : orphaned_chests) {
+        if (const auto chest = RE::TESForm::LookupByID<RE::TESObjectREFR>(chest_id)) {
+            if (!ReturnChest(chest)) logger::error("Failed to recover world storage chest {:x}", chest_id);
+        } else {
+            logger::error("World storage chest {:x} not found during recovery", chest_id);
+        }
+    }
     std::vector<std::pair<RefID, FormID>> unmatched;
     {
         std::shared_lock lock(mutex_);

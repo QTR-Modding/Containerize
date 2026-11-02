@@ -375,7 +375,7 @@ void Manager::FakePlacement(RefID saved_loc, const RefID chest_refID, RE::TESObj
     if (Settings::is_pre_0_10_0) {
         if (chest_refID == saved_loc) saved_loc = player_refid;
     }
-    if (!external_cont && saved_loc != player_refid && !MainManager::GetSingleton()->IsChest(saved_loc)) return;
+    if (!external_cont && saved_loc != player_refid && !ChestManager::IsUnownedChest(saved_loc)) return;
 
     if (IsRealContainer(external_cont)) {
         logger::critical("saved_loc should not be realcontainer out in the world!");
