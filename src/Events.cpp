@@ -48,10 +48,10 @@ RE::BSEventNotifyControl EventSink::ProcessEvent(const SKSE::CrosshairRefEvent* 
         WorldObject::SwapObjects(a_crosshairRef, skyrim_cast<RE::TESBoundObject*>(baseform), false);
     }
 
-    if (const auto M = Manager::GetSingleton();
-        MenuManager::GetSingleton()->IsChestMenuQueued() || MenuManager::GetSingleton()->IsInChestMenu()) {
+    if (const auto menus = MenuManager::GetSingleton();
+        menus->IsChestMenuQueued() || menus->IsInChestMenu()) {
         RemovePrompts();
-    } else if (M->IsRealContainer(a_crosshairRef)) {
+    } else if (menus->IsContainer(a_crosshairRef)) {
         SendPrompts(a_crosshairRef);
     } else {
         RemovePrompts();

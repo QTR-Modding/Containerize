@@ -316,7 +316,7 @@ RE::UI_MESSAGE_RESULTS Hooks::MenuHook<MenuType>::ProcessMessage_Hook(RE::UIMess
     if (const std::string_view menuname = MenuType::MENU_NAME; a_message.menu == menuname) {
         if (menuname == RE::ContainerMenu::MENU_NAME) {
             if (RE::TESObjectREFRPtr refr; LookupReferenceByHandle(RE::ContainerMenu::GetTargetRefHandle(), refr)) {
-                if (manager->IsChest(refr->GetFormID())) {
+                if (MenuManager::GetSingleton()->IsChest(refr->GetFormID())) {
                     if (msg_type == 3) MenuManager::GetSingleton()->OnChestExit(refr.get());
                     else if (msg_type == 1) MenuManager::GetSingleton()->OnChestEnter(refr.get());
                 }

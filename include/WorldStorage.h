@@ -21,6 +21,9 @@ public:
     void Reset();
 
     void LoadSources(std::vector<Source> configured_sources);
+    [[nodiscard]] const Source* GetSource(FormID formid) const;
+    [[nodiscard]] RefID GetTarget(RefID chest) const;
+    void PlayCloseAnimation(RE::TESObjectREFR* chest);
 
     [[nodiscard]] RefID Initialize(RE::TESObjectREFR* target, RE::ExtraDataList* instance);
     [[nodiscard]] RefID Register(RE::TESObjectREFR* target);

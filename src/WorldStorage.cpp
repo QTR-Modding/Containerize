@@ -1,10 +1,29 @@
 #include "WorldStorage.h"
 #include "Chest.h"
 #include "Manager.h"
+#include "MenuManager.h"
+#include "Animations.h"
 #include "Utils.h"
 
 void WorldStorage::LoadSources(std::vector<Source> configured_sources) {
     sources = std::move(configured_sources);
+}
+
+const Source* WorldStorage::GetSource(const FormID formid) const {
+    const auto source = std::ranges::find(sources, formid, &Source::formid);
+    return source != sources.end() ? &*source : nullptr;
+}
+
+RefID WorldStorage::GetTarget(const RefID chest) const {
+    std::shared_lock lock(mutex_);
+    const auto found = std::ranges::find_if(chests, [chest](const auto& entry) { return entry.second == chest; });
+    return found != chests.end() ? found->first : 0;
+}
+
+void WorldStorage::PlayCloseAnimation(RE::TESObjectREFR* chest) {
+    constexpr int close_world_animation = 3;
+    const auto target = RE::TESForm::LookupByID<RE::TESObjectREFR>(GetTarget(chest->GetFormID()));
+    Animations::SendAnimEvent(close_world_animation, target);
 }
 
 RefID WorldStorage::Initialize(RE::TESObjectREFR* target, RE::ExtraDataList* instance) {
@@ -17,14 +36,15 @@ RefID WorldStorage::Register(RE::TESObjectREFR* target) {
     const auto target_id = target->GetFormID();
     if (const auto chest_id = GetChest(target_id)) return chest_id;
 
-    const auto source = std::ranges::find(sources, target->GetBaseObject()->GetFormID(), &Source::formid);
-    if (source == sources.end()) return 0;
+    const auto source = GetSource(target->GetBaseObject()->GetFormID());
+    if (!source) return 0;
 
     const auto chest_manager = ChestManager::GetSingleton();
     const auto client_id = chest_manager->RegisterClient(client_name);
     if (client_id == ContainerizeAPI::invalid_client) return 0;
     const auto chest = chest_manager->RentChest(client_id);
     if (!chest) return 0;
+    chest->SetDisplayName(target->GetDisplayFullName(), true);
 
     for (const auto& [formid, count] : source->initial_items) {
         if (const auto item = RE::TESForm::LookupByID<RE::TESBoundObject>(formid)) {
@@ -39,6 +59,7 @@ RefID WorldStorage::Register(RE::TESObjectREFR* target) {
         if (inserted) return chest_id;
         registered_chest = it->second;
     }
+    chest->extraList.RemoveByType(RE::ExtraDataType::kTextDisplayData);
     if (!chest_manager->ReturnChest(client_id, chest)) {
         logger::error("Failed to return unused chest {:x} for client {}", chest_id, client_id);
     }
@@ -57,7 +78,7 @@ bool WorldStorage::DeRegister(const RefID target) {
     {
         std::unique_lock lock(mutex_);
         const auto it = chests.find(target);
-        if (it == chests.end()) return false;
+        if (it == chests.end() || MenuManager::GetSingleton()->IsInUse(it->second)) return false;
         chest_id = it->second;
         chest = RE::TESForm::LookupByID<RE::TESObjectREFR>(chest_id);
         if (!chest) return false;
@@ -72,6 +93,7 @@ bool WorldStorage::DeRegister(const RefID target) {
     if (!ChestManager::IsEmpty(chest)) MsgBoxesNotifs::InGame::ReportTransferFailure(chest_id);
     const auto chest_manager = ChestManager::GetSingleton();
     const auto client_id = chest_manager->RegisterClient(client_name);
+    chest->extraList.RemoveByType(RE::ExtraDataType::kTextDisplayData);
     if (!chest_manager->ReturnChest(client_id, chest)) {
         logger::critical("Failed to return chest {:x} for client {}", chest_id, client_id);
         return false;

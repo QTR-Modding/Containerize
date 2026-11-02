@@ -10,6 +10,7 @@ class MenuManager final : public REX::Singleton<MenuManager> {
     [[nodiscard]] bool ActivateChest(RE::TESObjectREFR* chest) const;
     void OpenChestFromMenu(RE::TESObjectREFR* chest);
     void Gateway(int result, const RE::ObjectRefHandle& target);
+    [[nodiscard]] RE::TESObjectREFR* GetContainerChest(const RE::TESObjectREFR* target) const;
 
 public:
     void OnActivateContainer(RE::TESObjectREFR* target, int action, int delay = 0);
@@ -20,6 +21,8 @@ public:
     bool IsInChestMenu() const { return open_chest != 0; }
     bool IsChestMenuQueued() const { return !queued_chests.empty(); }
     bool IsInUse(RefID chest) const;
+    bool IsChest(RefID chest) const;
+    bool IsContainer(const RE::TESObjectREFR* target) const;
     void ClearOpenChest(RefID chest);
     void Reset();
 };

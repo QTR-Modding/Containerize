@@ -1,5 +1,6 @@
 #include "SkyPrompt.h"
 #include "MenuManager.h"
+#include "WorldStorage.h"
 #include "Animations.h"
 #include "Events.h"
 #include "Hooks.h"
@@ -11,6 +12,12 @@ using namespace SkyPrompt;
 void RefPromptSink::Start(RE::TESObjectREFR* a_ref) {
     weight_text.clear();
     value_text.clear();
+    if (std::ranges::contains(WorldStorage::form_types, a_ref->GetBaseObject()->GetFormType())) {
+        const auto source = WorldStorage::GetSingleton()->GetSource(a_ref->GetBaseObject()->GetFormID());
+        prompts.clear();
+        if (!source->token_mode) prompts = {open_prompt};
+        return;
+    }
     if (ModCompatibility::Mods::ui_extensions_installed) {
         prompts = {open_prompt, rename_prompt};
     } else {
