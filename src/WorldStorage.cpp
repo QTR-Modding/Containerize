@@ -6,12 +6,14 @@
 #include "Utils.h"
 
 void WorldStorage::LoadSources(std::vector<Source> configured_sources) {
-    sources = std::move(configured_sources);
+    sources.clear();
+    sources.reserve(configured_sources.size());
+    for (auto& source : configured_sources) sources.try_emplace(source.formid, std::move(source));
 }
 
 const Source* WorldStorage::GetSource(const FormID formid) const {
-    const auto source = std::ranges::find(sources, formid, &Source::formid);
-    return source != sources.end() ? &*source : nullptr;
+    const auto source = sources.find(formid);
+    return source != sources.end() ? &source->second : nullptr;
 }
 
 RefID WorldStorage::GetTarget(const RefID chest) const {

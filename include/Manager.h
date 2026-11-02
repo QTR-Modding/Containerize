@@ -71,7 +71,7 @@ class Manager final : public Serialization::SaveLoadData,
 
     void HandleFormDelete_(RefID chest_refid);
 
-    std::vector<Source> sources;
+    std::unordered_map<FormID, Source> sources;
 
     void RaiseMngrErr(const std::string& err_msg_ = "Error");
 
@@ -187,7 +187,7 @@ public:
     void ReceiveDataHandleEquipFavorite(const std::unordered_map<RefID, std::pair<bool, bool>>& chest_states) const;
     void ReceiveData();
 
-    std::vector<Source> GetSources() const;
+    std::unordered_map<FormID, Source> GetSources() const;
 
     void Uninstall(bool delete_fake_forms = false);
     void FinishUninstall();

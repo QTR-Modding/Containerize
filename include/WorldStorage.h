@@ -8,7 +8,7 @@ class WorldStorage final : public REX::Singleton<WorldStorage> {
 
     mutable std::shared_mutex mutex_;
     std::unordered_map<RefID, RefID> chests;
-    std::vector<Source> sources;
+    std::unordered_map<FormID, Source> sources;
 
 public:
     static constexpr std::array form_types{RE::TESFurniture::FORMTYPE};

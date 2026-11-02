@@ -26,17 +26,13 @@ namespace {
 
 // ================= NoLock helper implementations =================
 const Source* Manager::GetContainerSource_NoLock(const FormID real_id) const noexcept {
-    for (auto& src : sources) {
-        if (src.formid == real_id) return &src;
-    }
-    return nullptr;
+    const auto src = sources.find(real_id);
+    return src != sources.end() ? &src->second : nullptr;
 }
 
 Source* Manager::GetContainerSource_NoLock(const FormID real_id) noexcept {
-    for (auto& src : sources) {
-        if (src.formid == real_id) return &src;
-    }
-    return nullptr;
+    const auto src = sources.find(real_id);
+    return src != sources.end() ? &src->second : nullptr;
 }
 
 FormID Manager::GetRealID_NoLock(const RefID chest_id) const noexcept {
@@ -609,11 +605,10 @@ bool Manager::Init(std::vector<Source> configured_sources) {
         return false;
     }
     bool init_failed = false;
-    sources = std::move(configured_sources);
+    sources.clear();
+    sources.reserve(configured_sources.size());
 
-    std::unordered_set<std::uint32_t> encounteredFormIDs;
-
-    for (auto& src : sources) {
+    for (auto& src : configured_sources) {
         const auto form_ = FormReader::GetFormByID(src.formid, src.editorid);
         if (const auto bound_ = src.GetBoundObject(); !form_ || !bound_) {
             init_failed = true;
@@ -627,7 +622,7 @@ bool Manager::Init(std::vector<Source> configured_sources) {
             logger::error("Invalid source type: {}", formtype_);
             break;
         }
-        if (!encounteredFormIDs.insert(src.formid).second) {
+        if (!sources.try_emplace(src.formid, std::move(src)).second) {
             logger::error("Duplicate formid found: {}", src.formid);
             init_failed = true;
         }
@@ -652,7 +647,7 @@ bool Manager::Init(std::vector<Source> configured_sources) {
 
 RefID Manager::GetContainerChestID(const RefID a_loc_refid) const {
     SHARED_GUARD;
-    for (const auto& src : sources) {
+    for (const auto& src : sources | std::views::values) {
         for (const auto& [chest_refid, cont_refid] : src.data) {
             if (cont_refid == a_loc_refid) return chest_refid;
         }
@@ -965,7 +960,7 @@ void Manager::HandleFakePlacement(RE::TESObjectREFR* external_cont) {
     std::vector<std::pair<RefID, RefID>> chest_locs;
     {
         SHARED_GUARD;
-        for (const auto& src : sources) {
+        for (const auto& src : sources | std::views::values) {
             for (const auto& [chest_ref, loc] : src.data) {
                 if (external_cont_refid == loc) {
                     chest_locs.push_back({chest_ref, loc});
@@ -1001,7 +996,7 @@ bool Manager::IsTokenMode(const FormID formid) const {
 
 bool Manager::IsRealContainer(const FormID formid) const {
     SHARED_GUARD;
-    return std::ranges::any_of(sources, [formid](const Source& src) { return src.formid == formid; });
+    return sources.contains(formid);
 }
 
 bool Manager::IsRealContainer(const RE::TESObjectREFR* ref) const {
@@ -1096,7 +1091,7 @@ bool Manager::OnChestEnter(RE::TESObjectREFR* a_chest) {
 
 bool Manager::IsARegistry(const RefID registry) const {
     SHARED_GUARD;
-    for (const auto& src : sources) {
+    for (const auto& src : sources | std::views::values) {
         for (const auto& cont_ref : src.data | std::views::values) {
             if (cont_ref == registry) return true;
         }
@@ -1131,7 +1126,7 @@ void Manager::HandleCraftingExit() {
     bool error = false;
     {
         SHARED_GUARD;
-        for (const auto& src : sources) {
+        for (const auto& src : sources | std::views::values) {
             if (error) {
                 break;
             }
@@ -1216,7 +1211,7 @@ void Manager::HandleFormDelete(const RefID refid) {
     RefID targetChest = 0;
     {
         SHARED_GUARD;
-        for (auto& src : sources) {
+        for (auto& src : sources | std::views::values) {
             for (const auto& [chest_ref, cont_ref] : src.data) {
                 if (cont_ref == refid) {
                     targetChest = chest_ref;
@@ -1238,7 +1233,7 @@ void Manager::Reset() {
     logger::info("Resetting manager...");
     {
         UNIQUE_GUARD;
-        for (auto& src : sources) src.data.clear();
+        for (auto& src : sources | std::views::values) src.data.clear();
         ChestToFakeContainer.clear();
     }
     uninstall_cleanup_pending.store(false);
@@ -1252,7 +1247,7 @@ void Manager::Reset() {
 }
 
 void Manager::Print() {
-    for (const auto& src : sources) {
+    for (const auto& src : sources | std::views::values) {
         if (!src.data.empty()) {
             logger::trace("Printing............Source formid: {:x}", src.formid);
             Functions::printMap(src.data);
@@ -1273,7 +1268,7 @@ void Manager::SendData() {
     const auto player_ref = RE::PlayerCharacter::GetSingleton();
     {
         SHARED_GUARD;
-        for (auto& src : sources) {
+        for (auto& src : sources | std::views::values) {
             if (error) break;
             for (const auto& [chest_ref, cont_ref] : src.data) {
                 no_of_container++;
@@ -1405,7 +1400,7 @@ void Manager::ReceiveData() {
 
     {
         SHARED_GUARD;
-        for (const auto& source : sources) {
+        for (const auto& source : sources | std::views::values) {
             for (const auto dyn_formid : DFT->GetFormSet(source.formid, source.editorid)) {
                 const auto editorid = source.editorid.empty()
                                           ? FormReader::GetEditorID(source.formid)
@@ -1463,7 +1458,7 @@ void Manager::ReceiveData() {
     logger::info("--------Receiving data done---------");
 }
 
-std::vector<Source> Manager::GetSources() const {
+std::unordered_map<FormID, Source> Manager::GetSources() const {
     SHARED_GUARD;
     return sources;
 }

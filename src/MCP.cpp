@@ -215,7 +215,7 @@ void UI::Refresh() {
     data.clear();
     const auto& sources_temp = Manager::GetSingleton()->GetSources();
     n_sources = sources_temp.size();
-    for (const auto& source : sources_temp) {
+    for (const auto& source : sources_temp | std::views::values) {
         ManagerSource mcp_source;
         mcp_source.formid = source.formid;
         mcp_source.editorid = source.editorid;
