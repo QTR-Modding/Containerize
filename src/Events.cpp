@@ -1,5 +1,5 @@
 #include "Events.h"
-#include "MenuManager.h"
+#include "MainManager.h"
 #include "Chest.h"
 #include "SkyPrompt.h"
 
@@ -48,7 +48,7 @@ RE::BSEventNotifyControl EventSink::ProcessEvent(const SKSE::CrosshairRefEvent* 
         WorldObject::SwapObjects(a_crosshairRef, skyrim_cast<RE::TESBoundObject*>(baseform), false);
     }
 
-    if (const auto menus = MenuManager::GetSingleton();
+    if (const auto menus = MainManager::GetSingleton();
         menus->IsChestMenuQueued() || menus->IsInChestMenu()) {
         RemovePrompts();
     } else if (menus->IsContainer(a_crosshairRef)) {

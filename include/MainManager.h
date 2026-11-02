@@ -1,7 +1,7 @@
 #pragma once
 #include <REX/REX/Singleton.h>
 
-class MenuManager final : public REX::Singleton<MenuManager> {
+class MainManager final : public REX::Singleton<MainManager> {
     std::set<RefID> queued_chests;
     RefID open_chest = 0;
     std::string closed_menu;

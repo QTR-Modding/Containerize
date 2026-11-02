@@ -1,10 +1,10 @@
-#include "MenuManager.h"
+#include "MainManager.h"
 #include "Manager.h"
 #include "WorldStorage.h"
 #include "Animations.h"
 #include "CLibUtilsQTR/Tasker.hpp"
 
-bool MenuManager::ActivateChest(RE::TESObjectREFR* chest) const {
+bool MainManager::ActivateChest(RE::TESObjectREFR* chest) const {
     if (!chest) {
         logger::error("ActivateChest: Chest reference is null.");
         return false;
@@ -15,7 +15,7 @@ bool MenuManager::ActivateChest(RE::TESObjectREFR* chest) const {
     return Menu::ActivateChest(chest, Manager::GetSingleton()->GetChestName(chest));
 }
 
-void MenuManager::OpenChestFromMenu(RE::TESObjectREFR* a_chest) {
+void MainManager::OpenChestFromMenu(RE::TESObjectREFR* a_chest) {
     if (Manager::GetSingleton()->isUninstalled.load()) return;
     if (!closed_menu.empty()) {
         if (!RE::UI::GetSingleton()->IsMenuOpen(closed_menu)) {
@@ -32,7 +32,7 @@ void MenuManager::OpenChestFromMenu(RE::TESObjectREFR* a_chest) {
     }
 }
 
-void MenuManager::Gateway(const int result, const RE::ObjectRefHandle& a_current_container) {
+void MainManager::Gateway(const int result, const RE::ObjectRefHandle& a_current_container) {
     if (result != 0 && result != 1) {
         logger::error("Unexpected callback integer!");
         return;
@@ -52,7 +52,7 @@ void MenuManager::Gateway(const int result, const RE::ObjectRefHandle& a_current
     }
 }
 
-void MenuManager::OnLongPressEquip(const RE::TESBoundObject* a_fake, const int delay) {
+void MainManager::OnLongPressEquip(const RE::TESBoundObject* a_fake, const int delay) {
     auto chest = Manager::GetSingleton()->GetFakeContainerChest(a_fake);
     if (!chest) {
         logger::error("OnLongPressEquip: chest null");
@@ -68,7 +68,7 @@ void MenuManager::OnLongPressEquip(const RE::TESBoundObject* a_fake, const int d
     }
 }
 
-void MenuManager::OnActivateContainer(RE::TESObjectREFR* a_container, const int msgbox_action, const int a_delay) {
+void MainManager::OnActivateContainer(RE::TESObjectREFR* a_container, const int msgbox_action, const int a_delay) {
     if (Manager::GetSingleton()->isUninstalled.load()) return;
     const auto base = a_container->GetBaseObject();
     if (std::ranges::contains(WorldStorage::form_types, base->GetFormType())) {
@@ -91,7 +91,7 @@ void MenuManager::OnActivateContainer(RE::TESObjectREFR* a_container, const int 
     }
 }
 
-void MenuManager::CloseMenu() {
+void MainManager::CloseMenu() {
     containermenu_owner.reset();
     if (!Menu::GetContainerMenuOwner(containermenu_owner)) {
         containermenu_owner.reset();
@@ -99,7 +99,7 @@ void MenuManager::CloseMenu() {
     closed_menu = Menu::CloseMenu();
 }
 
-void MenuManager::OnChestEnter(RE::TESObjectREFR* chest) {
+void MainManager::OnChestEnter(RE::TESObjectREFR* chest) {
     const auto chest_id = chest->GetFormID();
     queued_chests.erase(chest_id);
     open_chest = chest_id;
@@ -107,7 +107,7 @@ void MenuManager::OnChestEnter(RE::TESObjectREFR* chest) {
     if (manager->IsChest(chest_id) && !manager->OnChestEnter(chest)) open_chest = 0;
 }
 
-void MenuManager::OnChestExit(RE::TESObjectREFR* chest) {
+void MainManager::OnChestExit(RE::TESObjectREFR* chest) {
     const auto chest_id = chest->GetFormID();
     const auto manager = Manager::GetSingleton();
     const bool was_open = open_chest == chest_id;
@@ -145,16 +145,16 @@ void MenuManager::OnChestExit(RE::TESObjectREFR* chest) {
     }
 }
 
-bool MenuManager::IsInUse(const RefID chest) const {
+bool MainManager::IsInUse(const RefID chest) const {
     return open_chest == chest || queued_chests.contains(chest) ||
         (containermenu_owner && containermenu_owner->GetFormID() == chest);
 }
 
-void MenuManager::ClearOpenChest(const RefID chest) {
+void MainManager::ClearOpenChest(const RefID chest) {
     if (open_chest == chest) open_chest = 0;
 }
 
-void MenuManager::ForgetChest(const RefID chest) {
+void MainManager::ForgetChest(const RefID chest) {
     ClearOpenChest(chest);
     queued_chests.erase(chest);
     if (containermenu_owner && containermenu_owner->GetFormID() == chest) {
@@ -163,25 +163,25 @@ void MenuManager::ForgetChest(const RefID chest) {
     }
 }
 
-void MenuManager::Reset() {
+void MainManager::Reset() {
     queued_chests.clear();
     open_chest = 0;
     closed_menu.clear();
     containermenu_owner.reset();
 }
 
-RE::TESObjectREFR* MenuManager::GetContainerChest(const RE::TESObjectREFR* target) const {
+RE::TESObjectREFR* MainManager::GetContainerChest(const RE::TESObjectREFR* target) const {
     if (std::ranges::contains(WorldStorage::form_types, target->GetBaseObject()->GetFormType())) {
         return RE::TESForm::LookupByID<RE::TESObjectREFR>(WorldStorage::GetSingleton()->GetChest(target->GetFormID()));
     }
     return Manager::GetSingleton()->GetContainerChest(target);
 }
 
-bool MenuManager::IsChest(const RefID chest) const {
+bool MainManager::IsChest(const RefID chest) const {
     return Manager::GetSingleton()->IsChest(chest) || WorldStorage::GetSingleton()->GetTarget(chest);
 }
 
-bool MenuManager::IsContainer(const RE::TESObjectREFR* target) const {
+bool MainManager::IsContainer(const RE::TESObjectREFR* target) const {
     if (std::ranges::contains(WorldStorage::form_types, target->GetBaseObject()->GetFormType())) {
         return !target->IsDisabled() && !target->IsDeleted() &&
             WorldStorage::GetSingleton()->GetSource(target->GetBaseObject()->GetFormID());

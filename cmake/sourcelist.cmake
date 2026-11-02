@@ -4,7 +4,7 @@ set(sources ${sources}
 	src/Utils.cpp
 	src/Settings.cpp
 	src/Manager.cpp
-	src/MenuManager.cpp
+	src/MainManager.cpp
 	src/Hooks.cpp
 	src/MCP.cpp
 	src/Serialization.cpp

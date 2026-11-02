@@ -1,5 +1,5 @@
 #include "Manager.h"
-#include "MenuManager.h"
+#include "MainManager.h"
 #include "WorldStorage.h"
 #include "Events.h"
 #include "Papyrus.h"
@@ -820,7 +820,7 @@ bool Manager::Rename(const FormID fake_id, const char* name) {
 bool Manager::DeRegister(const FormID target_id) {
     if (isUninstalled.load()) return false;
     const auto chest_id = GetChest(target_id);
-    if (!chest_id || reals_to_takeback.contains(chest_id) || MenuManager::GetSingleton()->IsInUse(chest_id)) return false;
+    if (!chest_id || reals_to_takeback.contains(chest_id) || MainManager::GetSingleton()->IsInUse(chest_id)) return false;
     if (const auto loan = transfer_cache.find(chest_id); loan != transfer_cache.end() && !loan->second.empty()) return false;
     const auto chest = RE::TESForm::LookupByID<RE::TESObjectREFR>(chest_id);
     const auto fake_id = GetFakeID(chest_id);
@@ -1494,7 +1494,7 @@ void Manager::Uninstall(const bool delete_fake_forms) {
                 continue;
             }
             reals_to_takeback.erase(chest_refid);
-            MenuManager::GetSingleton()->ClearOpenChest(chest_refid);
+            MainManager::GetSingleton()->ClearOpenChest(chest_refid);
         }
         if (!chest || !DeRegister(chest, player_ref)) uninstall_successful = false;
     }
@@ -1505,7 +1505,7 @@ void Manager::Uninstall(const bool delete_fake_forms) {
     }
 
     Reset();
-    MenuManager::GetSingleton()->Reset();
+    MainManager::GetSingleton()->Reset();
     isUninstalled.store(true);
     uninstall_cleanup_pending.store(delete_fake_forms);
     FinishUninstall();

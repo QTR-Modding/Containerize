@@ -1,5 +1,5 @@
 #include "Hooks.h"
-#include "MenuManager.h"
+#include "MainManager.h"
 #include "Manager.h"
 #include "SkyPrompt.h"
 #include "CLibUtilsQTR/Tasker.hpp"
@@ -55,8 +55,8 @@ bool Hooks::HandleEquip(RE::InputEvent* event) {
                     return false;
                 }
                 if (button_event->HeldDuration() > 0.25f) {
-                    MenuManager::GetSingleton()->CloseMenu();
-                    MenuManager::GetSingleton()->OnLongPressEquip(selected_item);
+                    MainManager::GetSingleton()->CloseMenu();
+                    MainManager::GetSingleton()->OnLongPressEquip(selected_item);
                 } else if (button_event->IsUp()) {
                     const auto player = RE::PlayerCharacter::GetSingleton();
                     Inventory::ToggleEquip(selected_item);
@@ -316,9 +316,9 @@ RE::UI_MESSAGE_RESULTS Hooks::MenuHook<MenuType>::ProcessMessage_Hook(RE::UIMess
     if (const std::string_view menuname = MenuType::MENU_NAME; a_message.menu == menuname) {
         if (menuname == RE::ContainerMenu::MENU_NAME) {
             if (RE::TESObjectREFRPtr refr; LookupReferenceByHandle(RE::ContainerMenu::GetTargetRefHandle(), refr)) {
-                if (MenuManager::GetSingleton()->IsChest(refr->GetFormID())) {
-                    if (msg_type == 3) MenuManager::GetSingleton()->OnChestExit(refr.get());
-                    else if (msg_type == 1) MenuManager::GetSingleton()->OnChestEnter(refr.get());
+                if (MainManager::GetSingleton()->IsChest(refr->GetFormID())) {
+                    if (msg_type == 3) MainManager::GetSingleton()->OnChestExit(refr.get());
+                    else if (msg_type == 1) MainManager::GetSingleton()->OnChestEnter(refr.get());
                 }
             }
         }

@@ -1,5 +1,5 @@
 #include "SkyPrompt.h"
-#include "MenuManager.h"
+#include "MainManager.h"
 #include "WorldStorage.h"
 #include "Animations.h"
 #include "Events.h"
@@ -55,9 +55,9 @@ void RefPromptSink::ProcessEvent(const SkyPromptAPI::PromptEvent event) const {
             if (const auto prompt_eventid = event.prompt.eventID; prompt_eventid == 0) {
                 if (Manager::GetSingleton()->IsTokenMode(a_ref->GetBaseObject()->GetFormID())) return;
                 const auto duration = Animations::SetUpAnimationOnOpen(a_ref, true);
-                MenuManager::GetSingleton()->OnActivateContainer(a_ref, 0, duration);
+                MainManager::GetSingleton()->OnActivateContainer(a_ref, 0, duration);
             } else if (prompt_eventid == 1) {
-                MenuManager::GetSingleton()->OnActivateContainer(a_ref, 1);
+                MainManager::GetSingleton()->OnActivateContainer(a_ref, 1);
             }
         }
     }
@@ -144,9 +144,9 @@ void MenuPromptSink::OnOpen(RE::TESBoundObject* a_fake, const bool is_worn) {
         Hooks::OnIsWorn(a_fake);
     }
 
-    MenuManager::GetSingleton()->CloseMenu();
+    MainManager::GetSingleton()->CloseMenu();
 
-    MenuManager::GetSingleton()->OnLongPressEquip(a_fake, Animations::SetUpAnimationOnOpen(a_real, is_worn));
+    MainManager::GetSingleton()->OnLongPressEquip(a_fake, Animations::SetUpAnimationOnOpen(a_real, is_worn));
 }
 
 void RegistrationPromptSink::ProcessEvent(const SkyPromptAPI::PromptEvent event) const {

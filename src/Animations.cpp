@@ -1,5 +1,5 @@
 #include "Animations.h"
-#include "MenuManager.h"
+#include "MainManager.h"
 #include "Manager.h"
 
 namespace {
@@ -15,7 +15,7 @@ namespace {
         const bool play_only_if_equipped = Settings::other_settings.at(Settings::otherstuffKeys.at(7));
         const bool is_in_third_person =
             RE::PlayerCharacter::GetSingleton()->GetPlayerRuntimeData().playerFlags.isInThirdPersonMode;
-        if (!MenuManager::GetSingleton()->IsInChestMenu() && (!play_only_if_equipped || is_worn) &&
+        if (!MainManager::GetSingleton()->IsInChestMenu() && (!play_only_if_equipped || is_worn) &&
             (is_in_third_person || improved_cam_path_installed)) {
             const bool should_delay = Settings::AnimationsDelayMenuOpen();
             if (souls_unpaused_installed || should_delay) {

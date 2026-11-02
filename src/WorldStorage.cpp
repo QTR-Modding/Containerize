@@ -1,7 +1,7 @@
 #include "WorldStorage.h"
 #include "Chest.h"
 #include "Manager.h"
-#include "MenuManager.h"
+#include "MainManager.h"
 #include "Animations.h"
 #include "Utils.h"
 
@@ -78,14 +78,14 @@ bool WorldStorage::DeRegister(const RefID target, const bool uninstall) {
     {
         std::unique_lock lock(mutex_);
         const auto it = chests.find(target);
-        if (it == chests.end() || (!uninstall && MenuManager::GetSingleton()->IsInUse(it->second))) return false;
+        if (it == chests.end() || (!uninstall && MainManager::GetSingleton()->IsInUse(it->second))) return false;
         chest_id = it->second;
         chest = RE::TESForm::LookupByID<RE::TESObjectREFR>(chest_id);
         if (!chest) return false;
         chests.erase(it);
     }
 
-    if (uninstall) MenuManager::GetSingleton()->ForgetChest(chest_id);
+    if (uninstall) MainManager::GetSingleton()->ForgetChest(chest_id);
     const auto player = RE::PlayerCharacter::GetSingleton();
     for (auto& [item, entry] : chest->GetInventory()) {
         if (entry.first <= 0) continue;
