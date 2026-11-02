@@ -64,9 +64,13 @@ struct Source {
 
     [[nodiscard]] std::string_view GetName() const;
 
+    [[nodiscard]] std::string GetWeightText(float weight) const;
+
     [[nodiscard]] RE::TESBoundObject* GetBoundObject() const;
 
     void AddInitialItem(FormID form_id, Count count);
+
+    [[nodiscard]] Count CanBeAdded(const RE::TESBoundObject* item, Count count, RE::TESObjectREFR* chest) const;
 
     [[nodiscard]] bool IsHealthy() const;
 };

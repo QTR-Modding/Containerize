@@ -1,4 +1,5 @@
 #include "Events.h"
+#include "MainManager.h"
 #include "Chest.h"
 #include "SkyPrompt.h"
 
@@ -47,10 +48,10 @@ RE::BSEventNotifyControl EventSink::ProcessEvent(const SKSE::CrosshairRefEvent* 
         WorldObject::SwapObjects(a_crosshairRef, skyrim_cast<RE::TESBoundObject*>(baseform), false);
     }
 
-    if (const auto M = Manager::GetSingleton();
-        M->IsChestMenuQueued() || M->IsInChestMenu()) {
+    if (const auto menus = MainManager::GetSingleton();
+        menus->IsChestMenuQueued() || menus->IsInChestMenu()) {
         RemovePrompts();
-    } else if (M->IsRealContainer(a_crosshairRef)) {
+    } else if (menus->IsContainer(a_crosshairRef)) {
         SendPrompts(a_crosshairRef);
     } else {
         RemovePrompts();
@@ -74,10 +75,10 @@ RE::BSEventNotifyControl EventSink::ProcessEvent(const RE::TESFurnitureEvent* ev
     if (event->type == RE::TESFurnitureEvent::FurnitureEventType::kEnter) {
         furniture_entered = true;
         furniture = event->targetFurniture;
-        Manager::GetSingleton()->HandleCraftingEnter(furniture->GetFormID());
+        MainManager::GetSingleton()->HandleCraftingEnter(furniture.get());
     } else if (event->type == RE::TESFurnitureEvent::FurnitureEventType::kExit) {
         if (event->targetFurniture == furniture) {
-            Manager::GetSingleton()->HandleCraftingExit();
+            MainManager::GetSingleton()->HandleCraftingExit();
             furniture_entered = false;
             furniture = nullptr;
         }
@@ -92,7 +93,7 @@ RE::BSEventNotifyControl EventSink::ProcessEvent(const RE::TESFormDeleteEvent* a
                                                  RE::BSTEventSource<RE::TESFormDeleteEvent>*) {
     if (!a_event) return RE::BSEventNotifyControl::kContinue;
     if (!a_event->formID) return RE::BSEventNotifyControl::kContinue;
-    Manager::GetSingleton()->HandleFormDelete(a_event->formID);
+    MainManager::GetSingleton()->HandleFormDelete(a_event->formID);
     if (ChestManager::GetSingleton()->HandleFormDelete(a_event->formID)) {
         Manager::GetSingleton()->FinishUninstall();
     }

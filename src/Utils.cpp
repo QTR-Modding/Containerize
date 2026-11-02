@@ -1,4 +1,5 @@
 #include "Utils.h"
+#include "Chest.h"
 #include "Translations.h"
 #include "CLibUtilsQTR/FormReader.hpp"
 
@@ -884,6 +885,16 @@ void MsgBoxesNotifs::SkyrimMessageBox::Show(const std::string& bodyText,
     RE::MessageBoxMenu::QueueMessage(messagebox);
 }
 
+bool Menu::ActivateChest(RE::TESObjectREFR* chest, const std::string& name) {
+    UnownedStuff::unownedChest->fullName = name;
+    if (const auto a_obj = chest->GetBaseObject()->As<RE::TESObjectCONT>()) {
+        RE::TESObjectCONT::SetOpenState(chest, false, true);
+        return a_obj->Activate(chest, RE::PlayerCharacter::GetSingleton(), 0, a_obj, 1);
+    }
+    logger::error("ActivateChest: Chest is not a container.");
+    return false;
+}
+
 std::string_view Menu::CloseMenu() {
     const auto uiManager = RE::UI::GetSingleton();
     if (const auto inventoryMenu = uiManager->GetMenu<RE::InventoryMenu>()) {
@@ -1021,4 +1032,11 @@ void ModCompatibility::Load() {
             }
         }
     }
+}
+
+void MsgBoxesNotifs::InGame::ReportTransferFailure(const RefID chest_refid) {
+    logger::error("Could not return all stored items from chest {:x}", chest_refid);
+    MsgBoxesNotifs::InGame::CustomMsg(
+        "Some stored items could not be returned and will be discarded. "
+        "Load a previous save to recover them. Details are in Containerize.log.");
 }

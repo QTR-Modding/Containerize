@@ -4,6 +4,7 @@ set(sources ${sources}
 	src/Utils.cpp
 	src/Settings.cpp
 	src/Manager.cpp
+	src/MainManager.cpp
 	src/Hooks.cpp
 	src/MCP.cpp
 	src/Serialization.cpp
@@ -14,4 +15,5 @@ set(sources ${sources}
 	src/Animations.cpp
 	src/API.cpp
 	src/Chest.cpp
+	src/WorldStorage.cpp
 )

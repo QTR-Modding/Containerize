@@ -1,4 +1,5 @@
 #include "Hooks.h"
+#include "MainManager.h"
 #include "Manager.h"
 #include "SkyPrompt.h"
 #include "CLibUtilsQTR/Tasker.hpp"
@@ -54,8 +55,8 @@ bool Hooks::HandleEquip(RE::InputEvent* event) {
                     return false;
                 }
                 if (button_event->HeldDuration() > 0.25f) {
-                    Manager::GetSingleton()->CloseMenu();
-                    Manager::GetSingleton()->OnLongPressEquip(selected_item);
+                    MainManager::GetSingleton()->CloseMenu();
+                    MainManager::GetSingleton()->OnLongPressEquip(selected_item);
                 } else if (button_event->IsUp()) {
                     const auto player = RE::PlayerCharacter::GetSingleton();
                     Inventory::ToggleEquip(selected_item);
@@ -151,11 +152,13 @@ void Hooks::MoveItemHooks<RefType>::addObjectToContainer(RefType* a_this, RE::TE
     const auto original_count = a_count;
 
     auto M = Manager::GetSingleton();
-    if (const auto chest_id = a_this->GetFormID(); M->IsChest(chest_id)) {
-        a_count = std::max(0, M->CanBeAdded(a_object, a_count, chest_id));
-    }
+    const auto main_manager = MainManager::GetSingleton();
+    a_count = std::max(0, main_manager->CanBeAdded(a_object, a_count, a_this));
     if (a_fromRefr && a_count < original_count) {
+        const auto return_pair = std::make_pair(a_fromRefr->GetFormID(), a_object->GetFormID());
+        main_manager->SetCapacityBypass(return_pair, true);
         a_fromRefr->AddObjectToContainer(a_object, a_extraList, original_count - a_count, a_this);
+        main_manager->SetCapacityBypass(return_pair, false);
         if (a_count == 0) {
             return;
         }
@@ -315,9 +318,9 @@ RE::UI_MESSAGE_RESULTS Hooks::MenuHook<MenuType>::ProcessMessage_Hook(RE::UIMess
     if (const std::string_view menuname = MenuType::MENU_NAME; a_message.menu == menuname) {
         if (menuname == RE::ContainerMenu::MENU_NAME) {
             if (RE::TESObjectREFRPtr refr; LookupReferenceByHandle(RE::ContainerMenu::GetTargetRefHandle(), refr)) {
-                if (manager->IsChest(refr->GetFormID())) {
-                    if (msg_type == 3) manager->OnChestExit(refr.get());
-                    else if (msg_type == 1) manager->OnChestEnter(refr.get());
+                if (MainManager::GetSingleton()->IsChest(refr->GetFormID())) {
+                    if (msg_type == 3) MainManager::GetSingleton()->OnChestExit(refr.get());
+                    else if (msg_type == 1) MainManager::GetSingleton()->OnChestEnter(refr.get());
                 }
             }
         }

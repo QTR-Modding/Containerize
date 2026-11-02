@@ -1,7 +1,9 @@
 #include "Serialization.h"
+#include "MainManager.h"
 #include "Chest.h"
 #include "Events.h"
 #include "Manager.h"
+#include "WorldStorage.h"
 
 using namespace Serialization;
 
@@ -124,6 +126,9 @@ void Serialization::SaveCallback(SKSE::SerializationInterface* serializationInte
             logger::critical("Failed to save Data");
         }
     }
+    if (!WorldStorage::GetSingleton()->Save(serializationInterface)) {
+        logger::critical("Failed to save world storage");
+    }
     if (!ChestManager::GetSingleton()->Save(serializationInterface)) {
         logger::critical("Failed to save chest rentals");
     }
@@ -131,8 +136,10 @@ void Serialization::SaveCallback(SKSE::SerializationInterface* serializationInte
 }
 
 void Serialization::RevertCallback(SKSE::SerializationInterface*) {
+    MainManager::GetSingleton()->Reset();
     EventSink::GetSingleton()->Reset();
     Manager::GetSingleton()->Reset();
+    WorldStorage::GetSingleton()->Reset();
     ChestManager::GetSingleton()->Reset();
     auto* DFT = DynamicFormTracker::GetSingleton();
     DFT->Clear();
@@ -149,6 +156,7 @@ void Serialization::LoadCallback(SKSE::SerializationInterface* serializationInte
     bool rentals_loaded = false;
     bool manager_loaded = false;
     bool manager_failed = false;
+    std::vector<RefID> orphaned_world_chests;
 
     std::uint32_t type;
     std::uint32_t version;
@@ -160,6 +168,14 @@ void Serialization::LoadCallback(SKSE::SerializationInterface* serializationInte
             rentals_loaded = (version == ChestManager::kLegacySerializationVersion || version == ChestManager::kSerializationVersion) &&
                              chest_manager->Load(serializationInterface, length, version);
             if (!rentals_loaded) logger::critical("Failed to load chest rentals, version {}", version);
+            continue;
+        }
+        if (type == WorldStorage::kDataKey) {
+            if (version != WorldStorage::kSerializationVersion ||
+                !WorldStorage::GetSingleton()->Load(serializationInterface, length, orphaned_world_chests)) {
+                logger::critical("Failed to load world storage, version {}", version);
+                MsgBoxesNotifs::InGame::CustomMsg("Failed to load Containerize world storage.");
+            }
             continue;
         }
         bool is_before_0_7 = false;
@@ -228,8 +244,9 @@ void Serialization::LoadCallback(SKSE::SerializationInterface* serializationInte
     chest_manager->ResumeDisposals();
     if (manager_failed || (rentals_present && !rentals_loaded)) {
         MsgBoxesNotifs::InGame::CustomMsg("Failed to load Containerize data.");
-    } else if (manager_loaded) {
-        Manager::GetSingleton()->ReceiveData();
+    } else {
+        if (manager_loaded) manager->ReceiveData();
+        WorldStorage::GetSingleton()->ReceiveData(orphaned_world_chests);
     }
     logger::info("Data loaded from skse co-save.");
 }

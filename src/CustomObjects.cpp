@@ -42,6 +42,14 @@ inline std::string_view Source::GetName() const {
     return "";
 }
 
+std::string Source::GetWeightText(const float weight) const {
+    std::ostringstream stream1;
+    stream1 << std::fixed << std::setprecision(2) << weight;
+    std::ostringstream stream2;
+    stream2 << std::fixed << std::setprecision(2) << capacity;
+    return fmt::format("{}/{}", stream1.str(), stream2.str());
+}
+
 RE::TESBoundObject* Source::GetBoundObject() const {
     return FormReader::GetFormByID<RE::TESBoundObject>(formid, editorid);
 }
@@ -49,6 +57,18 @@ RE::TESBoundObject* Source::GetBoundObject() const {
 void Source::AddInitialItem(const FormID form_id, const Count count) {
     logger::trace("Adding initial item with formid: {} and count: {}", form_id, count);
     initial_items[form_id] = count;
+}
+
+Count Source::CanBeAdded(const RE::TESBoundObject* item, const Count count, RE::TESObjectREFR* chest) const {
+    constexpr float minimum_item_weight = 0.001f;
+    constexpr float minimum_weight_ratio = 0.00001f;
+    if (item->GetWeight() < minimum_item_weight) return count;
+    if (weight_ratio < minimum_weight_ratio) return count;
+    if (capacity == 0.f) return count;
+    const auto remaining_capacity = capacity - chest->GetWeightInContainer() * weight_ratio;
+    const auto item_weight = item->GetWeight() * weight_ratio;
+    const auto can_be_added = static_cast<Count>(remaining_capacity / (item_weight + EPSILON));
+    return std::max(0, std::min(can_be_added, count));
 }
 
 bool Source::IsHealthy() const {

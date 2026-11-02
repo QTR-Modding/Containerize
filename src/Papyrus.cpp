@@ -1,5 +1,5 @@
 #include "Papyrus.h"
-#include "Manager.h"
+#include "MainManager.h"
 
 RE::VMHandle Papyrus::GetHandle(const RE::TESForm* a_form) {
     const auto vm = VM::GetSingleton();
@@ -25,7 +25,17 @@ void Papyrus::ConversationCallbackFunctor::operator()(const RE::BSScript::Variab
     } else if (a_result.IsString()) {
         rename = a_result.GetString();
         if (!rename.empty()) {
-            Manager::GetSingleton()->RenameContainer(rename, fake);
+            FormID target_id;
+            if (const auto handle = std::get_if<RE::ObjectRefHandle>(&target)) {
+                const auto reference = handle->get();
+                if (!reference) return;
+                target_id = reference->GetFormID();
+            } else {
+                target_id = std::get<RE::TESBoundObject*>(target)->GetFormID();
+            }
+            if (!MainManager::GetSingleton()->Rename(target_id, rename.c_str())) {
+                logger::warn("Failed to rename container {:x}", target_id);
+            }
         }
     } else {
         logger::info("a_result type {}", a_result.GetType().TypeAsString().c_str());
@@ -33,7 +43,7 @@ void Papyrus::ConversationCallbackFunctor::operator()(const RE::BSScript::Variab
 }
 
 void Papyrus::RenameCallbackFunctor::OnRename() {
-    const auto smart = RE::make_smart<ConversationCallbackFunctor>(fake);
+    const auto smart = RE::make_smart<ConversationCallbackFunctor>(target);
     if (!CallFunction("UIExtensions", "GetMenuResultString", smart.get(), "UITextEntryMenu")) {
         logger::error("Failed to get menu result string from UIExtensions.");
     }

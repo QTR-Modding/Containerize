@@ -210,6 +210,8 @@ namespace MsgBoxesNotifs {
     };
 
     namespace InGame {
+        void ReportTransferFailure(RefID chest_refid);
+
         inline void CustomMsg(const std::string& msg) { RE::DebugMessageBox((mod_name + ": " + msg).c_str()); };
 
         inline void GeneralErr() {
@@ -437,6 +439,8 @@ namespace DynamicForm {
 };
 
 namespace Menu {
+    bool ActivateChest(RE::TESObjectREFR* chest, const std::string& name);
+
     std::string_view CloseMenu();
 
     bool IsOpen(const RE::BSFixedString& menu_name);

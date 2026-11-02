@@ -1,0 +1,42 @@
+#pragma once
+#include <REX/REX/Singleton.h>
+#include <shared_mutex>
+#include "CustomObjects.h"
+
+class WorldStorage final : public REX::Singleton<WorldStorage> {
+    static constexpr auto client_name = "CTRZ_WS";
+
+    mutable std::shared_mutex mutex_;
+    std::unordered_map<RefID, FormRefID> chests;
+    std::unordered_map<FormID, Source> sources;
+
+    [[nodiscard]] bool ReturnChest(RE::TESObjectREFR* chest);
+
+public:
+    static constexpr std::array form_types{RE::TESFurniture::FORMTYPE};
+
+    static constexpr std::uint32_t kDataKey = 'WSTZ';
+    static constexpr std::uint32_t kSerializationVersion = 1;
+
+    [[nodiscard]] bool Save(SKSE::SerializationInterface* serializationInterface);
+    [[nodiscard]] bool Load(SKSE::SerializationInterface* serializationInterface, std::uint32_t length, std::vector<RefID>& orphaned_chests);
+    void Reset();
+    void ReceiveData(const std::vector<RefID>& orphaned_chests);
+
+    void LoadSources(std::vector<Source> configured_sources);
+    [[nodiscard]] std::unordered_map<FormID, Source> GetSources() const;
+    [[nodiscard]] const Source* GetSource(FormID formid) const;
+    [[nodiscard]] RefID GetTarget(RefID chest) const;
+    [[nodiscard]] bool Refresh(RefID chest) const;
+    [[nodiscard]] std::string GetWeightText(RE::TESObjectREFR* target) const;
+    [[nodiscard]] Count CanBeAdded(const RE::TESBoundObject* item, Count count, RE::TESObjectREFR* chest) const;
+    void PlayCloseAnimation(RE::TESObjectREFR* chest);
+
+    [[nodiscard]] RefID Initialize(RE::TESObjectREFR* target, RE::ExtraDataList* instance);
+    [[nodiscard]] RefID Register(RE::TESObjectREFR* target);
+    [[nodiscard]] RefID GetChest(RefID target) const;
+    [[nodiscard]] bool Rename(RE::TESObjectREFR* target, const char* name);
+    [[nodiscard]] bool DeRegister(RefID target, bool force = false);
+    [[nodiscard]] bool Uninstall();
+    void HandleFormDelete(RefID target);
+};

@@ -76,7 +76,7 @@ namespace Settings {
     std::vector<Source> LoadYAMLSources();
     std::vector<Source> LoadINISources();
 
-    std::vector<Source> LoadSources();
+    std::vector<Source> LoadSources(std::vector<Source>& world_sources);
 
     inline std::unordered_map<std::string, bool> other_settings;
     void LoadOtherSettings();

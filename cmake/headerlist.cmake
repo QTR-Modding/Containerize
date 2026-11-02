@@ -3,6 +3,7 @@ set(headers ${headers}
 	include/PCH.h
 	include/Settings.h
 	include/Manager.h
+	include/MainManager.h
 	include/Events.h
 	include/Hooks.h
 	include/MCP.h
@@ -13,5 +14,6 @@ set(headers ${headers}
 	include/SkyPrompt.h
 	include/Animations.h
 	include/Chest.h
+	include/WorldStorage.h
 	include/API.h
 )
