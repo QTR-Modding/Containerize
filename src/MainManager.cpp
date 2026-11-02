@@ -231,6 +231,32 @@ RefID MainManager::GetChest(const FormID target) const {
     return Manager::GetSingleton()->GetChest(target);
 }
 
+std::string MainManager::GetWeightText(RE::TESObjectREFR* target) const {
+    if (std::ranges::contains(WorldStorage::form_types, target->GetBaseObject()->GetFormType())) {
+        return WorldStorage::GetSingleton()->GetWeightText(target);
+    }
+    return Manager::GetSingleton()->GetWeightText(target);
+}
+
+std::string MainManager::GetValueText(RE::TESObjectREFR* target) const {
+    if (std::ranges::contains(WorldStorage::form_types, target->GetBaseObject()->GetFormType())) return "";
+    return Manager::GetSingleton()->GetValueText(target);
+}
+
+bool MainManager::IsTokenMode(const RE::TESObjectREFR* target) const {
+    const auto base = target->GetBaseObject();
+    if (std::ranges::contains(WorldStorage::form_types, base->GetFormType())) {
+        const auto source = WorldStorage::GetSingleton()->GetSource(base->GetFormID());
+        return source && source->token_mode;
+    }
+    return Manager::GetSingleton()->IsTokenMode(base->GetFormID());
+}
+
+bool MainManager::CanRename(const RE::TESObjectREFR* target) const {
+    return ModCompatibility::Mods::ui_extensions_installed &&
+        !std::ranges::contains(WorldStorage::form_types, target->GetBaseObject()->GetFormType());
+}
+
 FormID MainManager::Initialize(const FormID target, const RefID owner, RE::ExtraDataList* instance) {
     const auto reference = owner ? nullptr : RE::TESForm::LookupByID<RE::TESObjectREFR>(target);
     const auto base = reference ? reference->GetBaseObject() : nullptr;

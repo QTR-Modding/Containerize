@@ -99,7 +99,6 @@ class Manager final : public Serialization::SaveLoadData,
 
     std::string GetWeightText_(RE::TESObjectREFR* a_chest);
 
-    static std::string GetWeightText(float weight, float capacity);
 
     // [locks source_mutex_ and chest2fake_mutex_ (unique)]
     bool Register_Sub(FormID master_formID, FormID fake_formID, RefID chest_refID, RefID loc_refID);

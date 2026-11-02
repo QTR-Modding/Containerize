@@ -1,6 +1,5 @@
 #include "SkyPrompt.h"
 #include "MainManager.h"
-#include "WorldStorage.h"
 #include "Animations.h"
 #include "Events.h"
 #include "Hooks.h"
@@ -12,23 +11,11 @@ using namespace SkyPrompt;
 void RefPromptSink::Start(RE::TESObjectREFR* a_ref) {
     weight_text.clear();
     value_text.clear();
-    if (std::ranges::contains(WorldStorage::form_types, a_ref->GetBaseObject()->GetFormType())) {
-        const auto source = WorldStorage::GetSingleton()->GetSource(a_ref->GetBaseObject()->GetFormID());
-        prompts.clear();
-        if (!source->token_mode) prompts = {open_prompt};
-        return;
-    }
-    if (ModCompatibility::Mods::ui_extensions_installed) {
-        prompts = {open_prompt, rename_prompt};
-    } else {
-        prompts = {open_prompt};
-    }
-
-    const auto manager = Manager::GetSingleton();
-    if (manager->IsTokenMode(a_ref->GetBaseObject()->GetFormID())) {
-        prompts.clear();
-        return;
-    }
+    const auto manager = MainManager::GetSingleton();
+    prompts.clear();
+    if (manager->IsTokenMode(a_ref)) return;
+    prompts = {open_prompt};
+    if (manager->CanRename(a_ref)) prompts.push_back(rename_prompt);
 
     if (const auto a_weight_text = manager->GetWeightText(a_ref); !a_weight_text.empty()) {
         weight_text.append(Strings::weight).append(" ").append(a_weight_text);
@@ -53,7 +40,7 @@ void RefPromptSink::ProcessEvent(const SkyPromptAPI::PromptEvent event) const {
     if (const auto crosshairref = RE::CrosshairPickData::GetSingleton()->target) {
         if (const auto a_ref = crosshairref->get().get()) {
             if (const auto prompt_eventid = event.prompt.eventID; prompt_eventid == 0) {
-                if (Manager::GetSingleton()->IsTokenMode(a_ref->GetBaseObject()->GetFormID())) return;
+                if (MainManager::GetSingleton()->IsTokenMode(a_ref)) return;
                 const auto duration = Animations::SetUpAnimationOnOpen(a_ref, true);
                 MainManager::GetSingleton()->OnActivateContainer(a_ref, 0, duration);
             } else if (prompt_eventid == 1) {

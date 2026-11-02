@@ -42,6 +42,14 @@ inline std::string_view Source::GetName() const {
     return "";
 }
 
+std::string Source::GetWeightText(const float weight) const {
+    std::ostringstream stream1;
+    stream1 << std::fixed << std::setprecision(2) << weight;
+    std::ostringstream stream2;
+    stream2 << std::fixed << std::setprecision(2) << capacity;
+    return fmt::format("{}/{}", stream1.str(), stream2.str());
+}
+
 RE::TESBoundObject* Source::GetBoundObject() const {
     return FormReader::GetFormByID<RE::TESBoundObject>(formid, editorid);
 }

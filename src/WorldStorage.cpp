@@ -16,6 +16,13 @@ const Source* WorldStorage::GetSource(const FormID formid) const {
     return source != sources.end() ? &source->second : nullptr;
 }
 
+std::string WorldStorage::GetWeightText(RE::TESObjectREFR* target) const {
+    const auto source = GetSource(target->GetBaseObject()->GetFormID());
+    if (!source || source->capacity <= 0.f) return "";
+    const auto chest = RE::TESForm::LookupByID<RE::TESObjectREFR>(GetChest(target->GetFormID()));
+    return source->GetWeightText(chest ? std::max(0.f, chest->GetWeightInContainer()) * source->weight_ratio : 0.f);
+}
+
 RefID WorldStorage::GetTarget(const RefID chest) const {
     std::shared_lock lock(mutex_);
     const auto found = std::ranges::find_if(chests, [chest](const auto& entry) { return entry.second.innerKey == chest; });

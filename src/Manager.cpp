@@ -557,18 +557,10 @@ std::string Manager::GetWeightText_(RE::TESObjectREFR* a_chest) {
         const auto src = GetContainerSource(a_real_id);
         if (real && src && src->capacity > 0) {
             const auto a_weight = std::max(0.f, a_chest->GetWeightInContainer() - real->GetWeight());
-            return GetWeightText(a_weight * src->weight_ratio, src->capacity);
+            return src->GetWeightText(a_weight * src->weight_ratio);
         }
     }
     return "";
-}
-
-std::string Manager::GetWeightText(const float weight, const float capacity) {
-    std::ostringstream stream1;
-    stream1 << std::fixed << std::setprecision(2) << weight;
-    std::ostringstream stream2;
-    stream2 << std::fixed << std::setprecision(2) << capacity;
-    return fmt::format("{}/{}", stream1.str(), stream2.str());
 }
 
 bool Manager::Register_Sub(const FormID master_formID, const FormID fake_formID, RefID chest_refID, RefID loc_refID) {
@@ -1469,8 +1461,8 @@ std::string Manager::GetWeightText(RE::TESObjectREFR* a_container) {
         return GetWeightText_(chest);
     }
     if (const auto src = GetContainerSource(a_container->GetBaseObject()->GetFormID())) {
-        if (const auto a_capacity = src->capacity; a_capacity > 0.f) {
-            return GetWeightText(0.f, a_capacity);
+        if (src->capacity > 0.f) {
+            return src->GetWeightText(0.f);
         }
     }
     return "";
@@ -1481,8 +1473,8 @@ std::string Manager::GetWeightText(const RE::TESBoundObject* fake_or_real) {
         return GetWeightText_(chest);
     }
     if (const auto src = GetContainerSource(fake_or_real->GetFormID())) {
-        if (const auto a_capacity = src->capacity; a_capacity > 0.f) {
-            return GetWeightText(0.f, a_capacity);
+        if (src->capacity > 0.f) {
+            return src->GetWeightText(0.f);
         }
     }
     return "";

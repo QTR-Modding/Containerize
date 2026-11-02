@@ -23,6 +23,7 @@ public:
     void LoadSources(std::vector<Source> configured_sources);
     [[nodiscard]] const Source* GetSource(FormID formid) const;
     [[nodiscard]] RefID GetTarget(RefID chest) const;
+    [[nodiscard]] std::string GetWeightText(RE::TESObjectREFR* target) const;
     [[nodiscard]] Count CanBeAdded(const RE::TESBoundObject* item, Count count, RE::TESObjectREFR* chest) const;
     void PlayCloseAnimation(RE::TESObjectREFR* chest);
 
