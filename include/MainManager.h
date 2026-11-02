@@ -3,6 +3,7 @@
 
 class MainManager final : public REX::Singleton<MainManager> {
     std::set<RefID> queued_chests;
+    std::set<std::pair<RefID, FormID>> bypass_CanBeAdded;
     RefID open_chest = 0;
     std::string closed_menu;
     RE::TESObjectREFRPtr containermenu_owner;
@@ -16,6 +17,8 @@ public:
     [[nodiscard]] RefID GetChest(FormID target) const;
     [[nodiscard]] FormID Initialize(FormID target, RefID owner, RE::ExtraDataList* instance);
     [[nodiscard]] bool DeRegister(FormID target);
+    [[nodiscard]] Count CanBeAdded(const RE::TESBoundObject* item, Count count, RE::TESObjectREFR* chest);
+    void SetCapacityBypass(const std::pair<RefID, FormID>& target, bool enabled);
     void OnActivateContainer(RE::TESObjectREFR* target, int action, int delay = 0);
     void OnLongPressEquip(const RE::TESBoundObject* fake, int delay = 0);
     void CloseMenu();

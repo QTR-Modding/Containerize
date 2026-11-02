@@ -152,9 +152,7 @@ void Hooks::MoveItemHooks<RefType>::addObjectToContainer(RefType* a_this, RE::TE
     const auto original_count = a_count;
 
     auto M = Manager::GetSingleton();
-    if (const auto chest_id = a_this->GetFormID(); M->IsChest(chest_id)) {
-        a_count = std::max(0, M->CanBeAdded(a_object, a_count, chest_id));
-    }
+    a_count = std::max(0, MainManager::GetSingleton()->CanBeAdded(a_object, a_count, a_this));
     if (a_fromRefr && a_count < original_count) {
         a_fromRefr->AddObjectToContainer(a_object, a_extraList, original_count - a_count, a_this);
         if (a_count == 0) {

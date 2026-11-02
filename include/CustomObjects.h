@@ -68,5 +68,7 @@ struct Source {
 
     void AddInitialItem(FormID form_id, Count count);
 
+    [[nodiscard]] Count CanBeAdded(const RE::TESBoundObject* item, Count count, RE::TESObjectREFR* chest) const;
+
     [[nodiscard]] bool IsHealthy() const;
 };

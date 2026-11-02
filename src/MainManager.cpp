@@ -1,6 +1,7 @@
 #include "MainManager.h"
 #include "Manager.h"
 #include "WorldStorage.h"
+#include "Chest.h"
 #include "Animations.h"
 #include "CLibUtilsQTR/Tasker.hpp"
 
@@ -188,6 +189,20 @@ bool MainManager::DeRegister(const FormID target) {
     const auto world_storage = WorldStorage::GetSingleton();
     if (world_storage->GetChest(target)) return world_storage->DeRegister(target);
     return Manager::GetSingleton()->DeRegister(target);
+}
+
+Count MainManager::CanBeAdded(const RE::TESBoundObject* item, const Count count, RE::TESObjectREFR* chest) {
+    const auto chest_id = chest->GetFormID();
+    if (chest->GetBaseObject() != UnownedStuff::unownedChest) return count;
+    if (bypass_CanBeAdded.contains({chest_id, item->GetFormID()})) return count;
+    const auto manager = Manager::GetSingleton();
+    if (manager->IsChest(chest_id)) return manager->CanBeAdded(item, count, chest_id);
+    return WorldStorage::GetSingleton()->CanBeAdded(item, count, chest);
+}
+
+void MainManager::SetCapacityBypass(const std::pair<RefID, FormID>& target, const bool enabled) {
+    if (enabled) bypass_CanBeAdded.insert(target);
+    else bypass_CanBeAdded.erase(target);
 }
 
 RE::TESObjectREFR* MainManager::GetContainerChest(const RE::TESObjectREFR* target) const {

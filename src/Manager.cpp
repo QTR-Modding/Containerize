@@ -85,9 +85,9 @@ bool Manager::TakeBackReal(RE::TESBoundObject* real_obj, RE::TESObjectREFR* ches
     const auto matches_real = [real_obj](RE::TESBoundObject& item) { return &item == real_obj; };
     const auto previous_count = Inventory::GetItemCount(real_obj, chest->GetInventory(matches_real));
     const auto temp_pair = std::make_pair(chest->GetFormID(), real_obj->GetFormID());
-    bypass_CanBeAdded.insert(temp_pair);
+    MainManager::GetSingleton()->SetCapacityBypass(temp_pair, true);
     unownedChestOG->RemoveItem(real_obj, 1, RE::ITEM_REMOVE_REASON::kStoreInContainer, nullptr, chest);
-    bypass_CanBeAdded.erase(temp_pair);
+    MainManager::GetSingleton()->SetCapacityBypass(temp_pair, false);
     return Inventory::GetItemCount(real_obj, chest->GetInventory(matches_real)) == previous_count + 1;
 }
 
@@ -537,9 +537,9 @@ bool Manager::DeRegister(RE::TESObjectREFR* chest, RE::TESObjectREFR* transfer_d
         for (auto& [fst,snd] : chest->GetInventory()) {
             if (snd.first <= 0) continue;
             const auto replacement_pair = std::make_pair(transfer_dest->GetFormID(), fst->GetFormID());
-            bypass_CanBeAdded.insert(replacement_pair);
+            MainManager::GetSingleton()->SetCapacityBypass(replacement_pair, true);
             chest->RemoveItem(fst, snd.first, RE::ITEM_REMOVE_REASON::kRemove, nullptr, transfer_dest);
-            bypass_CanBeAdded.erase(replacement_pair);
+            MainManager::GetSingleton()->SetCapacityBypass(replacement_pair, false);
         }
     }
     if (!ChestManager::IsEmpty(chest)) MsgBoxesNotifs::InGame::ReportTransferFailure(chestID);
@@ -908,9 +908,6 @@ bool Manager::Refresh(RE::TESBoundObject* fake_form, RE::TESObjectREFR* chest_li
 
 Count Manager::CanBeAdded(const RE::TESBoundObject* a_item, const Count a_count, RefID a_chestID) {
     if (!a_item) return 0;
-    if (bypass_CanBeAdded.contains({a_chestID, a_item->GetFormID()})) {
-        return a_count;
-    }
     if (const auto item_id = a_item->GetFormID(); IsFakeContainer(item_id)) {
         if (a_chestID == GetFakeContainerChestID(item_id)) {
             logger::warn("Avoided transferring fake container into its own chest.");
@@ -925,7 +922,6 @@ Count Manager::CanBeAdded(const RE::TESBoundObject* a_item, const Count a_count,
             }
         }
     }
-    if (a_item->GetWeight() < 0.001f) return a_count;
     const auto chestRef = RE::TESForm::LookupByID<RE::TESObjectREFR>(a_chestID);
     if (!chestRef) {
         logger::error("Chest ref not found.");
@@ -939,12 +935,7 @@ Count Manager::CanBeAdded(const RE::TESBoundObject* a_item, const Count a_count,
         logger::error("Source not found.");
         return 0;
     }
-    if (src->weight_ratio < 0.00001f) return a_count;
-    if (src->capacity == 0.f) return a_count;
-    const auto remaining_capacity = src->capacity - chestRef->GetWeightInContainer() * src->weight_ratio;
-    const auto item_weight = a_item->GetWeight() * src->weight_ratio;
-    const auto can_be_added = static_cast<Count>(remaining_capacity / (item_weight + EPSILON));
-    return std::max(0, std::min(can_be_added, a_count));
+    return src->CanBeAdded(a_item, a_count, chestRef);
 }
 
 RE::TESBoundObject* Manager::FakeToRealContainer(const FormID fake) const {
@@ -1607,9 +1598,9 @@ RE::TESBoundObject* Manager::RegisterFromMenu(RE::InventoryEntryData* a_real_ent
     const bool worn_left = xList_real && xList_real->HasType<RE::ExtraWornLeft>();
     const bool was_worn = worn_left || (xList_real && xList_real->HasType<RE::ExtraWorn>());
     const auto replacement_pair = std::make_pair(a_owner->GetFormID(), fake_formid);
-    bypass_CanBeAdded.insert(replacement_pair);
+    MainManager::GetSingleton()->SetCapacityBypass(replacement_pair, true);
     a_owner->AddObjectToContainer(fake_bound, xList_fake, 1, nullptr);
-    bypass_CanBeAdded.erase(replacement_pair);
+    MainManager::GetSingleton()->SetCapacityBypass(replacement_pair, false);
     if (!Inventory::HasItem(fake_bound, a_owner)) {
         logger::error("Failed to place fake container in its original inventory.");
         CancelRegistration(ChestObjRef, fake_bound, nullptr);

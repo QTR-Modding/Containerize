@@ -22,6 +22,23 @@ RefID WorldStorage::GetTarget(const RefID chest) const {
     return found != chests.end() ? found->first : 0;
 }
 
+Count WorldStorage::CanBeAdded(const RE::TESBoundObject* item, const Count count, RE::TESObjectREFR* chest) const {
+    const Source* source;
+    {
+        std::shared_lock lock(mutex_);
+        const auto found = std::ranges::find_if(chests, [chest_id = chest->GetFormID()](const auto& entry) {
+            return entry.second.innerKey == chest_id;
+        });
+        if (found == chests.end()) return count;
+        source = GetSource(found->second.outerKey);
+    }
+    if (!source) {
+        logger::error("Source not found for world storage chest {:x}", chest->GetFormID());
+        return 0;
+    }
+    return source->CanBeAdded(item, count, chest);
+}
+
 void WorldStorage::PlayCloseAnimation(RE::TESObjectREFR* chest) {
     constexpr int close_world_animation = 3;
     const auto target = RE::TESForm::LookupByID<RE::TESObjectREFR>(GetTarget(chest->GetFormID()));

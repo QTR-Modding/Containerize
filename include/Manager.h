@@ -26,8 +26,6 @@ class Manager final : public Serialization::SaveLoadData,
 
     mutable std::shared_mutex mutex_;
 
-    std::set<std::pair<RefID, FormID>> bypass_CanBeAdded;
-
     mutable std::unordered_map<RefID, std::vector<std::pair<FormID, Count>>> transfer_cache;
 
     std::atomic<bool> uninstall_cleanup_pending = false;
