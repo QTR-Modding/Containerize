@@ -3,6 +3,7 @@
 #include "MCP.h"
 #include "SkyPrompt.h"
 #include "Translations.h"
+#include "WorldStorage.h"
 
 namespace {
     // ReSharper disable once CppParameterMayBeConstPtrOrRef
@@ -19,7 +20,16 @@ namespace {
                 SkyPrompt::g_clientID = SkyPromptAPI::RequestClientID();
             }
             if (SkyPrompt::g_clientID > 0) {
-                if (!Manager::GetSingleton()->Init()) {
+                std::vector<Source> world_sources;
+                auto sources = Settings::LoadSources(world_sources);
+                if (sources.empty() && world_sources.empty()) {
+                    logger::error("No sources found.");
+                    MsgBoxesNotifs::InGame::InitErr();
+                    Manager::GetSingleton()->Uninstall();
+                    return;
+                }
+                WorldStorage::GetSingleton()->LoadSources(std::move(world_sources));
+                if (!Manager::GetSingleton()->Init(std::move(sources))) {
                     logger::critical("Manager failed to initialize. Plugin will not work properly.");
                     MsgBoxesNotifs::InGame::InitErr();
                     return;

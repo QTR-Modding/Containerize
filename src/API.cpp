@@ -1,6 +1,7 @@
 #include "API.h"
 #include "Chest.h"
 #include "Manager.h"
+#include "WorldStorage.h"
 
 extern "C" __declspec(dllexport) const ContainerizeAPI::Interface* Containerize_RequestAPI(std::uint32_t version) {
     if (version != ContainerizeAPI::interface_version) return nullptr;
@@ -17,12 +18,19 @@ extern "C" __declspec(dllexport) const ContainerizeAPI::Interface* Containerize_
         },
         [](ContainerizeAPI::ClientID client) { return ChestManager::GetSingleton()->Uninstall(client); },
         [](RE::FormID chest) { return Manager::GetSingleton()->Refresh(chest); },
-        [](RE::FormID target) { return Manager::GetSingleton()->GetChest(target); },
+        [](RE::FormID target) {
+            if (const auto chest = WorldStorage::GetSingleton()->GetChest(target)) return chest;
+            return Manager::GetSingleton()->GetChest(target);
+        },
         [](RE::FormID target, RE::FormID owner, RE::ExtraDataList* instance) {
             return Manager::GetSingleton()->Initialize(target, owner, instance);
         },
         [](RE::FormID fakeItem, const char* name) { return Manager::GetSingleton()->Rename(fakeItem, name); },
-        [](RE::FormID target) { return Manager::GetSingleton()->DeRegister(target); }
+        [](RE::FormID target) {
+            const auto world_storage = WorldStorage::GetSingleton();
+            if (world_storage->GetChest(target)) return world_storage->DeRegister(target);
+            return Manager::GetSingleton()->DeRegister(target);
+        }
     };
     return &api;
 }

@@ -2,6 +2,10 @@
 #include "Chest.h"
 #include "Utils.h"
 
+void WorldStorage::LoadSources(std::vector<Source> configured_sources) {
+    sources = std::move(configured_sources);
+}
+
 RefID WorldStorage::Register(RE::TESObjectREFR* target) {
     const auto target_id = target->GetFormID();
     if (const auto chest_id = GetChest(target_id)) return chest_id;

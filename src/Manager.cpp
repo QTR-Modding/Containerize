@@ -630,7 +630,7 @@ bool Manager::DeRegister_Sub(const FormID master_formID, const RefID chest_refID
     return true;
 }
 
-bool Manager::Init() {
+bool Manager::Init(std::vector<Source> configured_sources) {
     const auto player_ref = RE::PlayerCharacter::GetSingleton();
     if (!player_ref) {
         logger::error("Player reference not found.");
@@ -638,12 +638,7 @@ bool Manager::Init() {
         return false;
     }
     bool init_failed = false;
-    sources = Settings::LoadSources();
-    if (sources.empty()) {
-        logger::error("No sources found.");
-        InitFailed();
-        return false;
-    }
+    sources = std::move(configured_sources);
 
     std::unordered_set<std::uint32_t> encounteredFormIDs;
 

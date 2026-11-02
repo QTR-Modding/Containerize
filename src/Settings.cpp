@@ -1,4 +1,5 @@
 #include "Settings.h"
+#include "WorldStorage.h"
 #include "Translations.h"
 #include "CLibUtilsQTR/FormReader.hpp"
 #include "rapidjson/document.h"
@@ -247,17 +248,23 @@ std::vector<Source> Settings::LoadINISources() {
     return sources;
 }
 
-std::vector<Source> Settings::LoadSources() {
+std::vector<Source> Settings::LoadSources(std::vector<Source>& world_sources) {
     LoadFormGroups();
     std::vector<Source> sources;
-    const auto IniSources = LoadINISources();
+    auto IniSources = LoadINISources();
     logger::trace("IniSources size: {}", IniSources.size());
     // sources.insert(sources.end(), IniSources.begin(), IniSources.end());
-    const auto YamlSources = LoadYAMLSources();
+    auto YamlSources = LoadYAMLSources();
     logger::trace("YamlSources size: {}", YamlSources.size());
     // sources.insert(sources.end(), YamlSources.begin(), YamlSources.end());
+    const auto add_source = [&](Source& source) {
+        const auto form = source.GetBoundObject();
+        auto& destination = form && std::ranges::contains(WorldStorage::form_types, form->GetFormType())
+                                ? world_sources : sources;
+        destination.push_back(std::move(source));
+    };
     std::set<FormID> formids;
-    for (const auto& source : YamlSources) {
+    for (auto& source : YamlSources) {
         if (!source.IsHealthy()) {
             logger::error("Source is not healthy. Skipping. formid {:x} / editorid {} / capacity {}", source.formid,
                           source.editorid, source.capacity);
@@ -271,10 +278,10 @@ std::vector<Source> Settings::LoadSources() {
             continue;
         }
         formids.insert(source.formid);
-        sources.push_back(source);
+        add_source(source);
     }
 
-    for (const auto& source : IniSources) {
+    for (auto& source : IniSources) {
         if (!source.IsHealthy()) {
             logger::error("Source is not healthy. Skipping. formid {:x} / editorid {} / capacity {}", source.formid,
                           source.editorid, source.capacity);
@@ -288,7 +295,7 @@ std::vector<Source> Settings::LoadSources() {
             continue;
         }
         formids.insert(source.formid);
-        sources.push_back(source);
+        add_source(source);
     }
     return sources;
 }

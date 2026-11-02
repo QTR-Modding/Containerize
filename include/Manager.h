@@ -145,7 +145,7 @@ public:
     std::atomic<bool> isUninstalled = false;
 
     const char* GetType() override { return "Manager"; }
-    [[nodiscard]] bool Init();
+    [[nodiscard]] bool Init(std::vector<Source> configured_sources);
 
     void Gateway(int result, const RE::ObjectRefHandle& a_current_container);
 
