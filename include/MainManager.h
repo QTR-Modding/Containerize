@@ -12,7 +12,7 @@ class MainManager final : public REX::Singleton<MainManager> {
 
     [[nodiscard]] bool ActivateChest(RE::TESObjectREFR* chest) const;
     void OpenChestFromMenu(RE::TESObjectREFR* chest);
-    void Gateway(int result, const RE::ObjectRefHandle& target);
+    void Gateway(int result, const RE::ObjectRefHandle& target, bool use_quickloot);
     void TransferOnUse(RefID chest);
     [[nodiscard]] RE::TESObjectREFR* GetContainerChest(const RE::TESObjectREFR* target) const;
 
@@ -30,7 +30,7 @@ public:
     [[nodiscard]] bool DeRegister(FormID target);
     [[nodiscard]] Count CanBeAdded(const RE::TESBoundObject* item, Count count, RE::TESObjectREFR* chest);
     void SetCapacityBypass(const std::pair<RefID, FormID>& target, bool enabled);
-    void OnActivateContainer(RE::TESObjectREFR* target, int action, int delay = 0);
+    void OnActivateContainer(RE::TESObjectREFR* target, int action, int delay = 0, bool use_quickloot = false);
     void OnLongPressEquip(const RE::TESBoundObject* fake, int delay = 0);
     void CloseMenu();
     void HandleCraftingEnter(RE::TESObjectREFR* furniture);

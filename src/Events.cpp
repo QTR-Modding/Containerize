@@ -50,10 +50,10 @@ RE::BSEventNotifyControl EventSink::ProcessEvent(const SKSE::CrosshairRefEvent* 
         WorldObject::SwapObjects(a_crosshairRef, skyrim_cast<RE::TESBoundObject*>(baseform), false);
     }
 
-    QuickLootIntegration::Update(a_crosshairRef);
+    const bool quickloot_open = QuickLootIntegration::Update(a_crosshairRef);
 
     if (const auto menus = MainManager::GetSingleton();
-        menus->IsChestMenuQueued() || menus->IsInChestMenu()) {
+        quickloot_open || menus->IsChestMenuQueued() || menus->IsInChestMenu()) {
         RemovePrompts();
     } else if (menus->IsContainer(a_crosshairRef)) {
         SendPrompts(a_crosshairRef);
@@ -110,8 +110,9 @@ RE::BSEventNotifyControl EventSink::ProcessEvent(const RE::MenuOpenCloseEvent* a
     RemoveMenuPrompts();
     RemovePrompts();
     if (!a_event->opening) Manager::GetSingleton()->FinishUninstall();
-    const auto target = RE::CrosshairPickData::GetSingleton()->target;
-    QuickLootIntegration::Update(target ? target->get().get() : nullptr);
+    if (a_event->opening && std::ranges::contains(SkyPrompt::blockedMenus, a_event->menuName.c_str())) {
+        QuickLootIntegration::Close();
+    }
 
     return RE::BSEventNotifyControl::kContinue;
 }

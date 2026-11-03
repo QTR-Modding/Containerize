@@ -37,7 +37,7 @@ void MainManager::OpenChestFromMenu(RE::TESObjectREFR* a_chest) {
     }
 }
 
-void MainManager::Gateway(const int result, const RE::ObjectRefHandle& a_current_container) {
+void MainManager::Gateway(const int result, const RE::ObjectRefHandle& a_current_container, const bool use_quickloot) {
     if (result != 0 && result != 1) {
         logger::error("Unexpected callback integer!");
         return;
@@ -52,12 +52,17 @@ void MainManager::Gateway(const int result, const RE::ObjectRefHandle& a_current
         } else {
             RenameCallback(Manager::GetSingleton()->GetFakeBound(a_chest_handle.get()));
         }
-    } else if (!ActivateChest(a_chest)) {
-        if (!WorldStorage::GetSingleton()->GetTarget(a_chest->GetFormID())) Manager::GetSingleton()->OnOpenFailed();
-        open_chest = 0;
-        queued_chests.clear();
-        Animations::SendAnimEvent(3, nullptr);
-        logger::warn("Chest not found.");
+    } else {
+        if (use_quickloot) queued_chests.erase(a_chest->GetFormID());
+        const bool quickloot_opened = use_quickloot && QuickLootIntegration::Open(a_chest_handle.get(), a_chest);
+        if (use_quickloot && !quickloot_opened) queued_chests.insert(a_chest->GetFormID());
+        if (!quickloot_opened && !ActivateChest(a_chest)) {
+            if (!WorldStorage::GetSingleton()->GetTarget(a_chest->GetFormID())) Manager::GetSingleton()->OnOpenFailed();
+            open_chest = 0;
+            queued_chests.clear();
+            Animations::SendAnimEvent(3, nullptr);
+            logger::warn("Chest not found.");
+        }
     }
 }
 
@@ -77,7 +82,7 @@ void MainManager::OnLongPressEquip(const RE::TESBoundObject* a_fake, const int d
     }
 }
 
-void MainManager::OnActivateContainer(RE::TESObjectREFR* a_container, const int msgbox_action, const int a_delay) {
+void MainManager::OnActivateContainer(RE::TESObjectREFR* a_container, const int msgbox_action, const int a_delay, const bool use_quickloot) {
     if (Manager::GetSingleton()->isUninstalled.load()) return;
     const auto base = a_container->GetBaseObject();
     if (std::ranges::contains(WorldStorage::form_types, base->GetFormType())) {
@@ -92,11 +97,11 @@ void MainManager::OnActivateContainer(RE::TESObjectREFR* a_container, const int 
     }
     auto a_handle = a_container->GetHandle();
     if (a_delay > 0) {
-        clib_utilsQTR::Tasker::GetSingleton()->PushTask([this,msgbox_action,a_handle] {
-            Gateway(msgbox_action, a_handle);
+        clib_utilsQTR::Tasker::GetSingleton()->PushTask([this,msgbox_action,a_handle,use_quickloot] {
+            Gateway(msgbox_action, a_handle, use_quickloot);
         }, a_delay);
     } else {
-        return Gateway(msgbox_action, a_handle);
+        return Gateway(msgbox_action, a_handle, use_quickloot);
     }
 }
 

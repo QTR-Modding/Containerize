@@ -42,7 +42,7 @@ void RefPromptSink::ProcessEvent(const SkyPromptAPI::PromptEvent event) const {
             if (const auto prompt_eventid = event.prompt.eventID; prompt_eventid == 0) {
                 if (MainManager::GetSingleton()->IsTokenMode(a_ref)) return;
                 const auto duration = Animations::SetUpAnimationOnOpen(a_ref, true);
-                MainManager::GetSingleton()->OnActivateContainer(a_ref, 0, duration);
+                MainManager::GetSingleton()->OnActivateContainer(a_ref, 0, duration, true);
             } else if (prompt_eventid == 1) {
                 MainManager::GetSingleton()->OnActivateContainer(a_ref, 1);
             }

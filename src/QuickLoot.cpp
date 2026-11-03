@@ -3,6 +3,7 @@
 #include "MainManager.h"
 #include "Manager.h"
 #include "SkyPrompt.h"
+#include "WorldStorage.h"
 
 namespace QuickLootIntegration {
     namespace {
@@ -31,7 +32,7 @@ namespace QuickLootIntegration {
             const auto target = view.target;
             SKSE::GetTaskInterface()->AddTask([target] {
                 if (view.target != target) return;
-                Close();
+                Close(false);
                 const auto reference = target.get();
                 const auto manager = MainManager::GetSingleton();
                 if (reference && manager->IsContainer(reference.get()) && !manager->IsTokenMode(reference.get())) {
@@ -49,7 +50,7 @@ namespace QuickLootIntegration {
         logger::info("QuickLoot integration enabled.");
     }
 
-    void Close() {
+    void Close(const bool play_animation) {
         if (!view.chest) return;
         const auto chest = view.chest.get();
         view = {};
@@ -57,7 +58,11 @@ namespace QuickLootIntegration {
             chest->extraList.RemoveByType(RE::ExtraDataType::kTextDisplayData);
             if (!Manager::GetSingleton()->OnChestExit(chest.get())) {
                 logger::error("Failed to close QuickLoot storage {:08X}", chest->GetFormID());
+            } else if (play_animation) {
+                Manager::GetSingleton()->PlayCloseAnimation(chest.get());
             }
+        } else if (chest && play_animation) {
+            WorldStorage::GetSingleton()->PlayCloseAnimation(chest.get());
         }
         API::ClearForcedContainer();
     }
@@ -72,28 +77,28 @@ namespace QuickLootIntegration {
         return storage && storage->GetFormID() == chest;
     }
 
-    void Update(RE::TESObjectREFR* target) {
-        if (!installed) return;
+    bool Update(RE::TESObjectREFR* target) {
+        if (!view.chest) return false;
         const auto manager = MainManager::GetSingleton();
         const auto player = RE::PlayerCharacter::GetSingleton();
         if (Manager::GetSingleton()->isUninstalled.load() || !target ||
             RE::UI::GetSingleton()->GameIsPaused() || SkyPrompt::IsAnyMenuOpen() || player->IsGrabbing() ||
             manager->IsInChestMenu() || manager->IsChestMenuQueued() ||
             !manager->IsContainer(target) || manager->IsTokenMode(target) ||
-            target->IsLocked() || target->IsActivationBlocked()) {
+            target->IsLocked() || target->IsActivationBlocked() || view.target != target->GetHandle()) {
             Close();
-            return;
         }
-        if (view.target == target->GetHandle() && view.chest.get()) return;
+        return static_cast<bool>(view.chest);
+    }
+
+    bool Open(RE::TESObjectREFR* target, RE::TESObjectREFR* chest) {
+        if (!installed || Manager::GetSingleton()->isUninstalled.load()) return false;
         Close();
-        const auto target_id = target->GetFormID();
-        if (!manager->Initialize(target_id, 0, nullptr)) return;
-        const auto chest = RE::TESForm::LookupByID<RE::TESObjectREFR>(manager->GetChest(target_id));
-        if (!chest || manager->IsInUse(chest->GetFormID())) return;
         if (Manager::GetSingleton()->IsChest(chest->GetFormID()) &&
-            !Manager::GetSingleton()->OnChestEnter(chest)) return;
+            !Manager::GetSingleton()->OnChestEnter(chest)) return false;
         chest->SetDisplayName(target->GetDisplayFullName(), true);
         view = {target->GetHandle(), chest->GetHandle()};
         API::ForceCurrentContainer(view.chest);
+        return true;
     }
 }
