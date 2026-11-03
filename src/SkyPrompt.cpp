@@ -12,8 +12,11 @@ void RefPromptSink::Start(RE::TESObjectREFR* a_ref) {
     weight_text.clear();
     value_text.clear();
     const auto manager = MainManager::GetSingleton();
+    const auto source = manager->GetSource(a_ref);
+    const RefID refid = source->attach_prompts ? a_ref->GetFormID() : 0;
+    if (!prompts.empty() && prompts.front().refid != refid) SkyPromptAPI::RemovePrompt(this, g_clientID);
     prompts.clear();
-    if (manager->IsTokenMode(a_ref)) return;
+    if (source->token_mode) return;
     prompts = {open_prompt};
     if (manager->CanRename()) prompts.push_back(rename_prompt);
 
@@ -27,6 +30,7 @@ void RefPromptSink::Start(RE::TESObjectREFR* a_ref) {
         value_prompt.text = value_text;
         prompts.push_back(value_prompt);
     }
+    for (auto& prompt : prompts) prompt.refid = refid;
 }
 
 void RefPromptSink::Stop() { prompts.clear(); }

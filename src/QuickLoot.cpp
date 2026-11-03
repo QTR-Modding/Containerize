@@ -93,6 +93,8 @@ namespace QuickLootIntegration {
 
     bool Open(RE::TESObjectREFR* target, RE::TESObjectREFR* chest) {
         if (!installed || Manager::GetSingleton()->isUninstalled.load()) return false;
+        const auto source = MainManager::GetSingleton()->GetSource(target);
+        if (!source || !source->quickloot) return false;
         Close();
         if (Manager::GetSingleton()->IsChest(chest->GetFormID()) &&
             !Manager::GetSingleton()->OnChestEnter(chest)) return false;

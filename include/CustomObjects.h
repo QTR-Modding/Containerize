@@ -56,6 +56,8 @@ struct Source {
     float capacity;
     bool transfer_on_use;
     bool token_mode = false;
+    bool quickloot = true;
+    bool attach_prompts = false;
     FormID formid;
     std::string editorid;
     SourceData data; // ChestRefID -> LocRefID

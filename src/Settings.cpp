@@ -53,11 +53,15 @@ namespace {
         }
 
         Source source(formid, editorid, temp_weight_limit, cloud_storage, transfer_on_use);
-        if (config["token_mode"] && !config["token_mode"].IsNull()) {
-            try {
-                source.token_mode = config["token_mode"].as<bool>();
-            } catch (const std::exception&) {
-                logger::warn("token_mode value is invalid. Using default value.");
+        for (const auto [field, destination] : {std::pair{"token_mode", &source.token_mode},
+                                               std::pair{"quickloot", &source.quickloot},
+                                               std::pair{"attach_prompts", &source.attach_prompts}}) {
+            if (const auto value = config[field]; value && !value.IsNull()) {
+                try {
+                    *destination = value.as<bool>();
+                } catch (const std::exception&) {
+                    logger::warn("{} value is invalid. Using default value.", field);
+                }
             }
         }
 

@@ -29,6 +29,19 @@ Each call converts one original inventory item. Null instance uses normal regist
 
 Passing an already linked reference or fake item returns its existing fake ID without adding initial items again. Missing, unconfigured or unavailable targets return zero. Initialization never opens a menu or plays an opening animation.
 
+## Container prompts
+
+```yaml
+containers:
+- FormEditorID: MyContainer
+  quickloot: false
+  attach_prompts: true
+```
+
+`quickloot: false` makes the world Open prompt open the full container menu. The default is `true`, which opens QuickLoot when installed.
+
+`attach_prompts: true` attaches SkyPrompt's world prompts to the object. The default is `false`, which keeps them at their HUD position. Inventory-menu prompts keep their existing placement.
+
 ## Token items
 
 Set `token_mode: true` in a container preset when another mod should manage its storage:

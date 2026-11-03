@@ -18,6 +18,7 @@ class MainManager final : public REX::Singleton<MainManager> {
 
 public:
     [[nodiscard]] std::unordered_map<FormID, Source> GetSources() const;
+    [[nodiscard]] const Source* GetSource(const RE::TESObjectREFR* target) const;
     [[nodiscard]] RefID GetChest(FormID target) const;
     [[nodiscard]] bool Refresh(RefID chest);
     [[nodiscard]] std::string GetWeightText(RE::TESObjectREFR* target) const;
