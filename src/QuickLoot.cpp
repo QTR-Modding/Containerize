@@ -54,6 +54,7 @@ namespace QuickLootIntegration {
         const auto chest = view.chest.get();
         view = {};
         if (chest && Manager::GetSingleton()->IsChest(chest->GetFormID())) {
+            chest->extraList.RemoveByType(RE::ExtraDataType::kTextDisplayData);
             if (!Manager::GetSingleton()->OnChestExit(chest.get())) {
                 logger::error("Failed to close QuickLoot storage {:08X}", chest->GetFormID());
             }
