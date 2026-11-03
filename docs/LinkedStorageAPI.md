@@ -35,12 +35,21 @@ Passing an already linked reference or fake item returns its existing fake ID wi
 containers:
 - FormEditorID: MyContainer
   quickloot: false
-  attach_prompts: true
+  skyprompt:
+    attach: true
+    theme: mytheme
+    labels:
+      open: "Open storage"
+      rename: ""
 ```
 
 `quickloot: false` makes the world Open prompt open the full container menu. The default is `true`, which opens QuickLoot when installed.
 
-`attach_prompts: true` attaches SkyPrompt's world prompts to the object. The default is `false`, which keeps them at their HUD position. Inventory-menu prompts keep their existing placement.
+`skyprompt.attach: true` attaches world prompts to the object; it defaults to `false`. Inventory-menu prompts keep their existing placement.
+
+`theme: mytheme` uses `SKSE/Plugins/SkyPrompt/themes/mytheme.json`. Omit `theme` to use the default theme.
+
+`labels` changes the Open, Rename, Weight and Value text using `open`, `rename`, `weight` and `value`. Omitted labels keep their translated text; `""` hides the prompt. The example hides Rename.
 
 ## Token items
 
