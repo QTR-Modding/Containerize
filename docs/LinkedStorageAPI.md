@@ -29,6 +29,28 @@ Each call converts one original inventory item. Null instance uses normal regist
 
 Passing an already linked reference or fake item returns its existing fake ID without adding initial items again. Missing, unconfigured or unavailable targets return zero. Initialization never opens a menu or plays an opening animation.
 
+## Container prompts
+
+```yaml
+containers:
+- FormEditorID: MyContainer
+  quickloot: false
+  skyprompt:
+    attach: true
+    theme: mytheme
+    labels:
+      open: "Open storage"
+      rename: ""
+```
+
+`quickloot: false` makes the world Open prompt open the full container menu. The default is `true`, which opens QuickLoot when installed.
+
+`skyprompt.attach: true` attaches world prompts to the object; it defaults to `false`. Inventory-menu prompts keep their existing placement.
+
+`theme: mytheme` uses `SKSE/Plugins/SkyPrompt/themes/mytheme.json`. Omit `theme` to use the default theme.
+
+`labels` changes the Open, Rename, Weight and Value text using `open`, `rename`, `weight` and `value`. Omitted labels keep their translated text; `""` hides the prompt. The example hides Rename.
+
 ## Token items
 
 Set `token_mode: true` in a container preset when another mod should manage its storage:

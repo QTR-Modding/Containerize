@@ -53,11 +53,30 @@ namespace {
         }
 
         Source source(formid, editorid, temp_weight_limit, cloud_storage, transfer_on_use);
-        if (config["token_mode"] && !config["token_mode"].IsNull()) {
-            try {
-                source.token_mode = config["token_mode"].as<bool>();
-            } catch (const std::exception&) {
-                logger::warn("token_mode value is invalid. Using default value.");
+        for (const auto [field, destination] : {std::pair{"token_mode", &source.token_mode},
+                                               std::pair{"quickloot", &source.quickloot}}) {
+            if (const auto value = config[field]; value && !value.IsNull()) {
+                try {
+                    *destination = value.as<bool>();
+                } catch (const std::exception&) {
+                    logger::warn("{} value is invalid. Using default value.", field);
+                }
+            }
+        }
+
+        if (const auto skyprompt = config["skyprompt"]; skyprompt && !skyprompt.IsNull()) {
+            if (const auto attach = skyprompt["attach"]; attach && !attach.IsNull()) {
+                source.skyprompt.attach = attach.as<bool>();
+            }
+            if (const auto theme = skyprompt["theme"]; theme && !theme.IsNull()) {
+                source.skyprompt.theme = theme.as<std::string>();
+            }
+            if (const auto labels = skyprompt["labels"]; labels && !labels.IsNull()) {
+                for (const auto name : {"open", "rename", "weight", "value"}) {
+                    if (const auto label = labels[name]; label && !label.IsNull()) {
+                        source.skyprompt.labels.emplace(name, label.as<std::string>());
+                    }
+                }
             }
         }
 

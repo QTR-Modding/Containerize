@@ -558,7 +558,7 @@ std::string Manager::GetWeightText_(RE::TESObjectREFR* a_chest) {
         const auto real = RE::TESForm::LookupByID<RE::TESBoundObject>(a_real_id);
         const auto src = GetContainerSource(a_real_id);
         if (real && src && src->capacity > 0) {
-            const auto a_weight = std::max(0.f, a_chest->GetWeightInContainer() - real->GetWeight());
+            const auto a_weight = std::max(0.f, a_chest->GetWeightInContainer() - (reals_to_takeback.contains(chest_id) ? 0.f : real->GetWeight()));
             return src->GetWeightText(a_weight * src->weight_ratio);
         }
     }

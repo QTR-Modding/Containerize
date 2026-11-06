@@ -71,6 +71,11 @@ Count Source::CanBeAdded(const RE::TESBoundObject* item, const Count count, RE::
     return std::max(0, std::min(can_be_added, count));
 }
 
+std::string_view Source::SkyPromptSettings::GetLabel(const std::string_view name, const std::string_view fallback) const {
+    const auto it = labels.find(name);
+    return it != labels.end() ? std::string_view(it->second) : fallback;
+}
+
 bool Source::IsHealthy() const {
     if (formid == 0) return false;
     if (editorid.empty()) return false;

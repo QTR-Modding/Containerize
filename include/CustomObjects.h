@@ -56,6 +56,14 @@ struct Source {
     float capacity;
     bool transfer_on_use;
     bool token_mode = false;
+    bool quickloot = true;
+    struct SkyPromptSettings {
+        bool attach = false;
+        std::string theme;
+        std::map<std::string, std::string, std::less<>> labels;
+
+        [[nodiscard]] std::string_view GetLabel(std::string_view name, std::string_view fallback) const;
+    } skyprompt;
     FormID formid;
     std::string editorid;
     SourceData data; // ChestRefID -> LocRefID

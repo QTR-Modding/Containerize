@@ -4,6 +4,7 @@
 #include "Chest.h"
 #include "Animations.h"
 #include "Papyrus.h"
+#include "QuickLoot.h"
 #include "CLibUtilsQTR/Tasker.hpp"
 
 bool MainManager::ActivateChest(RE::TESObjectREFR* chest) const {
@@ -11,6 +12,8 @@ bool MainManager::ActivateChest(RE::TESObjectREFR* chest) const {
         logger::error("ActivateChest: Chest reference is null.");
         return false;
     }
+    QuickLootIntegration::Close();
+    if (Manager::GetSingleton()->isUninstalled.load()) return false;
     if (WorldStorage::GetSingleton()->GetTarget(chest->GetFormID())) {
         return Menu::ActivateChest(chest, chest->GetDisplayFullName());
     }
@@ -34,7 +37,7 @@ void MainManager::OpenChestFromMenu(RE::TESObjectREFR* a_chest) {
     }
 }
 
-void MainManager::Gateway(const int result, const RE::ObjectRefHandle& a_current_container) {
+void MainManager::Gateway(const int result, const RE::ObjectRefHandle& a_current_container, const bool use_quickloot) {
     if (result != 0 && result != 1) {
         logger::error("Unexpected callback integer!");
         return;
@@ -49,12 +52,17 @@ void MainManager::Gateway(const int result, const RE::ObjectRefHandle& a_current
         } else {
             RenameCallback(Manager::GetSingleton()->GetFakeBound(a_chest_handle.get()));
         }
-    } else if (!ActivateChest(a_chest)) {
-        if (!WorldStorage::GetSingleton()->GetTarget(a_chest->GetFormID())) Manager::GetSingleton()->OnOpenFailed();
-        open_chest = 0;
-        queued_chests.clear();
-        Animations::SendAnimEvent(3, nullptr);
-        logger::warn("Chest not found.");
+    } else {
+        if (use_quickloot) queued_chests.erase(a_chest->GetFormID());
+        const bool quickloot_opened = use_quickloot && QuickLootIntegration::Open(a_chest_handle.get(), a_chest);
+        if (use_quickloot && !quickloot_opened) queued_chests.insert(a_chest->GetFormID());
+        if (!quickloot_opened && !ActivateChest(a_chest)) {
+            if (!WorldStorage::GetSingleton()->GetTarget(a_chest->GetFormID())) Manager::GetSingleton()->OnOpenFailed();
+            open_chest = 0;
+            queued_chests.clear();
+            Animations::SendAnimEvent(3, nullptr);
+            logger::warn("Chest not found.");
+        }
     }
 }
 
@@ -74,7 +82,7 @@ void MainManager::OnLongPressEquip(const RE::TESBoundObject* a_fake, const int d
     }
 }
 
-void MainManager::OnActivateContainer(RE::TESObjectREFR* a_container, const int msgbox_action, const int a_delay) {
+void MainManager::OnActivateContainer(RE::TESObjectREFR* a_container, const int msgbox_action, const int a_delay, const bool use_quickloot) {
     if (Manager::GetSingleton()->isUninstalled.load()) return;
     const auto base = a_container->GetBaseObject();
     if (std::ranges::contains(WorldStorage::form_types, base->GetFormType())) {
@@ -89,11 +97,11 @@ void MainManager::OnActivateContainer(RE::TESObjectREFR* a_container, const int 
     }
     auto a_handle = a_container->GetHandle();
     if (a_delay > 0) {
-        clib_utilsQTR::Tasker::GetSingleton()->PushTask([this,msgbox_action,a_handle] {
-            Gateway(msgbox_action, a_handle);
+        clib_utilsQTR::Tasker::GetSingleton()->PushTask([this,msgbox_action,a_handle,use_quickloot] {
+            Gateway(msgbox_action, a_handle, use_quickloot);
         }, a_delay);
     } else {
-        return Gateway(msgbox_action, a_handle);
+        return Gateway(msgbox_action, a_handle, use_quickloot);
     }
 }
 
@@ -206,7 +214,7 @@ void MainManager::HandleCraftingExit() {
 
 bool MainManager::IsInUse(const RefID chest) const {
     if (const auto loan = transfer_cache.find(chest); loan != transfer_cache.end() && !loan->second.empty()) return true;
-    return open_chest == chest || queued_chests.contains(chest) ||
+    return QuickLootIntegration::IsInUse(chest) || open_chest == chest || queued_chests.contains(chest) ||
         (containermenu_owner && containermenu_owner->GetFormID() == chest);
 }
 
@@ -215,6 +223,7 @@ void MainManager::ClearOpenChest(const RefID chest) {
 }
 
 void MainManager::ForgetChest(const RefID chest) {
+    if (QuickLootIntegration::IsInUse(chest)) QuickLootIntegration::Close();
     transfer_cache.erase(chest);
     ClearOpenChest(chest);
     queued_chests.erase(chest);
@@ -225,11 +234,15 @@ void MainManager::ForgetChest(const RefID chest) {
 }
 
 void MainManager::HandleFormDelete(const RefID target) {
+    if (QuickLootIntegration::IsInUse(target) || QuickLootIntegration::IsInUse(GetChest(target))) {
+        QuickLootIntegration::Close();
+    }
     Manager::GetSingleton()->HandleFormDelete(target);
     WorldStorage::GetSingleton()->HandleFormDelete(target);
 }
 
 void MainManager::Reset() {
+    QuickLootIntegration::Reset();
     transfer_cache.clear();
     queued_chests.clear();
     open_chest = 0;
@@ -252,6 +265,15 @@ bool MainManager::Refresh(const RefID chest) {
     const auto world_storage = WorldStorage::GetSingleton();
     if (world_storage->GetTarget(chest)) return world_storage->Refresh(chest);
     return Manager::GetSingleton()->Refresh(chest);
+}
+
+const Source* MainManager::GetSource(const RE::TESObjectREFR* target) const {
+    const auto base = target->GetBaseObject();
+    if (std::ranges::contains(WorldStorage::form_types, base->GetFormType())) {
+        return WorldStorage::GetSingleton()->GetSource(base->GetFormID());
+    }
+    const auto* manager = Manager::GetSingleton();
+    return manager->GetContainerSource(base->GetFormID());
 }
 
 std::string MainManager::GetWeightText(RE::TESObjectREFR* target) const {

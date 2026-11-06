@@ -8,25 +8,53 @@
 
 using namespace SkyPrompt;
 
+namespace {
+    std::string requested_theme;
+
+    bool ApplyTheme(const std::string& theme) {
+        if (requested_theme == theme) return false;
+        if (!SkyPromptAPI::RequestTheme(g_clientID, theme)) (void)SkyPromptAPI::RequestTheme(g_clientID, {});
+        requested_theme = theme;
+        return true;
+    }
+
+    void UpdatePrompts(const SkyPromptAPI::PromptSink* sink, std::vector<SkyPromptAPI::Prompt>& prompts,
+                       const Source::SkyPromptSettings& settings,
+                       const std::initializer_list<SkyPromptAPI::Prompt> candidates) {
+        const bool theme_changed = ApplyTheme(settings.theme);
+        auto visible = candidates | std::views::filter([](const auto& prompt) { return !prompt.text.empty(); });
+        if (!prompts.empty() && (theme_changed || !std::ranges::equal(prompts, visible, [](const auto& a, const auto& b) {
+            return a.eventID == b.eventID && a.refid == b.refid;
+        }))) SkyPromptAPI::RemovePrompt(sink, g_clientID);
+        prompts.assign(visible.begin(), visible.end());
+    }
+}
+
 void RefPromptSink::Start(RE::TESObjectREFR* a_ref) {
     weight_text.clear();
     value_text.clear();
     const auto manager = MainManager::GetSingleton();
-    prompts.clear();
-    if (manager->IsTokenMode(a_ref)) return;
-    prompts = {open_prompt};
-    if (manager->CanRename()) prompts.push_back(rename_prompt);
+    const auto source = manager->GetSource(a_ref);
+    if (source->token_mode) {
+        SkyPromptAPI::RemovePrompt(this, g_clientID);
+        prompts.clear();
+        return;
+    }
+    const auto& settings = source->skyprompt;
+    const RefID refid = settings.attach ? a_ref->GetFormID() : 0;
+    open_prompt.text = settings.GetLabel("open", Strings::open_bag);
+    rename_prompt.text = manager->CanRename() ? settings.GetLabel("rename", Strings::rename_bag) : "";
 
-    if (const auto a_weight_text = manager->GetWeightText(a_ref); !a_weight_text.empty()) {
-        weight_text.append(Strings::weight).append(" ").append(a_weight_text);
-        weight_prompt.text = weight_text;
-        prompts.push_back(weight_prompt);
+    if (const auto label = settings.GetLabel("weight", Strings::weight); !label.empty()) {
+        if (const auto text = manager->GetWeightText(a_ref); !text.empty()) weight_text.append(label).append(" ").append(text);
     }
-    if (const auto a_value_text = manager->GetValueText(a_ref); !a_value_text.empty()) {
-        value_text.append(Strings::value).append(" ").append(a_value_text);
-        value_prompt.text = value_text;
-        prompts.push_back(value_prompt);
+    if (const auto label = settings.GetLabel("value", Strings::value); !label.empty()) {
+        if (const auto text = manager->GetValueText(a_ref); !text.empty()) value_text.append(label).append(" ").append(text);
     }
+    weight_prompt.text = weight_text;
+    value_prompt.text = value_text;
+    for (auto prompt : {&open_prompt, &rename_prompt, &weight_prompt, &value_prompt}) prompt->refid = refid;
+    UpdatePrompts(this, prompts, settings, {open_prompt, rename_prompt, weight_prompt, value_prompt});
 }
 
 void RefPromptSink::Stop() { prompts.clear(); }
@@ -42,7 +70,7 @@ void RefPromptSink::ProcessEvent(const SkyPromptAPI::PromptEvent event) const {
             if (const auto prompt_eventid = event.prompt.eventID; prompt_eventid == 0) {
                 if (MainManager::GetSingleton()->IsTokenMode(a_ref)) return;
                 const auto duration = Animations::SetUpAnimationOnOpen(a_ref, true);
-                MainManager::GetSingleton()->OnActivateContainer(a_ref, 0, duration);
+                MainManager::GetSingleton()->OnActivateContainer(a_ref, 0, duration, true);
             } else if (prompt_eventid == 1) {
                 MainManager::GetSingleton()->OnActivateContainer(a_ref, 1);
             }
@@ -92,23 +120,21 @@ void MenuPromptSink::Show(const RE::TESBoundObject* a_fake) const {
         weight_prompt.refid = 0;
     }
 
-    if (ModCompatibility::Mods::ui_extensions_installed) {
-        prompts = {open_prompt, rename_prompt};
-    } else {
-        prompts = {open_prompt};
-    }
-
     if (Manager::GetSingleton()->IsTokenMode(a_fake->GetFormID())) {
         Hide();
         return;
     }
-
-    const auto a_weight_text = Manager::GetSingleton()->GetWeightText(a_fake);
-    if (!a_weight_text.empty()) {
-        weight_text.append(Strings::weight).append(" ").append(a_weight_text);
-        weight_prompt.text = weight_text;
-        prompts.push_back(weight_prompt);
+    const auto* manager = Manager::GetSingleton();
+    const auto real = manager->FakeToRealContainer(a_fake->GetFormID());
+    const auto& settings = manager->GetContainerSource(real->GetFormID())->skyprompt;
+    open_prompt.text = settings.GetLabel("open", Strings::open_bag);
+    rename_prompt.text = ModCompatibility::Mods::ui_extensions_installed
+        ? settings.GetLabel("rename", Strings::rename_bag) : "";
+    if (const auto label = settings.GetLabel("weight", Strings::weight); !label.empty()) {
+        if (const auto text = Manager::GetSingleton()->GetWeightText(a_fake); !text.empty()) weight_text.append(label).append(" ").append(text);
     }
+    weight_prompt.text = weight_text;
+    UpdatePrompts(this, prompts, settings, {open_prompt, rename_prompt, weight_prompt});
 
     if (!SkyPromptAPI::SendPrompt(this, g_clientID)) {
     }
@@ -182,22 +208,20 @@ void RegistrationPromptSink::Show(const RE::TESBoundObject* a_item) const {
         weight_prompt.refid = 0;
     }
 
-    if (ModCompatibility::Mods::ui_extensions_installed) {
-        prompts = {open_prompt, rename_prompt};
-    } else {
-        prompts = {open_prompt};
-    }
-
     if (Manager::GetSingleton()->IsTokenMode(a_item->GetFormID())) {
         Hide();
         return;
     }
-
-    if (const auto a_weight_text = Manager::GetSingleton()->GetWeightText(a_item); !a_weight_text.empty()) {
-        weight_text.append(Strings::weight).append(" ").append(a_weight_text);
-        weight_prompt.text = weight_text;
-        prompts.push_back(weight_prompt);
+    const auto* manager = Manager::GetSingleton();
+    const auto& settings = manager->GetContainerSource(a_item->GetFormID())->skyprompt;
+    open_prompt.text = settings.GetLabel("open", Strings::open_bag);
+    rename_prompt.text = ModCompatibility::Mods::ui_extensions_installed
+        ? settings.GetLabel("rename", Strings::rename_bag) : "";
+    if (const auto label = settings.GetLabel("weight", Strings::weight); !label.empty()) {
+        if (const auto text = Manager::GetSingleton()->GetWeightText(a_item); !text.empty()) weight_text.append(label).append(" ").append(text);
     }
+    weight_prompt.text = weight_text;
+    UpdatePrompts(this, prompts, settings, {open_prompt, rename_prompt, weight_prompt});
 
     if (!SkyPromptAPI::SendPrompt(this, g_clientID)) {
     }

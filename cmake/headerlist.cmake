@@ -16,4 +16,6 @@ set(headers ${headers}
 	include/Chest.h
 	include/WorldStorage.h
 	include/API.h
+	include/QuickLoot.h
+	include/QuickLootAPI.h
 )

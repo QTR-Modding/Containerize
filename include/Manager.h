@@ -36,7 +36,6 @@ class Manager final : public Serialization::SaveLoadData,
     [[nodiscard]] std::vector<RefID> GetChildChests(RefID parent_chestID, std::unordered_set<RefID>* parents);
 
     // Locking-aware helpers
-    [[nodiscard]] const Source* GetContainerSource(FormID real_id) const;
     [[nodiscard]] Source* GetContainerSource(FormID real_id);
     [[nodiscard]] Source* GetChestSource(RefID a_chestID);
 
@@ -181,6 +180,7 @@ public:
     void ReceiveData();
 
     std::unordered_map<FormID, Source> GetSources() const;
+    [[nodiscard]] const Source* GetContainerSource(FormID real_id) const;
 
     void Uninstall(bool delete_fake_forms = false);
     void FinishUninstall();
