@@ -1,6 +1,7 @@
 #include "API.h"
 #include "Chest.h"
 #include "MainManager.h"
+#include "Manager.h"
 
 extern "C" __declspec(dllexport) const ContainerizeAPI::Interface* Containerize_RequestAPI(std::uint32_t version) {
     if (!version || version > ContainerizeAPI::interface_version) return nullptr;
@@ -23,7 +24,8 @@ extern "C" __declspec(dllexport) const ContainerizeAPI::Interface* Containerize_
         },
         [](RE::FormID target, const char* name) { return MainManager::GetSingleton()->Rename(target, name); },
         [](RE::FormID target) { return MainManager::GetSingleton()->DeRegister(target); },
-        [](RE::FormID chest) { return MainManager::GetSingleton()->GetTarget(chest); }
+        [](RE::FormID chest) { return MainManager::GetSingleton()->GetTarget(chest); },
+        [](RE::FormID chest) { return Manager::GetSingleton()->GetRealID(chest); }
     };
     return &api;
 }

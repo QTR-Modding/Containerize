@@ -86,6 +86,14 @@ Pass the storage chest's reference FormID. For an inventory item, this returns i
 
 Unlinked chests, including bare rentals, return zero. The call also returns zero after Containerize uninstall. This lookup requires API version 2; version 1 clients remain compatible with the updated plugin.
 
+## Finding the original item
+
+```cpp
+const RE::FormID original = api->GetRealID(chest);
+```
+
+Pass an inventory item's storage chest reference FormID. This returns the original item's base FormID, or zero when the chest has no registered inventory item. Requires API version 2.
+
 ## Refreshing Containerize-managed storage
 
 Containerize-managed storage is a chest connected to an item or furniture through Containerize's own registration. After changing its contents, refresh that storage once for the completed operation:

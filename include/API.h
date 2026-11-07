@@ -26,6 +26,7 @@ namespace ContainerizeAPI {
         bool (*Rename)(RE::FormID target, const char* name);
         bool (*DeRegister)(RE::FormID target);
         RE::FormID (*GetTarget)(RE::FormID chest);
+        RE::FormID (*GetRealID)(RE::FormID chest);
     };
 
     [[nodiscard]] inline const Interface* RequestAPI() {
