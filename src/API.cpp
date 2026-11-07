@@ -3,7 +3,7 @@
 #include "MainManager.h"
 
 extern "C" __declspec(dllexport) const ContainerizeAPI::Interface* Containerize_RequestAPI(std::uint32_t version) {
-    if (version != ContainerizeAPI::interface_version) return nullptr;
+    if (!version || version > ContainerizeAPI::interface_version) return nullptr;
     static const ContainerizeAPI::Interface api{
         [](const char* name) { return ChestManager::GetSingleton()->RegisterClient(name); },
         [](ContainerizeAPI::ClientID client) -> RE::FormID {
@@ -22,7 +22,8 @@ extern "C" __declspec(dllexport) const ContainerizeAPI::Interface* Containerize_
             return MainManager::GetSingleton()->Initialize(target, owner, instance);
         },
         [](RE::FormID target, const char* name) { return MainManager::GetSingleton()->Rename(target, name); },
-        [](RE::FormID target) { return MainManager::GetSingleton()->DeRegister(target); }
+        [](RE::FormID target) { return MainManager::GetSingleton()->DeRegister(target); },
+        [](RE::FormID chest) { return MainManager::GetSingleton()->GetTarget(chest); }
     };
     return &api;
 }

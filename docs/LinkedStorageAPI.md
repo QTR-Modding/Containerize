@@ -76,6 +76,16 @@ GetChest is a lookup only. It returns zero for an unregistered target, an origin
 
 Linked storage belongs to Containerize. Use normal engine inventory operations for your own items, then call Refresh after changing the contents. Leave Containerize's internal original item untouched, and do not return this chest through another client's ReturnChest or Uninstall calls.
 
+### Finding the linked item or reference
+
+```cpp
+const RE::FormID target = api->GetTarget(chest);
+```
+
+Pass the storage chest's reference FormID. For an inventory item, this returns its fake item FormID. For a placed item or furniture, it returns the placed reference FormID. Pass the result to `GetChest`, `Rename` or `DeRegister`.
+
+Unlinked chests, including bare rentals, return zero. The call also returns zero after Containerize uninstall. This lookup requires API version 2; version 1 clients remain compatible with the updated plugin.
+
 ## Refreshing Containerize-managed storage
 
 Containerize-managed storage is a chest connected to an item or furniture through Containerize's own registration. After changing its contents, refresh that storage once for the completed operation:

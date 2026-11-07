@@ -10,7 +10,7 @@ namespace ContainerizeAPI {
     using ClientID = std::uint32_t;
     constexpr ClientID containerize_client = 0;
     constexpr ClientID invalid_client = 0;
-    constexpr std::uint32_t interface_version = 1;
+    constexpr std::uint32_t interface_version = 2;
 
     struct Interface {
         // ChestManager: chest rentals owned by a registered client.
@@ -25,6 +25,7 @@ namespace ContainerizeAPI {
         RE::FormID (*Initialize)(RE::FormID target, RE::FormID owner, RE::ExtraDataList* instance);
         bool (*Rename)(RE::FormID target, const char* name);
         bool (*DeRegister)(RE::FormID target);
+        RE::FormID (*GetTarget)(RE::FormID chest);
     };
 
     [[nodiscard]] inline const Interface* RequestAPI() {

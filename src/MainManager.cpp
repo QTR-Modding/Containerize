@@ -262,6 +262,13 @@ RefID MainManager::GetChest(const FormID target) const {
     return Manager::GetSingleton()->GetChest(target);
 }
 
+FormID MainManager::GetTarget(const RefID chest) const {
+    const auto manager = Manager::GetSingleton();
+    if (manager->isUninstalled.load()) return 0;
+    if (const auto fake = manager->GetFakeID(chest)) return fake;
+    return WorldStorage::GetSingleton()->GetTarget(chest);
+}
+
 bool MainManager::Refresh(const RefID chest) {
     const auto world_storage = WorldStorage::GetSingleton();
     const bool refreshed = world_storage->GetTarget(chest)
