@@ -66,7 +66,7 @@ The item can be taken, equipped or removed normally. Containerize hides its Open
 ## Finding linked storage
 
 ```cpp
-const RE::FormID chest = api->GetChest(target);
+const RE::FormID chest = api->GetChest(linkedForm);
 if (!chest) return;  // No existing linked storage.
 ```
 
@@ -79,7 +79,7 @@ Linked storage belongs to Containerize. Use normal engine inventory operations f
 ### Finding the linked item or reference
 
 ```cpp
-const RE::FormID target = api->GetTarget(chest);
+const RE::FormID linkedForm = api->GetLinkedForm(chest);
 ```
 
 Pass the storage chest's reference FormID. For an inventory item, this returns its fake item FormID. For a placed item or furniture, it returns the placed reference FormID. Pass the result to `GetChest`, `Rename` or `DeRegister`.

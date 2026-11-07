@@ -13,19 +13,22 @@ namespace ContainerizeAPI {
     constexpr std::uint32_t interface_version = 2;
 
     struct Interface {
-        // ChestManager: chest rentals owned by a registered client.
+        // ChestManager: rent and return storage chests; no item or furniture links.
         ClientID (*RegisterClient)(const char* name);
         RE::FormID (*RentChest)(ClientID client);
         bool (*ReturnChest)(ClientID client, RE::FormID chest);
         bool (*Uninstall)(ClientID client);
 
-        // Containerize: storage linked to an item or furniture.
+        // Containerize: storage linked to inventory items or placed objects.
+        // A linked form is a fake inventory item or a placed reference.
+        // A fake item is the dynamic copy Containerize displays instead of the original.
         bool (*Refresh)(RE::FormID chest);
-        RE::FormID (*GetChest)(RE::FormID target);
-        RE::FormID (*Initialize)(RE::FormID target, RE::FormID owner, RE::ExtraDataList* instance);
-        bool (*Rename)(RE::FormID target, const char* name);
-        bool (*DeRegister)(RE::FormID target);
-        RE::FormID (*GetTarget)(RE::FormID chest);
+        RE::FormID (*GetChest)(RE::FormID linkedForm);
+        // Initialize also accepts an original item base FormID with its owning inventory.
+        RE::FormID (*Initialize)(RE::FormID linkedForm, RE::FormID owner, RE::ExtraDataList* instance);
+        bool (*Rename)(RE::FormID linkedForm, const char* name);
+        bool (*DeRegister)(RE::FormID linkedForm);
+        RE::FormID (*GetLinkedForm)(RE::FormID chest);
         RE::FormID (*GetRealID)(RE::FormID chest);
     };
 
