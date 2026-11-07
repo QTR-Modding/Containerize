@@ -5,6 +5,7 @@
 #include "Animations.h"
 #include "Papyrus.h"
 #include "QuickLoot.h"
+#include "Events.h"
 #include "CLibUtilsQTR/Tasker.hpp"
 
 bool MainManager::ActivateChest(RE::TESObjectREFR* chest) const {
@@ -263,8 +264,16 @@ RefID MainManager::GetChest(const FormID target) const {
 
 bool MainManager::Refresh(const RefID chest) {
     const auto world_storage = WorldStorage::GetSingleton();
-    if (world_storage->GetTarget(chest)) return world_storage->Refresh(chest);
-    return Manager::GetSingleton()->Refresh(chest);
+    const bool refreshed = world_storage->GetTarget(chest)
+                               ? world_storage->Refresh(chest)
+                               : Manager::GetSingleton()->Refresh(chest);
+    if (!refreshed) return false;
+    if (!IsInUse(chest)) {
+        if (const auto target = RE::CrosshairPickData::GetSingleton()->GetActiveTarget().get();
+            target && GetChest(target->GetFormID()) == chest)
+            EventSink::SendPrompts(target.get());
+    }
+    return true;
 }
 
 const Source* MainManager::GetSource(const RE::TESObjectREFR* target) const {

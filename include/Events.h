@@ -10,9 +10,9 @@ class EventSink final : public REX::Singleton<EventSink>,
 
     RE::NiPointer<RE::TESObjectREFR> furniture;
 
+public:
     static void SendPrompts(RE::TESObjectREFR* a_container);
 
-public:
     std::atomic<bool> furniture_entered = false;
 
     void Reset();
