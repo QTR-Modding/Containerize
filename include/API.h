@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cstdint>
+#include <span>
 #include <RE/B/BSCoreTypes.h>
 #include <Windows.h>
 
@@ -30,6 +31,8 @@ namespace ContainerizeAPI {
         bool (*DeRegister)(RE::FormID linkedForm);
         RE::FormID (*GetLinkedForm)(RE::FormID chest);
         RE::FormID (*GetRealID)(RE::FormID chest);
+        // Returns the total matching count; fills as many chest RefIDs as the buffer holds.
+        std::size_t (*GetChests)(RE::FormID baseForm, std::span<RE::FormID> chests);
     };
 
     [[nodiscard]] inline const Interface* RequestAPI() {

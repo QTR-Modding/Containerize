@@ -183,6 +183,7 @@ public:
     void Uninstall(bool delete_fake_forms = false);
     void FinishUninstall();
     bool Refresh(RefID chest_refid);
+    [[nodiscard]] std::size_t GetChests(FormID baseForm, std::span<RefID> chests) const;
     [[nodiscard]] RefID GetChest(FormID target_id) const;
     [[nodiscard]] FormID Initialize(FormID target_id, RefID owner_id, RE::ExtraDataList* instance);
     bool Rename(FormID fake_id, const char* name);

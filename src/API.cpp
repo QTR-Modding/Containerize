@@ -25,7 +25,10 @@ extern "C" __declspec(dllexport) const ContainerizeAPI::Interface* Containerize_
         [](RE::FormID linkedForm, const char* name) { return MainManager::GetSingleton()->Rename(linkedForm, name); },
         [](RE::FormID linkedForm) { return MainManager::GetSingleton()->DeRegister(linkedForm); },
         [](RE::FormID chest) { return MainManager::GetSingleton()->GetTarget(chest); },
-        [](RE::FormID chest) { return Manager::GetSingleton()->GetRealID(chest); }
+        [](RE::FormID chest) { return Manager::GetSingleton()->GetRealID(chest); },
+        [](RE::FormID baseForm, std::span<RE::FormID> chests) {
+            return MainManager::GetSingleton()->GetChests(baseForm, chests);
+        }
     };
     return &api;
 }

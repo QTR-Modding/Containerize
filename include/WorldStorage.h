@@ -26,6 +26,7 @@ public:
     void LoadSources(std::vector<Source> configured_sources);
     [[nodiscard]] std::unordered_map<FormID, Source> GetSources() const;
     [[nodiscard]] const Source* GetSource(FormID formid) const;
+    [[nodiscard]] std::size_t GetChests(FormID baseForm, std::span<RefID> chests) const;
     [[nodiscard]] RefID GetTarget(RefID chest) const;
     [[nodiscard]] bool Refresh(RefID chest) const;
     [[nodiscard]] std::string GetWeightText(RE::TESObjectREFR* target) const;

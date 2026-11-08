@@ -19,6 +19,7 @@ class MainManager final : public REX::Singleton<MainManager> {
 public:
     [[nodiscard]] std::unordered_map<FormID, Source> GetSources() const;
     [[nodiscard]] const Source* GetSource(const RE::TESObjectREFR* target) const;
+    [[nodiscard]] std::size_t GetChests(FormID baseForm, std::span<RefID> chests) const;
     [[nodiscard]] RefID GetChest(FormID target) const;
     [[nodiscard]] FormID GetTarget(RefID chest) const;
     [[nodiscard]] bool Refresh(RefID chest);

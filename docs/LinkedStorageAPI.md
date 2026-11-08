@@ -86,6 +86,15 @@ Pass the storage chest's reference FormID. For an inventory item, this returns i
 
 Unlinked chests, including bare rentals, return zero. The call also returns zero after Containerize uninstall. This lookup requires API version 2; version 1 clients remain compatible with the updated plugin.
 
+## Finding all linked chests for a base form
+
+```cpp
+std::vector<RE::FormID> chests(api->GetChests(baseForm, {}));
+api->GetChests(baseForm, chests);
+```
+
+Pass the original item's or furniture's base FormID. The first call gets the count; the second fills your buffer with chest reference FormIDs. The return value is always the total count, even when the buffer is smaller. No matches, including after uninstall, returns zero. Requires API version 2.
+
 ## Finding the original item
 
 ```cpp

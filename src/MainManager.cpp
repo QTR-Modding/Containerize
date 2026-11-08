@@ -257,6 +257,14 @@ std::unordered_map<FormID, Source> MainManager::GetSources() const {
     return sources;
 }
 
+std::size_t MainManager::GetChests(const FormID baseForm, std::span<RefID> chests) const {
+    const auto manager = Manager::GetSingleton();
+    if (manager->isUninstalled.load()) return 0;
+    const auto world_storage = WorldStorage::GetSingleton();
+    return world_storage->GetSource(baseForm) ? world_storage->GetChests(baseForm, chests)
+                                              : manager->GetChests(baseForm, chests);
+}
+
 RefID MainManager::GetChest(const FormID target) const {
     if (const auto chest = WorldStorage::GetSingleton()->GetChest(target)) return chest;
     return Manager::GetSingleton()->GetChest(target);
