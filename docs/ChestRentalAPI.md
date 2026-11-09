@@ -71,4 +71,4 @@ See [Containerize-linked storage](LinkedStorageAPI.md) for initialization, looku
 
 Call the API on the game thread after a successful `kPostLoadGame` or `kNewGame` message.
 
-`RequestAPI()` returns null when Containerize is unavailable or the interface version is unsupported. The interface contains the function pointers shown above and remains valid while Containerize is loaded. Consumers need Windows and CommonLibVR-MIT headers; no Containerize implementation headers or import library are required.
+`RequestAPI()` returns null when Containerize is unavailable or the interface version is unsupported. The interface contains the function pointers shown above and remains valid while Containerize is loaded. Consumers need Windows and CommonLib headers; no Containerize implementation headers or import library are required.
