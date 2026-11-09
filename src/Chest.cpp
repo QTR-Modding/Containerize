@@ -283,6 +283,9 @@ bool ChestManager::ReturnChest(const ContainerizeAPI::ClientID client_id, RE::TE
         std::unique_lock lock(register_mutex);
         const auto lease = rental_state.rented.find(chest->GetFormID());
         if (lease == rental_state.rented.end() || lease->second != client_id) return false;
+        if (chest->extraList.HasType<RE::ExtraOwnership>()) {
+            chest->SetOwner(nullptr);
+        }
         rental_state.rented.erase(lease);
         if (!empty) rental_state.returned.insert(chest->GetFormID());
     }

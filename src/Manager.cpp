@@ -536,11 +536,12 @@ bool Manager::DeRegister(RE::TESObjectREFR* chest, RE::TESObjectREFR* transfer_d
         }
     }
     if (transfer_dest) {
+        const auto reason = chest->GetOwner() ? RE::ITEM_REMOVE_REASON::kSteal : RE::ITEM_REMOVE_REASON::kRemove;
         for (auto& [fst,snd] : chest->GetInventory()) {
             if (snd.first <= 0) continue;
             const auto replacement_pair = std::make_pair(transfer_dest->GetFormID(), fst->GetFormID());
             MainManager::GetSingleton()->SetCapacityBypass(replacement_pair, true);
-            chest->RemoveItem(fst, snd.first, RE::ITEM_REMOVE_REASON::kRemove, nullptr, transfer_dest);
+            chest->RemoveItem(fst, snd.first, reason, nullptr, transfer_dest);
             MainManager::GetSingleton()->SetCapacityBypass(replacement_pair, false);
         }
     }
