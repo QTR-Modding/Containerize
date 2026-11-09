@@ -21,7 +21,7 @@ public:
     [[nodiscard]] const Source* GetSource(const RE::TESObjectREFR* target) const;
     [[nodiscard]] RefID GetChest(FormID target) const;
     [[nodiscard]] bool Refresh(RefID chest);
-    void UpdateStealingFlag(RE::InventoryEntryData* entry, RE::TESObjectREFR* inventory, RE::GFxValue& data) const;
+    void UpdateStealingFlag(RE::InventoryEntryData* entry, RE::TESObjectREFR* inventory, RE::GFxValue& data, const char* flag) const;
     [[nodiscard]] std::string GetWeightText(RE::TESObjectREFR* target) const;
     [[nodiscard]] std::string GetValueText(RE::TESObjectREFR* target) const;
     [[nodiscard]] bool IsTokenMode(const RE::TESObjectREFR* target) const;

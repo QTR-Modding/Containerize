@@ -263,7 +263,7 @@ RefID MainManager::GetChest(const FormID target) const {
 }
 
 void MainManager::UpdateStealingFlag(RE::InventoryEntryData* entry, RE::TESObjectREFR* inventory,
-                                      RE::GFxValue& data) const {
+                                      RE::GFxValue& data, const char* flag) const {
     if (!entry->object->IsDynamicForm() || Manager::GetSingleton()->isUninstalled.load() || inventory->IsPlayerRef()) {
         return;
     }
@@ -278,7 +278,7 @@ void MainManager::UpdateStealingFlag(RE::InventoryEntryData* entry, RE::TESObjec
     const auto owner = chest->GetOwner();
     if (owner) {
         const auto stealing = !RE::PlayerCharacter::GetSingleton()->IsAllowedToTakeItem(owner, entry->GetValue());
-        if (!data.SetMember("isStealing", RE::GFxValue(stealing))) {
+        if (!data.SetMember(flag, RE::GFxValue(stealing))) {
             logger::trace("Could not set storage theft indicator for {:08X}.", entry->object->GetFormID());
         }
     }

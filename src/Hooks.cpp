@@ -305,7 +305,7 @@ void Hooks::StealingFlagsHook::thunk(const RE::BSTArray<RE::ItemList::Item*>& it
     }
     for (const auto item : items) {
         if (item->data.owner == owner.owner) {
-            MainManager::GetSingleton()->UpdateStealingFlag(item->data.objDesc, inventory.get(), item->obj);
+            MainManager::GetSingleton()->UpdateStealingFlag(item->data.objDesc, inventory.get(), item->obj, "isStealing");
         }
     }
 }

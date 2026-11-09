@@ -110,6 +110,6 @@ void QuickLootIntegration::OnModifyItemData(QuickLoot::API::ModifyItemDataEvent*
         return;
     }
     if (const auto inventory = event->container.get()) {
-        MainManager::GetSingleton()->UpdateStealingFlag(event->stack->entry, inventory.get(), event->data);
+        MainManager::GetSingleton()->UpdateStealingFlag(event->stack->entry, inventory.get(), event->data, "stolen");
     }
 }
