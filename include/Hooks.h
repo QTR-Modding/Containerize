@@ -46,6 +46,11 @@ namespace Hooks {
         static inline REL::Relocation<decltype(thunk)> originalFunction;
     };
 
+    struct StealingFlagsHook {
+        static void thunk(const RE::BSTArray<RE::ItemList::Item*>& items, const RE::ContainerMenu::ItemOwner& owner);
+        static inline REL::Relocation<decltype(thunk)> func;
+    };
+
     template <typename MenuType>
     class MenuHook : public MenuType {
         using ProcessMessage_t = decltype(&MenuType::ProcessMessage);

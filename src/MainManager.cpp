@@ -262,6 +262,27 @@ RefID MainManager::GetChest(const FormID target) const {
     return Manager::GetSingleton()->GetChest(target);
 }
 
+void MainManager::UpdateStealingFlag(RE::InventoryEntryData* entry, RE::TESObjectREFR* inventory,
+                                      RE::GFxValue& data) const {
+    if (!entry->object->IsDynamicForm() || Manager::GetSingleton()->isUninstalled.load() || inventory->IsPlayerRef()) {
+        return;
+    }
+    if (const auto actor = inventory->As<RE::Actor>(); actor && actor->IsDead(false)) {
+        return;
+    }
+    const auto chest = RE::TESForm::LookupByID<RE::TESObjectREFR>(
+        Manager::GetSingleton()->GetChest(entry->object->GetFormID()));
+    if (!chest) {
+        return;
+    }
+    const auto owner = chest->GetOwner();
+    if (owner && !RE::PlayerCharacter::GetSingleton()->IsAllowedToTakeItem(owner, entry->GetValue())) {
+        if (!data.SetMember("isStealing", RE::GFxValue(true))) {
+            logger::trace("Could not set storage theft indicator for {:08X}.", entry->object->GetFormID());
+        }
+    }
+}
+
 bool MainManager::Refresh(const RefID chest) {
     const auto world_storage = WorldStorage::GetSingleton();
     const bool refreshed = world_storage->GetTarget(chest)
