@@ -276,8 +276,9 @@ void MainManager::UpdateStealingFlag(RE::InventoryEntryData* entry, RE::TESObjec
         return;
     }
     const auto owner = chest->GetOwner();
-    if (owner && !RE::PlayerCharacter::GetSingleton()->IsAllowedToTakeItem(owner, entry->GetValue())) {
-        if (!data.SetMember("isStealing", RE::GFxValue(true))) {
+    if (owner) {
+        const auto stealing = !RE::PlayerCharacter::GetSingleton()->IsAllowedToTakeItem(owner, entry->GetValue());
+        if (!data.SetMember("isStealing", RE::GFxValue(stealing))) {
             logger::trace("Could not set storage theft indicator for {:08X}.", entry->object->GetFormID());
         }
     }
