@@ -571,55 +571,6 @@ bool xData::UpdateExtrasInInventory(RE::TESObjectREFR* from_ref, const FormID fr
     return true;
 }
 
-void Inventory::InheritOwnership(RE::TESObjectREFR* chest, const RE::TESObjectREFR::InventoryItemMap& inventory) {
-    const auto owner = chest->GetOwner();
-    if (!owner) {
-        return;
-    }
-    const auto changes = chest->GetInventoryChanges();
-    if (!changes) {
-        return;
-    }
-    std::unordered_map<RE::TESBoundObject*, RE::InventoryEntryData*> entries;
-    if (changes->entryList) {
-        for (const auto entry : *changes->entryList) {
-            if (entry) {
-                entries.emplace(entry->object, entry);
-            }
-        }
-    }
-    for (const auto& [item, data] : inventory) {
-        if (data.first <= 0) {
-            continue;
-        }
-        auto& entry = entries[item];
-        if (!entry) {
-            entry = new RE::InventoryEntryData(item, 0);
-            changes->AddEntryData(entry);
-        }
-        auto remaining = data.first;
-        if (entry->extraLists) {
-            for (const auto instance : *entry->extraLists) {
-                if (!instance) {
-                    continue;
-                }
-                remaining -= instance->GetCount();
-                if (!instance->GetOwner()) {
-                    instance->SetOwner(owner);
-                }
-            }
-        }
-        while (remaining > 0) {
-            const auto count = std::min<std::int32_t>(remaining, std::numeric_limits<std::int16_t>::max());
-            const auto instance = RE::ExtraDataList::Create();
-            instance->SetOwner(owner);
-            instance->SetCount(static_cast<std::uint16_t>(count));
-            entry->AddExtraList(instance);
-            remaining -= count;
-        }
-    }
-}
-
 bool Inventory::EntryHasXDataList(const RE::InventoryEntryData* entry) {
     if (entry && entry->extraLists && !entry->extraLists->empty()) return true;
     return false;

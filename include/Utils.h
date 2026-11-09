@@ -250,8 +250,6 @@ namespace MsgBoxesNotifs {
 };
 
 namespace Inventory {
-    void InheritOwnership(RE::TESObjectREFR* chest, const RE::TESObjectREFR::InventoryItemMap& inventory);
-
     bool EntryHasXDataList(const RE::InventoryEntryData* entry);
 
     inline bool HasItemEntry(RE::TESBoundObject* item,

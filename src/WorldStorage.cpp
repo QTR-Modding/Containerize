@@ -149,11 +149,10 @@ bool WorldStorage::DeRegister(const RefID target, const bool force) {
 bool WorldStorage::ReturnChest(RE::TESObjectREFR* chest) {
     const auto chest_id = chest->GetFormID();
     const auto player = RE::PlayerCharacter::GetSingleton();
-    const auto inventory = chest->GetInventory();
-    Inventory::InheritOwnership(chest, inventory);
-    for (auto& [item, entry] : inventory) {
+    const auto reason = chest->GetOwner() ? RE::ITEM_REMOVE_REASON::kSteal : RE::ITEM_REMOVE_REASON::kRemove;
+    for (auto& [item, entry] : chest->GetInventory()) {
         if (entry.first <= 0) continue;
-        chest->RemoveItem(item, entry.first, RE::ITEM_REMOVE_REASON::kRemove, nullptr, player);
+        chest->RemoveItem(item, entry.first, reason, nullptr, player);
     }
     if (!ChestManager::IsEmpty(chest)) MsgBoxesNotifs::InGame::ReportTransferFailure(chest_id);
     const auto chest_manager = ChestManager::GetSingleton();
