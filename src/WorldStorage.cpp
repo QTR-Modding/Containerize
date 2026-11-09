@@ -149,7 +149,9 @@ bool WorldStorage::DeRegister(const RefID target, const bool force) {
 bool WorldStorage::ReturnChest(RE::TESObjectREFR* chest) {
     const auto chest_id = chest->GetFormID();
     const auto player = RE::PlayerCharacter::GetSingleton();
-    for (auto& [item, entry] : chest->GetInventory()) {
+    const auto inventory = chest->GetInventory();
+    Inventory::InheritOwnership(chest, inventory);
+    for (auto& [item, entry] : inventory) {
         if (entry.first <= 0) continue;
         chest->RemoveItem(item, entry.first, RE::ITEM_REMOVE_REASON::kRemove, nullptr, player);
     }

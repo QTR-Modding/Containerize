@@ -536,7 +536,9 @@ bool Manager::DeRegister(RE::TESObjectREFR* chest, RE::TESObjectREFR* transfer_d
         }
     }
     if (transfer_dest) {
-        for (auto& [fst,snd] : chest->GetInventory()) {
+        const auto inventory = chest->GetInventory();
+        Inventory::InheritOwnership(chest, inventory);
+        for (auto& [fst,snd] : inventory) {
             if (snd.first <= 0) continue;
             const auto replacement_pair = std::make_pair(transfer_dest->GetFormID(), fst->GetFormID());
             MainManager::GetSingleton()->SetCapacityBypass(replacement_pair, true);
