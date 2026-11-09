@@ -32,6 +32,7 @@ public:
     static void RenameCallback(RE::TESForm* target);
     [[nodiscard]] FormID Initialize(FormID target, RefID owner, RE::ExtraDataList* instance);
     [[nodiscard]] bool DeRegister(FormID target);
+    [[nodiscard]] bool BeforePickup(RE::TESObjectREFR* actor, RE::TESObjectREFR* object, Count count);
     [[nodiscard]] Count CanBeAdded(const RE::TESBoundObject* item, Count count, RE::TESObjectREFR* chest);
     void SetCapacityBypass(const std::pair<RefID, FormID>& target, bool enabled);
     void OnActivateContainer(RE::TESObjectREFR* target, int action, int delay = 0, bool use_quickloot = false);

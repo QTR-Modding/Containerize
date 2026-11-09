@@ -56,6 +56,7 @@ struct Source {
     float capacity;
     bool transfer_on_use;
     bool token_mode = false;
+    bool world_storage = false;
     bool quickloot = true;
     struct SkyPromptSettings {
         bool attach = false;

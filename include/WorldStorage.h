@@ -10,7 +10,7 @@ class WorldStorage final : public REX::Singleton<WorldStorage> {
     std::unordered_map<RefID, FormRefID> chests;
     std::unordered_map<FormID, Source> sources;
 
-    [[nodiscard]] bool ReturnChest(RE::TESObjectREFR* chest);
+    [[nodiscard]] bool ReturnChest(RE::TESObjectREFR* chest, RE::TESObjectREFR* destination = nullptr);
 
 public:
     static constexpr std::array form_types{RE::TESFurniture::FORMTYPE};
@@ -37,7 +37,7 @@ public:
     [[nodiscard]] RefID Register(RE::TESObjectREFR* target);
     [[nodiscard]] RefID GetChest(RefID target) const;
     [[nodiscard]] bool Rename(RE::TESObjectREFR* target, const char* name);
-    [[nodiscard]] bool DeRegister(RefID target, bool force = false);
+    [[nodiscard]] bool DeRegister(RefID target, bool force = false, RE::TESObjectREFR* destination = nullptr);
     [[nodiscard]] bool Uninstall();
     void HandleFormDelete(RefID target);
 };
