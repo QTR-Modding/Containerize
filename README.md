@@ -1,6 +1,6 @@
 #### WINDOWS ENVIRONMENT VARIABLES TO SET
 
-1. **`COMMONLIB_SSE_FOLDER`**: The path to your clone of [CommonLibVR-MIT](https://github.com/QTR-Modding/CommonLibVR-MIT/tree/ng). Use [8b07af3](https://github.com/QTR-Modding/CommonLibVR-MIT/commit/8b07af373533a0d04221c9bf16bca04efde6dbff) or later to build Containerize.
+1. **`COMMONLIB_SSE_FOLDER`**: The path to your clone of CommonLib.
 2. **`VCPKG_ROOT`**: The path to your clone of [vcpkg](https://github.com/microsoft/vcpkg).
 3. (optional) **`SKYRIM_FOLDER`**: path of your Skyrim Special Edition folder.
 4. (optional) **`SKYRIM_MODS_FOLDER`**: path of the folder where your mods are.
