@@ -84,7 +84,7 @@ const RE::FormID linkedForm = api->GetLinkedForm(chest);
 
 Pass the storage chest's reference FormID. For items, this returns the fake item FormID. For furniture, it returns the placed reference FormID. Pass the result to `GetChest`, `Rename` or `DeRegister`.
 
-Unlinked chests, including bare rentals, return zero. The call also returns zero after Containerize uninstall. This lookup requires API version 2; version 1 clients remain compatible with the updated plugin.
+Unlinked chests, including bare rentals, return zero. The call also returns zero after Containerize uninstall.
 
 ## Finding all linked chests for a base form
 
@@ -93,7 +93,7 @@ std::vector<RE::FormID> chests(api->GetChests(baseForm, {}));
 api->GetChests(baseForm, chests);
 ```
 
-Pass the original item's or furniture's base FormID. The first call gets the count; the second fills your buffer with chest reference FormIDs. The return value is always the total count, even when the buffer is smaller. No matches, including after uninstall, returns zero. Requires API version 2.
+Pass the original item's or furniture's base FormID. The first call gets the count; the second fills your buffer with chest reference FormIDs. The return value is always the total count, even when the buffer is smaller. No matches, including after uninstall, returns zero.
 
 ## Finding the original item
 
@@ -101,7 +101,7 @@ Pass the original item's or furniture's base FormID. The first call gets the cou
 const RE::FormID original = api->GetRealID(chest);
 ```
 
-Pass an inventory item's storage chest reference FormID. This returns the original item's base FormID, or zero when the chest has no registered inventory item. Requires API version 2.
+Pass an inventory item's storage chest reference FormID. This returns the original item's base FormID, or zero when the chest has no registered inventory item.
 
 ## Refreshing Containerize-managed storage
 

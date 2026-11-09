@@ -11,7 +11,7 @@ namespace ContainerizeAPI {
     using ClientID = std::uint32_t;
     constexpr ClientID containerize_client = 0;
     constexpr ClientID invalid_client = 0;
-    constexpr std::uint32_t interface_version = 2;
+    constexpr std::uint32_t interface_version = 1;
 
     struct Interface {
         // ChestManager: rent and return storage chests; no item or furniture links.

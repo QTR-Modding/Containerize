@@ -4,7 +4,7 @@
 #include "Manager.h"
 
 extern "C" __declspec(dllexport) const ContainerizeAPI::Interface* Containerize_RequestAPI(std::uint32_t version) {
-    if (!version || version > ContainerizeAPI::interface_version) return nullptr;
+    if (version != ContainerizeAPI::interface_version) return nullptr;
     static const ContainerizeAPI::Interface api{
         [](const char* name) { return ChestManager::GetSingleton()->RegisterClient(name); },
         [](ContainerizeAPI::ClientID client) -> RE::FormID {
