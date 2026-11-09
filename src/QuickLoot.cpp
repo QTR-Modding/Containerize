@@ -1,5 +1,4 @@
 #include "QuickLoot.h"
-#include "QuickLootAPI.h"
 #include "MainManager.h"
 #include "Manager.h"
 #include "SkyPrompt.h"
@@ -45,6 +44,7 @@ namespace QuickLootIntegration {
     void Install() {
         installed = API::Init(SKSE::PluginDeclaration::GetSingleton()->GetName().data());
         if (!installed) return;
+        API::RegisterModifyItemDataHandler(OnModifyItemData);
         API::RegisterTakeItemHandler(OnTake);
         API::RegisterInputActionHandler(OnInput);
         logger::info("QuickLoot integration enabled.");
@@ -102,5 +102,14 @@ namespace QuickLootIntegration {
         view = {target->GetHandle(), chest->GetHandle()};
         API::ForceCurrentContainer(view.chest);
         return true;
+    }
+}
+
+void QuickLootIntegration::OnModifyItemData(QuickLoot::API::ModifyItemDataEvent* event) {
+    if (!event->stack || event->stack->dropRef) {
+        return;
+    }
+    if (const auto inventory = event->container.get()) {
+        MainManager::GetSingleton()->UpdateStealingFlag(event->stack->entry, inventory.get(), event->data, "stolen");
     }
 }
