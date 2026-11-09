@@ -23,6 +23,11 @@ namespace {
                 SkyPrompt::g_clientID = SkyPromptAPI::RequestClientID();
             }
             if (SkyPrompt::g_clientID > 0) {
+                constexpr SkyPromptAPI::HandshakeKey containerize = 0x4354525A;
+                constexpr SkyPromptAPI::HandshakeKey cooking = 0x435454;
+                if (!SkyPromptAPI::RequestHandshake(SkyPrompt::g_clientID, containerize, cooking)) {
+                    logger::error("Could not register the Cooking Takes Time prompt handshake.");
+                }
                 std::vector<Source> world_sources;
                 auto sources = Settings::LoadSources(world_sources);
                 if (sources.empty() && world_sources.empty()) {
