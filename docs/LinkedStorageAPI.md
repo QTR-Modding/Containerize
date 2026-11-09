@@ -82,7 +82,7 @@ Linked storage belongs to Containerize. Use normal engine inventory operations f
 const RE::FormID linkedForm = api->GetLinkedForm(chest);
 ```
 
-Pass the storage chest's reference FormID. For an inventory item, this returns its fake item FormID. For a placed item or furniture, it returns the placed reference FormID. Pass the result to `GetChest`, `Rename` or `DeRegister`.
+Pass the storage chest's reference FormID. For items, this returns the fake item FormID. For furniture, it returns the placed reference FormID. Pass the result to `GetChest`, `Rename` or `DeRegister`.
 
 Unlinked chests, including bare rentals, return zero. The call also returns zero after Containerize uninstall. This lookup requires API version 2; version 1 clients remain compatible with the updated plugin.
 
