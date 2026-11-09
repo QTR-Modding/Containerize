@@ -1,6 +1,7 @@
 #include "API.h"
 #include "Chest.h"
 #include "MainManager.h"
+#include "Manager.h"
 
 extern "C" __declspec(dllexport) const ContainerizeAPI::Interface* Containerize_RequestAPI(std::uint32_t version) {
     if (version != ContainerizeAPI::interface_version) return nullptr;
@@ -17,12 +18,17 @@ extern "C" __declspec(dllexport) const ContainerizeAPI::Interface* Containerize_
         },
         [](ContainerizeAPI::ClientID client) { return ChestManager::GetSingleton()->Uninstall(client); },
         [](RE::FormID chest) { return MainManager::GetSingleton()->Refresh(chest); },
-        [](RE::FormID target) { return MainManager::GetSingleton()->GetChest(target); },
-        [](RE::FormID target, RE::FormID owner, RE::ExtraDataList* instance) {
-            return MainManager::GetSingleton()->Initialize(target, owner, instance);
+        [](RE::FormID linkedForm) { return MainManager::GetSingleton()->GetChest(linkedForm); },
+        [](RE::FormID linkedForm, RE::FormID owner, RE::ExtraDataList* instance) {
+            return MainManager::GetSingleton()->Initialize(linkedForm, owner, instance);
         },
-        [](RE::FormID target, const char* name) { return MainManager::GetSingleton()->Rename(target, name); },
-        [](RE::FormID target) { return MainManager::GetSingleton()->DeRegister(target); }
+        [](RE::FormID linkedForm, const char* name) { return MainManager::GetSingleton()->Rename(linkedForm, name); },
+        [](RE::FormID linkedForm) { return MainManager::GetSingleton()->DeRegister(linkedForm); },
+        [](RE::FormID chest) { return MainManager::GetSingleton()->GetTarget(chest); },
+        [](RE::FormID chest) { return Manager::GetSingleton()->GetRealID(chest); },
+        [](RE::FormID baseForm, std::span<RE::FormID> chests) {
+            return MainManager::GetSingleton()->GetChests(baseForm, chests);
+        }
     };
     return &api;
 }

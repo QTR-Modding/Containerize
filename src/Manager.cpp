@@ -794,6 +794,18 @@ bool Manager::DeRegister(const FormID target_id) {
     return true;
 }
 
+std::size_t Manager::GetChests(const FormID baseForm, std::span<RefID> chests) const {
+    SHARED_GUARD;
+    const auto source = GetContainerSource_NoLock(baseForm);
+    if (!source) return 0;
+    auto output = chests.begin();
+    for (const auto& [chest, owner] : source->data) {
+        if (output == chests.end()) break;
+        *output++ = chest;
+    }
+    return source->data.size();
+}
+
 RefID Manager::GetChest(const FormID target_id) const {
     if (isUninstalled.load()) return 0;
     RefID chest_id = 0;

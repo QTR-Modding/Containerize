@@ -104,9 +104,6 @@ class Manager final : public Serialization::SaveLoadData,
     // [locks source_mutex_ and chest2fake_mutex_ (unique)]
     bool DeRegister_Sub(FormID master_formID, RefID chest_refID);
 
-    // [locks chest2fake_mutex_ (shared)]
-    FormID GetFakeID(RefID chest_id) const;
-
     // [locks source_mutex_ (shared)]
     [[nodiscard]] RefID GetContainerChestID(RefID a_loc_refid) const;
     // [locks chest2fake_mutex_ (shared)]
@@ -121,6 +118,7 @@ class Manager final : public Serialization::SaveLoadData,
 
 public:
     // [locks chest2fake_mutex_ (shared)]
+    FormID GetFakeID(RefID chest_id) const;
     FormID GetRealID(RefID chest_id) const;
     std::string GetChestName(const RE::TESObjectREFR* chest) const;
     [[nodiscard]] RE::TESObjectREFR* GetContainerChest(const RE::TESObjectREFR* a_loc) const;
@@ -185,6 +183,7 @@ public:
     void Uninstall(bool delete_fake_forms = false);
     void FinishUninstall();
     bool Refresh(RefID chest_refid);
+    [[nodiscard]] std::size_t GetChests(FormID baseForm, std::span<RefID> chests) const;
     [[nodiscard]] RefID GetChest(FormID target_id) const;
     [[nodiscard]] FormID Initialize(FormID target_id, RefID owner_id, RE::ExtraDataList* instance);
     bool Rename(FormID fake_id, const char* name);

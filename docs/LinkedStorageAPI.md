@@ -66,7 +66,7 @@ The item can be taken, equipped or removed normally. Containerize hides its Open
 ## Finding linked storage
 
 ```cpp
-const RE::FormID chest = api->GetChest(target);
+const RE::FormID chest = api->GetChest(linkedForm);
 if (!chest) return;  // No existing linked storage.
 ```
 
@@ -75,6 +75,33 @@ Pass a placed item's or furniture's reference FormID, or the fake item FormID of
 GetChest is a lookup only. It returns zero for an unregistered target, an original base FormID, missing or deleted storage, or after Containerize uninstall. Passing an actor or an ordinary container does not retrieve storage belonging to an item inside it. The call does not create storage or register the target.
 
 Linked storage belongs to Containerize. Use normal engine inventory operations for your own items, then call Refresh after changing the contents. Leave Containerize's internal original item untouched, and do not return this chest through another client's ReturnChest or Uninstall calls.
+
+### Finding the linked item or reference
+
+```cpp
+const RE::FormID linkedForm = api->GetLinkedForm(chest);
+```
+
+Pass the storage chest's reference FormID. For items, this returns the fake item FormID. For furniture, it returns the placed reference FormID. Pass the result to `GetChest`, `Rename` or `DeRegister`.
+
+Unlinked chests, including bare rentals, return zero. The call also returns zero after Containerize uninstall.
+
+## Finding all linked chests for a base form
+
+```cpp
+std::vector<RE::FormID> chests(api->GetChests(baseForm, {}));
+api->GetChests(baseForm, chests);
+```
+
+Pass the original item's or furniture's base FormID. The first call gets the count; the second fills your buffer with chest reference FormIDs. The return value is always the total count, even when the buffer is smaller. No matches, including after uninstall, returns zero.
+
+## Finding the original item
+
+```cpp
+const RE::FormID original = api->GetRealID(chest);
+```
+
+Pass an inventory item's storage chest reference FormID. This returns the original item's base FormID, or zero when the chest has no registered inventory item.
 
 ## Refreshing Containerize-managed storage
 
