@@ -100,6 +100,7 @@ namespace SkyPrompt {
         RE::RaceSexMenu::MENU_NAME,
     };
 
+    void LoadHandshakes();
     bool IsAnyMenuOpen();
 
     inline std::map<FormID, RE::NiPointer<RE::NiAVObject>> saved_models;

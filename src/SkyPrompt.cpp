@@ -5,6 +5,7 @@
 #include "Hooks.h"
 #include "Manager.h"
 #include "CLibUtilsQTR/Tasker.hpp"
+#include "ClibUtil/distribution.hpp"
 
 using namespace SkyPrompt;
 
@@ -27,6 +28,42 @@ namespace {
             return a.eventID == b.eventID && a.refid == b.refid;
         }))) SkyPromptAPI::RemovePrompt(sink, g_clientID);
         prompts.assign(visible.begin(), visible.end());
+    }
+}
+
+void SkyPrompt::LoadHandshakes() {
+    constexpr auto folder = "Data/SKSE/Plugins/Containerize/handshakes";
+    constexpr SkyPromptAPI::HandshakeKey containerize = 0x4354525A;
+    if (!std::filesystem::is_directory(folder)) {
+        return;
+    }
+    for (const auto& filename : clib_util::distribution::get_configs(folder, "", ".txt")) {
+        std::ifstream file(filename);
+        if (!file.is_open()) {
+            logger::error("Could not read handshake file '{}'.", filename);
+            continue;
+        }
+        std::string line;
+        while (std::getline(file, line)) {
+            clib_util::string::trim(line);
+            if (line.empty()) {
+                continue;
+            }
+            std::string_view value(line);
+            constexpr std::string_view prefix = "0x";
+            if (value.starts_with(prefix) || value.starts_with("0X")) {
+                value.remove_prefix(prefix.size());
+            }
+            SkyPromptAPI::HandshakeKey key{};
+            const auto parsed = std::from_chars(value.data(), value.data() + value.size(), key, 16);
+            if (parsed.ec != std::errc{} || parsed.ptr != value.data() + value.size()) {
+                logger::error("Invalid handshake key '{}' in '{}'.", line, filename);
+                continue;
+            }
+            if (!SkyPromptAPI::RequestHandshake(g_clientID, containerize, key)) {
+                logger::error("Could not register handshake key '{}' from '{}'.", line, filename);
+            }
+        }
     }
 }
 
