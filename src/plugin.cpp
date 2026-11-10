@@ -23,6 +23,7 @@ namespace {
                 SkyPrompt::g_clientID = SkyPromptAPI::RequestClientID();
             }
             if (SkyPrompt::g_clientID > 0) {
+                SkyPrompt::LoadHandshakes();
                 std::vector<Source> world_sources;
                 auto sources = Settings::LoadSources(world_sources);
                 if (sources.empty() && world_sources.empty()) {

@@ -140,7 +140,7 @@ bool WorldStorage::Rename(RE::TESObjectREFR* target, const char* name) {
     return target->SetDisplayName(name, false) && chest->SetDisplayName(name, true);
 }
 
-bool WorldStorage::DeRegister(const RefID target, const bool force) {
+bool WorldStorage::DeRegister(const RefID target, const bool force, RE::TESObjectREFR* destination) {
     RE::TESObjectREFR* chest;
     RefID chest_id;
     {
@@ -154,16 +154,21 @@ bool WorldStorage::DeRegister(const RefID target, const bool force) {
     }
 
     if (force) MainManager::GetSingleton()->ForgetChest(chest_id);
-    return ReturnChest(chest);
+    return ReturnChest(chest, destination);
 }
 
-bool WorldStorage::ReturnChest(RE::TESObjectREFR* chest) {
+bool WorldStorage::ReturnChest(RE::TESObjectREFR* chest, RE::TESObjectREFR* destination) {
     const auto chest_id = chest->GetFormID();
-    const auto player = RE::PlayerCharacter::GetSingleton();
+    if (!destination) {
+        destination = RE::PlayerCharacter::GetSingleton();
+    }
     const auto reason = chest->GetOwner() ? RE::ITEM_REMOVE_REASON::kSteal : RE::ITEM_REMOVE_REASON::kRemove;
     for (auto& [item, entry] : chest->GetInventory()) {
         if (entry.first <= 0) continue;
-        chest->RemoveItem(item, entry.first, reason, nullptr, player);
+        const auto transfer = std::make_pair(destination->GetFormID(), item->GetFormID());
+        MainManager::GetSingleton()->SetCapacityBypass(transfer, true);
+        chest->RemoveItem(item, entry.first, reason, nullptr, destination);
+        MainManager::GetSingleton()->SetCapacityBypass(transfer, false);
     }
     if (!ChestManager::IsEmpty(chest)) MsgBoxesNotifs::InGame::ReportTransferFailure(chest_id);
     const auto chest_manager = ChestManager::GetSingleton();
@@ -173,7 +178,7 @@ bool WorldStorage::ReturnChest(RE::TESObjectREFR* chest) {
         logger::critical("Failed to return chest {:x} for client {}", chest_id, client_id);
         return false;
     }
-    if (const auto changes = player->GetInventoryChanges(true)) changes->GetInventoryWeight();
+    if (const auto changes = destination->GetInventoryChanges(true)) changes->GetInventoryWeight();
     return true;
 }
 

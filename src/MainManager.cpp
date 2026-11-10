@@ -48,7 +48,7 @@ void MainManager::Gateway(const int result, const RE::ObjectRefHandle& a_current
     if (!a_chest) {
         logger::warn("Current container is null.");
     } else if (result) {
-        if (std::ranges::contains(WorldStorage::form_types, a_chest_handle->GetBaseObject()->GetFormType())) {
+        if (WorldStorage::GetSingleton()->GetSource(a_chest_handle->GetBaseObject()->GetFormID())) {
             RenameCallback(a_chest_handle.get());
         } else {
             RenameCallback(Manager::GetSingleton()->GetFakeBound(a_chest_handle.get()));
@@ -86,10 +86,9 @@ void MainManager::OnLongPressEquip(const RE::TESBoundObject* a_fake, const int d
 void MainManager::OnActivateContainer(RE::TESObjectREFR* a_container, const int msgbox_action, const int a_delay, const bool use_quickloot) {
     if (Manager::GetSingleton()->isUninstalled.load()) return;
     const auto base = a_container->GetBaseObject();
-    if (std::ranges::contains(WorldStorage::form_types, base->GetFormType())) {
-        const auto world_storage = WorldStorage::GetSingleton();
-        const auto source = world_storage->GetSource(base->GetFormID());
-        if (!source || source->token_mode || !world_storage->Initialize(a_container, nullptr)) return;
+    const auto world_storage = WorldStorage::GetSingleton();
+    if (const auto source = world_storage->GetSource(base->GetFormID())) {
+        if (source->token_mode || !world_storage->Initialize(a_container, nullptr)) return;
     } else if (!Manager::GetSingleton()->HandleRegistration(a_container)) {
         return;
     }
@@ -315,30 +314,29 @@ bool MainManager::Refresh(const RefID chest) {
 
 const Source* MainManager::GetSource(const RE::TESObjectREFR* target) const {
     const auto base = target->GetBaseObject();
-    if (std::ranges::contains(WorldStorage::form_types, base->GetFormType())) {
-        return WorldStorage::GetSingleton()->GetSource(base->GetFormID());
+    if (const auto source = WorldStorage::GetSingleton()->GetSource(base->GetFormID())) {
+        return source;
     }
     const auto* manager = Manager::GetSingleton();
     return manager->GetContainerSource(base->GetFormID());
 }
 
 std::string MainManager::GetWeightText(RE::TESObjectREFR* target) const {
-    if (std::ranges::contains(WorldStorage::form_types, target->GetBaseObject()->GetFormType())) {
+    if (WorldStorage::GetSingleton()->GetSource(target->GetBaseObject()->GetFormID())) {
         return WorldStorage::GetSingleton()->GetWeightText(target);
     }
     return Manager::GetSingleton()->GetWeightText(target);
 }
 
 std::string MainManager::GetValueText(RE::TESObjectREFR* target) const {
-    if (std::ranges::contains(WorldStorage::form_types, target->GetBaseObject()->GetFormType())) return "";
+    if (WorldStorage::GetSingleton()->GetSource(target->GetBaseObject()->GetFormID())) return "";
     return Manager::GetSingleton()->GetValueText(target);
 }
 
 bool MainManager::IsTokenMode(const RE::TESObjectREFR* target) const {
     const auto base = target->GetBaseObject();
-    if (std::ranges::contains(WorldStorage::form_types, base->GetFormType())) {
-        const auto source = WorldStorage::GetSingleton()->GetSource(base->GetFormID());
-        return source && source->token_mode;
+    if (const auto source = WorldStorage::GetSingleton()->GetSource(base->GetFormID())) {
+        return source->token_mode;
     }
     return Manager::GetSingleton()->IsTokenMode(base->GetFormID());
 }
@@ -350,7 +348,7 @@ bool MainManager::CanRename() const {
 bool MainManager::Rename(const FormID target, const char* name) {
     if (Manager::GetSingleton()->isUninstalled.load() || !name || !*name) return false;
     const auto reference = RE::TESForm::LookupByID<RE::TESObjectREFR>(target);
-    if (reference && std::ranges::contains(WorldStorage::form_types, reference->GetBaseObject()->GetFormType())) {
+    if (reference && WorldStorage::GetSingleton()->GetSource(reference->GetBaseObject()->GetFormID())) {
         return WorldStorage::GetSingleton()->Rename(reference, name);
     }
     return Manager::GetSingleton()->Rename(target, name);
@@ -359,10 +357,24 @@ bool MainManager::Rename(const FormID target, const char* name) {
 FormID MainManager::Initialize(const FormID target, const RefID owner, RE::ExtraDataList* instance) {
     const auto reference = owner ? nullptr : RE::TESForm::LookupByID<RE::TESObjectREFR>(target);
     const auto base = reference ? reference->GetBaseObject() : nullptr;
-    if (base && std::ranges::contains(WorldStorage::form_types, base->GetFormType())) {
+    if (base && WorldStorage::GetSingleton()->GetSource(base->GetFormID())) {
         return WorldStorage::GetSingleton()->Initialize(reference, instance);
     }
     return Manager::GetSingleton()->Initialize(target, owner, instance);
+}
+
+bool MainManager::BeforePickup(RE::TESObjectREFR* actor, RE::TESObjectREFR* object, const Count count) {
+    const auto world_storage = WorldStorage::GetSingleton();
+    if (const auto chest = world_storage->GetChest(object->GetFormID())) {
+        if (open_chest == chest || (containermenu_owner && containermenu_owner->GetFormID() == chest)) {
+            CloseMenu();
+        }
+        return world_storage->DeRegister(object->GetFormID(), true, actor);
+    }
+    if (count <= 1) {
+        Manager::GetSingleton()->BeforePickup(actor, object);
+    }
+    return true;
 }
 
 bool MainManager::DeRegister(const FormID target) {
@@ -386,7 +398,7 @@ void MainManager::SetCapacityBypass(const std::pair<RefID, FormID>& target, cons
 }
 
 RE::TESObjectREFR* MainManager::GetContainerChest(const RE::TESObjectREFR* target) const {
-    if (std::ranges::contains(WorldStorage::form_types, target->GetBaseObject()->GetFormType())) {
+    if (WorldStorage::GetSingleton()->GetSource(target->GetBaseObject()->GetFormID())) {
         return RE::TESForm::LookupByID<RE::TESObjectREFR>(WorldStorage::GetSingleton()->GetChest(target->GetFormID()));
     }
     return Manager::GetSingleton()->GetContainerChest(target);
@@ -397,9 +409,8 @@ bool MainManager::IsChest(const RefID chest) const {
 }
 
 bool MainManager::IsContainer(const RE::TESObjectREFR* target) const {
-    if (std::ranges::contains(WorldStorage::form_types, target->GetBaseObject()->GetFormType())) {
-        return !target->IsDisabled() && !target->IsDeleted() &&
-            WorldStorage::GetSingleton()->GetSource(target->GetBaseObject()->GetFormID());
+    if (WorldStorage::GetSingleton()->GetSource(target->GetBaseObject()->GetFormID())) {
+        return !target->IsDisabled() && !target->IsDeleted();
     }
     return Manager::GetSingleton()->IsRealContainer(target);
 }

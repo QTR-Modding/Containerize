@@ -128,10 +128,12 @@ void Hooks::add_item_functor(RE::TESObjectREFR* a_this, RE::TESObjectREFR* a_obj
         return add_item_functor_(a_this, a_object, a_count, a4, a5);
     }
 
-    if (!a_this || !a_object || a_count > 1) {
+    if (!a_this || !a_object) {
         return add_item_functor_(a_this, a_object, a_count, a4, a5);
     }
-    Manager::GetSingleton()->BeforePickup(a_this, a_object);
+    if (!MainManager::GetSingleton()->BeforePickup(a_this, a_object, a_count)) {
+        return;
+    }
     return add_item_functor_(a_this, a_object, a_count, a4, a5);
 }
 
@@ -142,10 +144,12 @@ void Hooks::MoveItemHooks<RefType>::pickUpObject(RefType* a_this, RE::TESObjectR
         return pick_up_object_(a_this, a_object, a_count, a_arg3, a_play_sound);
     }
 
-    if (!a_this || !a_object || a_count > 1) {
+    if (!a_this || !a_object) {
         return pick_up_object_(a_this, a_object, a_count, a_arg3, a_play_sound);
     }
-    Manager::GetSingleton()->BeforePickup(a_this, a_object);
+    if (!MainManager::GetSingleton()->BeforePickup(a_this, a_object, a_count)) {
+        return;
+    }
 
     pick_up_object_(a_this, a_object, a_count, a_arg3, a_play_sound);
 }

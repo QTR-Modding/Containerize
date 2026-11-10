@@ -54,7 +54,8 @@ namespace {
 
         Source source(formid, editorid, temp_weight_limit, cloud_storage, transfer_on_use);
         for (const auto [field, destination] : {std::pair{"token_mode", &source.token_mode},
-                                               std::pair{"quickloot", &source.quickloot}}) {
+                                               std::pair{"quickloot", &source.quickloot},
+                                               std::pair{"world_storage", &source.world_storage}}) {
             if (const auto value = config[field]; value && !value.IsNull()) {
                 try {
                     *destination = value.as<bool>();
@@ -278,7 +279,8 @@ std::vector<Source> Settings::LoadSources(std::vector<Source>& world_sources) {
     // sources.insert(sources.end(), YamlSources.begin(), YamlSources.end());
     const auto add_source = [&](Source& source) {
         const auto form = source.GetBoundObject();
-        auto& destination = form && std::ranges::contains(WorldStorage::form_types, form->GetFormType())
+        auto& destination = source.world_storage ||
+                            (form && std::ranges::contains(WorldStorage::form_types, form->GetFormType()))
                                 ? world_sources : sources;
         destination.push_back(std::move(source));
     };
