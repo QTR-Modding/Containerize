@@ -51,11 +51,12 @@ void SkyPrompt::LoadHandshakes() {
             }
             std::string_view value(line);
             constexpr std::string_view prefix = "0x";
-            if (value.starts_with(prefix) || value.starts_with("0X")) {
+            const bool hex = value.starts_with(prefix) || value.starts_with("0X");
+            if (hex) {
                 value.remove_prefix(prefix.size());
             }
             SkyPromptAPI::HandshakeKey key{};
-            const auto parsed = std::from_chars(value.data(), value.data() + value.size(), key, 16);
+            const auto parsed = std::from_chars(value.data(), value.data() + value.size(), key, hex ? 16 : 10);
             if (parsed.ec != std::errc{} || parsed.ptr != value.data() + value.size()) {
                 logger::error("Invalid handshake key '{}' in '{}'.", line, filename);
                 continue;
