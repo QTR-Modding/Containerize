@@ -17,6 +17,7 @@ namespace SkyPrompt {
 
     class RefPromptSink final : public SkyPromptAPI::PromptSink,
                                 public REX::Singleton<RefPromptSink> {
+        std::string open_text;
         std::string weight_text;
         std::string value_text;
 
