@@ -31,6 +31,17 @@ namespace {
     }
 }
 
+std::string SkyPrompt::TranslateLabel(std::string_view label) {
+    auto text = std::string(label);
+    if (text.starts_with('$')) {
+        SKSE::Translation::Translate(text, text);
+    }
+    if (text.find_first_not_of(" \t\r\n\f\v") == std::string::npos) {
+        text.clear();
+    }
+    return text;
+}
+
 void SkyPrompt::LoadHandshakes() {
     constexpr auto folder = "Data/SKSE/Plugins/Containerize/handshakes";
     constexpr SkyPromptAPI::HandshakeKey containerize = 0x4354525A;
@@ -80,20 +91,15 @@ void RefPromptSink::Start(RE::TESObjectREFR* a_ref) {
     }
     const auto& settings = source->skyprompt;
     const RefID refid = settings.attach ? a_ref->GetFormID() : 0;
-    open_prompt.text = settings.GetLabel("open", Strings::open_bag);
-    if (open_prompt.text.starts_with('$') &&
-        SKSE::Translation::Translate(std::string(open_prompt.text), open_text)) {
-        if (open_text.find_first_not_of(" \t\r\n\f\v") == std::string::npos) {
-            open_text.clear();
-        }
-        open_prompt.text = open_text;
-    }
-    rename_prompt.text = manager->CanRename() ? settings.GetLabel("rename", Strings::rename_bag) : "";
+    open_text = TranslateLabel(settings.GetLabel("open", Strings::open_bag));
+    rename_text = manager->CanRename() ? TranslateLabel(settings.GetLabel("rename", Strings::rename_bag)) : "";
+    open_prompt.text = open_text;
+    rename_prompt.text = rename_text;
 
-    if (const auto label = settings.GetLabel("weight", Strings::weight); !label.empty()) {
+    if (const auto label = TranslateLabel(settings.GetLabel("weight", Strings::weight)); !label.empty()) {
         if (const auto text = manager->GetWeightText(a_ref); !text.empty()) weight_text.append(label).append(" ").append(text);
     }
-    if (const auto label = settings.GetLabel("value", Strings::value); !label.empty()) {
+    if (const auto label = TranslateLabel(settings.GetLabel("value", Strings::value)); !label.empty()) {
         if (const auto text = manager->GetValueText(a_ref); !text.empty()) value_text.append(label).append(" ").append(text);
     }
     weight_prompt.text = weight_text;
@@ -172,10 +178,12 @@ void MenuPromptSink::Show(const RE::TESBoundObject* a_fake) const {
     const auto* manager = Manager::GetSingleton();
     const auto real = manager->FakeToRealContainer(a_fake->GetFormID());
     const auto& settings = manager->GetContainerSource(real->GetFormID())->skyprompt;
-    open_prompt.text = settings.GetLabel("open", Strings::open_bag);
-    rename_prompt.text = ModCompatibility::Mods::ui_extensions_installed
-        ? settings.GetLabel("rename", Strings::rename_bag) : "";
-    if (const auto label = settings.GetLabel("weight", Strings::weight); !label.empty()) {
+    open_text = TranslateLabel(settings.GetLabel("open", Strings::open_bag));
+    rename_text = ModCompatibility::Mods::ui_extensions_installed
+        ? TranslateLabel(settings.GetLabel("rename", Strings::rename_bag)) : "";
+    open_prompt.text = open_text;
+    rename_prompt.text = rename_text;
+    if (const auto label = TranslateLabel(settings.GetLabel("weight", Strings::weight)); !label.empty()) {
         if (const auto text = Manager::GetSingleton()->GetWeightText(a_fake); !text.empty()) weight_text.append(label).append(" ").append(text);
     }
     weight_prompt.text = weight_text;
@@ -259,10 +267,12 @@ void RegistrationPromptSink::Show(const RE::TESBoundObject* a_item) const {
     }
     const auto* manager = Manager::GetSingleton();
     const auto& settings = manager->GetContainerSource(a_item->GetFormID())->skyprompt;
-    open_prompt.text = settings.GetLabel("open", Strings::open_bag);
-    rename_prompt.text = ModCompatibility::Mods::ui_extensions_installed
-        ? settings.GetLabel("rename", Strings::rename_bag) : "";
-    if (const auto label = settings.GetLabel("weight", Strings::weight); !label.empty()) {
+    open_text = TranslateLabel(settings.GetLabel("open", Strings::open_bag));
+    rename_text = ModCompatibility::Mods::ui_extensions_installed
+        ? TranslateLabel(settings.GetLabel("rename", Strings::rename_bag)) : "";
+    open_prompt.text = open_text;
+    rename_prompt.text = rename_text;
+    if (const auto label = TranslateLabel(settings.GetLabel("weight", Strings::weight)); !label.empty()) {
         if (const auto text = Manager::GetSingleton()->GetWeightText(a_item); !text.empty()) weight_text.append(label).append(" ").append(text);
     }
     weight_prompt.text = weight_text;

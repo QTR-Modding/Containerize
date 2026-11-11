@@ -18,6 +18,7 @@ namespace SkyPrompt {
     class RefPromptSink final : public SkyPromptAPI::PromptSink,
                                 public REX::Singleton<RefPromptSink> {
         std::string open_text;
+        std::string rename_text;
         std::string weight_text;
         std::string value_text;
 
@@ -39,6 +40,8 @@ namespace SkyPrompt {
 
     class MenuPromptSink final : public SkyPromptAPI::PromptSink,
                                  public REX::Singleton<MenuPromptSink> {
+        mutable std::string open_text;
+        mutable std::string rename_text;
         mutable std::string weight_text;
 
         mutable SkyPromptAPI::Prompt open_prompt{Strings::open_bag, 0, 0, SkyPromptAPI::PromptType::kHold};
@@ -58,6 +61,8 @@ namespace SkyPrompt {
 
     class RegistrationPromptSink final : public SkyPromptAPI::PromptSink,
                                          public REX::Singleton<RegistrationPromptSink> {
+        mutable std::string open_text;
+        mutable std::string rename_text;
         mutable std::string weight_text;
 
         mutable SkyPromptAPI::Prompt open_prompt{Strings::open_bag, 3, 0, SkyPromptAPI::PromptType::kHold};
@@ -101,6 +106,7 @@ namespace SkyPrompt {
         RE::RaceSexMenu::MENU_NAME,
     };
 
+    std::string TranslateLabel(std::string_view label);
     void LoadHandshakes();
     bool IsAnyMenuOpen();
 
