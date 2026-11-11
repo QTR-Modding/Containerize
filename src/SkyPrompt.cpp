@@ -81,12 +81,12 @@ void RefPromptSink::Start(RE::TESObjectREFR* a_ref) {
     const auto& settings = source->skyprompt;
     const RefID refid = settings.attach ? a_ref->GetFormID() : 0;
     open_prompt.text = settings.GetLabel("open", Strings::open_bag);
-    if (open_prompt.text.starts_with('$')) {
-        std::string translated;
-        if (SKSE::Translation::Translate(std::string(open_prompt.text), translated) &&
-            translated.find_first_not_of(" \t\r\n\f\v") == std::string::npos) {
-            open_prompt.text = {};
+    if (open_prompt.text.starts_with('$') &&
+        SKSE::Translation::Translate(std::string(open_prompt.text), open_text)) {
+        if (open_text.find_first_not_of(" \t\r\n\f\v") == std::string::npos) {
+            open_text.clear();
         }
+        open_prompt.text = open_text;
     }
     rename_prompt.text = manager->CanRename() ? settings.GetLabel("rename", Strings::rename_bag) : "";
 
