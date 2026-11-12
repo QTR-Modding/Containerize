@@ -15,8 +15,11 @@ void EventSink::SendPrompts(RE::TESObjectREFR* a_container) {
     }
 }
 
-void EventSink::RemovePrompts() {
+void EventSink::RemovePrompts(const RefID target) {
     const auto ps = SkyPrompt::RefPromptSink::GetSingleton();
+    if (target && !std::ranges::contains(ps->GetPrompts(), target, &SkyPromptAPI::Prompt::refid)) {
+        return;
+    }
     SkyPromptAPI::RemovePrompt(ps, SkyPrompt::g_clientID);
     ps->Stop();
 }

@@ -369,7 +369,13 @@ bool MainManager::BeforePickup(RE::TESObjectREFR* actor, RE::TESObjectREFR* obje
         if (open_chest == chest || (containermenu_owner && containermenu_owner->GetFormID() == chest)) {
             CloseMenu();
         }
-        return world_storage->DeRegister(object->GetFormID(), true, actor);
+        if (!world_storage->DeRegister(object->GetFormID(), true, actor)) {
+            return false;
+        }
+        if (actor->IsPlayerRef()) {
+            EventSink::RemovePrompts(object->GetFormID());
+        }
+        return true;
     }
     if (count <= 1) {
         Manager::GetSingleton()->BeforePickup(actor, object);
