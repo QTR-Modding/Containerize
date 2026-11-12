@@ -29,7 +29,7 @@ public:
     RE::BSEventNotifyControl ProcessEvent(const RE::MenuOpenCloseEvent* a_event,
                                           RE::BSTEventSource<RE::MenuOpenCloseEvent>* a_eventSource) override;
 
-    static void RemovePrompts();
+    static void RemovePrompts(RefID target = 0);
     static void RemoveMenuPrompts();
 
     void Install();
