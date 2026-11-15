@@ -1,0 +1,41 @@
+name: Sync wiki
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'docs/wiki/**'
+      - '.github/workflows/sync-wiki.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: sync-wiki
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: main
+          persist-credentials: false
+      - name: Publish wiki
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh auth setup-git
+          wiki="$RUNNER_TEMP/wiki"
+          git clone "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY.wiki.git" "$wiki"
+          rsync -a --delete --exclude='/.git/' docs/wiki/ "$wiki/"
+          git -C "$wiki" add -A
+          if ! git -C "$wiki" diff --cached --quiet; then
+            git -C "$wiki" -c user.name='github-actions[bot]' \
+              -c user.email='41898282+github-actions[bot]@users.noreply.github.com' \
+              commit -m "Sync wiki from ${GITHUB_SHA:0:7}"
+            git -C "$wiki" push
+          fi
