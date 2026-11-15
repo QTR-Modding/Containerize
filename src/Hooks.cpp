@@ -184,6 +184,11 @@ void Hooks::MoveItemHooks<RefType>::addObjectToContainer(RefType* a_this, RE::TE
 
     if (const auto a_objectID = a_object->GetFormID(); M->IsFakeContainer(a_objectID)) {
         M->UpdateLoc(a_objectID, a_this->GetFormID());
+        if constexpr (std::is_same_v<RefType, RE::PlayerCharacter>) {
+            if (a_fromRefr) {
+                main_manager->ReportFakeContainerTheft(a_fromRefr, a_object);
+            }
+        }
     }
 }
 

@@ -276,6 +276,53 @@ FormID MainManager::GetTarget(const RefID chest) const {
     return WorldStorage::GetSingleton()->GetTarget(chest);
 }
 
+RE::TESForm* MainManager::GetLinkedChestOwner(const FormID fake) const {
+    const auto chest = RE::TESForm::LookupByID<RE::TESObjectREFR>(Manager::GetSingleton()->GetChest(fake));
+    return chest ? chest->GetOwner() : nullptr;
+}
+
+void MainManager::ReportFakeContainerTheft(RE::TESObjectREFR* inventory, RE::TESBoundObject* item) const {
+    if (inventory->GetOwner()) {
+        return;
+    }
+    const auto source = RE::TESForm::LookupByID<RE::TESObjectREFR>(
+        WorldStorage::GetSingleton()->GetTarget(inventory->GetFormID()));
+    if (!source) {
+        return;
+    }
+    RE::TESObjectREFRPtr menuOwner;
+    if (!QuickLootIntegration::IsInUse(inventory->GetFormID()) &&
+        (!Menu::GetContainerMenuOwner(menuOwner) || menuOwner.get() != inventory)) {
+        return;
+    }
+    const auto owner = GetLinkedChestOwner(item->GetFormID());
+    if (!owner) {
+        return;
+    }
+    const auto player = RE::PlayerCharacter::GetSingleton();
+    const auto changes = player->GetInventoryChanges();
+    if (!changes || !changes->entryList) {
+        return;
+    }
+    for (const auto entry : *changes->entryList) {
+        if (!entry || entry->object != item || entry->countDelta <= 0) {
+            continue;
+        }
+        const auto value = entry->GetValue();
+        if (!player->IsAllowedToTakeItem(owner, value)) {
+            const auto handle = source->GetHandle();
+            constexpr std::int32_t minimumTheftValue = 1;
+            const auto total = std::max(minimumTheftValue, value);
+            SKSE::GetTaskInterface()->AddTask([handle, owner, total] {
+                if (const auto target = handle.get()) {
+                    RE::PlayerCharacter::GetSingleton()->StealAlarm(target.get(), nullptr, 0, total, owner, true);
+                }
+            });
+        }
+        return;
+    }
+}
+
 void MainManager::UpdateStealingFlag(RE::InventoryEntryData* entry, RE::TESObjectREFR* inventory,
                                       RE::GFxValue& data, const char* flag) const {
     if (!entry->object->IsDynamicForm() || Manager::GetSingleton()->isUninstalled.load() || inventory->IsPlayerRef()) {
@@ -284,13 +331,7 @@ void MainManager::UpdateStealingFlag(RE::InventoryEntryData* entry, RE::TESObjec
     if (const auto actor = inventory->As<RE::Actor>(); actor && actor->IsDead(false)) {
         return;
     }
-    const auto chest = RE::TESForm::LookupByID<RE::TESObjectREFR>(
-        Manager::GetSingleton()->GetChest(entry->object->GetFormID()));
-    if (!chest) {
-        return;
-    }
-    const auto owner = chest->GetOwner();
-    if (owner) {
+    if (const auto owner = GetLinkedChestOwner(entry->object->GetFormID())) {
         const auto stealing = !RE::PlayerCharacter::GetSingleton()->IsAllowedToTakeItem(owner, entry->GetValue());
         if (!data.SetMember(flag, RE::GFxValue(stealing))) {
             logger::trace("Could not set storage theft indicator for {:08X}.", entry->object->GetFormID());
