@@ -282,17 +282,7 @@ RE::TESForm* MainManager::GetLinkedChestOwner(const FormID fake) const {
 }
 
 void MainManager::ReportFakeContainerTheft(RE::TESObjectREFR* inventory, RE::TESBoundObject* item) const {
-    if (inventory->GetOwner()) {
-        return;
-    }
-    const auto source = RE::TESForm::LookupByID<RE::TESObjectREFR>(
-        WorldStorage::GetSingleton()->GetTarget(inventory->GetFormID()));
-    if (!source) {
-        return;
-    }
-    RE::TESObjectREFRPtr menuOwner;
-    if (!QuickLootIntegration::IsInUse(inventory->GetFormID()) &&
-        (!Menu::GetContainerMenuOwner(menuOwner) || menuOwner.get() != inventory)) {
+    if (const auto actor = inventory->As<RE::Actor>(); actor && actor->IsDead(false)) {
         return;
     }
     const auto owner = GetLinkedChestOwner(item->GetFormID());
@@ -310,7 +300,9 @@ void MainManager::ReportFakeContainerTheft(RE::TESObjectREFR* inventory, RE::TES
         }
         const auto value = entry->GetValue();
         if (!player->IsAllowedToTakeItem(owner, value)) {
-            const auto handle = source->GetHandle();
+            const auto worldRef = RE::TESForm::LookupByID<RE::TESObjectREFR>(
+                WorldStorage::GetSingleton()->GetTarget(inventory->GetFormID()));
+            const auto handle = worldRef ? worldRef->GetHandle() : inventory->GetHandle();
             constexpr std::int32_t minimumTheftValue = 1;
             const auto total = std::max(minimumTheftValue, value);
             SKSE::GetTaskInterface()->AddTask([handle, owner, total] {

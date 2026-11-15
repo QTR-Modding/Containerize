@@ -184,11 +184,6 @@ void Hooks::MoveItemHooks<RefType>::addObjectToContainer(RefType* a_this, RE::TE
 
     if (const auto a_objectID = a_object->GetFormID(); M->IsFakeContainer(a_objectID)) {
         M->UpdateLoc(a_objectID, a_this->GetFormID());
-        if constexpr (std::is_same_v<RefType, RE::PlayerCharacter>) {
-            if (a_fromRefr) {
-                main_manager->ReportFakeContainerTheft(a_fromRefr, a_object);
-            }
-        }
     }
 }
 
@@ -237,8 +232,13 @@ RE::ObjectRefHandle* Hooks::MoveItemHooks<RefType>::RemoveItem(RefType* a_this,
         }
     }
 
-    return remove_item_(a_this, a_hidden_return_argument, a_item, a_count, a_reason, a_extra_list, a_move_to_ref,
-                        a_drop_loc, a_rotate);
+    const auto result = remove_item_(a_this, a_hidden_return_argument, a_item, a_count, a_reason, a_extra_list,
+                                     a_move_to_ref, a_drop_loc, a_rotate);
+    if (a_reason == RE::ITEM_REMOVE_REASON::kStoreInContainer && a_move_to_ref && a_move_to_ref->IsPlayerRef() &&
+        a_this != a_move_to_ref) {
+        MainManager::GetSingleton()->ReportFakeContainerTheft(a_this, a_item);
+    }
+    return result;
 }
 
 void Hooks::InputHook::thunk(RE::BSTEventSource<RE::InputEvent*>* a_dispatcher, RE::InputEvent* const* a_event) {
