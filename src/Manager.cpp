@@ -674,7 +674,7 @@ FormID Manager::GetRealID(const RefID chest_id) const {
     return GetRealID_NoLock(chest_id);
 }
 
-void Manager::BeforePickup(RE::TESObjectREFR* picked_up_by, RE::TESObjectREFR* a_object) {
+RE::TESBoundObject* Manager::BeforePickup(RE::TESObjectREFR* picked_up_by, RE::TESObjectREFR* a_object) {
     if (const auto chest = GetContainerChest(a_object)) {
         const auto chest_refid = chest->GetFormID();
 
@@ -702,8 +702,10 @@ void Manager::BeforePickup(RE::TESObjectREFR* picked_up_by, RE::TESObjectREFR* a
                     }
                 });
             }
+            return fake_bound;
         }
     }
+    return nullptr;
 }
 
 void Manager::HandleDrop(RE::TESObjectREFR* fake_object) {

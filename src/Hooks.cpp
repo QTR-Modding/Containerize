@@ -131,10 +131,16 @@ void Hooks::add_item_functor(RE::TESObjectREFR* a_this, RE::TESObjectREFR* a_obj
     if (!a_this || !a_object) {
         return add_item_functor_(a_this, a_object, a_count, a4, a5);
     }
-    if (!MainManager::GetSingleton()->BeforePickup(a_this, a_object, a_count)) {
+    const auto manager = MainManager::GetSingleton();
+    RE::TESBoundObject* theftItem = nullptr;
+    if (!manager->BeforePickup(a_this, a_object, a_count, theftItem)) {
         return;
     }
-    return add_item_functor_(a_this, a_object, a_count, a4, a5);
+    const RE::TESObjectREFRPtr source{theftItem ? a_object : nullptr};
+    add_item_functor_(a_this, a_object, a_count, a4, a5);
+    if (source) {
+        manager->ReportFakeContainerTheft(source.get(), theftItem);
+    }
 }
 
 template <typename RefType>
@@ -147,11 +153,16 @@ void Hooks::MoveItemHooks<RefType>::pickUpObject(RefType* a_this, RE::TESObjectR
     if (!a_this || !a_object) {
         return pick_up_object_(a_this, a_object, a_count, a_arg3, a_play_sound);
     }
-    if (!MainManager::GetSingleton()->BeforePickup(a_this, a_object, a_count)) {
+    const auto manager = MainManager::GetSingleton();
+    RE::TESBoundObject* theftItem = nullptr;
+    if (!manager->BeforePickup(a_this, a_object, a_count, theftItem)) {
         return;
     }
-
+    const RE::TESObjectREFRPtr source{theftItem ? a_object : nullptr};
     pick_up_object_(a_this, a_object, a_count, a_arg3, a_play_sound);
+    if (source) {
+        manager->ReportFakeContainerTheft(source.get(), theftItem);
+    }
 }
 
 template <typename RefType>
@@ -232,8 +243,13 @@ RE::ObjectRefHandle* Hooks::MoveItemHooks<RefType>::RemoveItem(RefType* a_this,
         }
     }
 
-    return remove_item_(a_this, a_hidden_return_argument, a_item, a_count, a_reason, a_extra_list, a_move_to_ref,
-                        a_drop_loc, a_rotate);
+    const auto result = remove_item_(a_this, a_hidden_return_argument, a_item, a_count, a_reason, a_extra_list,
+                                     a_move_to_ref, a_drop_loc, a_rotate);
+    if (a_reason == RE::ITEM_REMOVE_REASON::kStoreInContainer && a_move_to_ref && a_move_to_ref->IsPlayerRef() &&
+        a_this != a_move_to_ref) {
+        MainManager::GetSingleton()->ReportFakeContainerTheft(a_this, a_item);
+    }
+    return result;
 }
 
 void Hooks::InputHook::thunk(RE::BSTEventSource<RE::InputEvent*>* a_dispatcher, RE::InputEvent* const* a_event) {

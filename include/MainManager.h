@@ -14,6 +14,7 @@ class MainManager final : public REX::Singleton<MainManager> {
     void OpenChestFromMenu(RE::TESObjectREFR* chest);
     void Gateway(int result, const RE::ObjectRefHandle& target, bool use_quickloot);
     void TransferOnUse(RefID chest);
+    [[nodiscard]] RE::TESForm* GetLinkedChestOwner(FormID fake) const;
     [[nodiscard]] RE::TESObjectREFR* GetContainerChest(const RE::TESObjectREFR* target) const;
 
 public:
@@ -23,6 +24,7 @@ public:
     [[nodiscard]] RefID GetChest(FormID target) const;
     [[nodiscard]] FormID GetTarget(RefID chest) const;
     [[nodiscard]] bool Refresh(RefID chest);
+    void ReportFakeContainerTheft(RE::TESObjectREFR* inventory, RE::TESBoundObject* item) const;
     void UpdateStealingFlag(RE::InventoryEntryData* entry, RE::TESObjectREFR* inventory, RE::GFxValue& data, const char* flag) const;
     [[nodiscard]] std::string GetWeightText(RE::TESObjectREFR* target) const;
     [[nodiscard]] std::string GetValueText(RE::TESObjectREFR* target) const;
@@ -32,7 +34,8 @@ public:
     static void RenameCallback(RE::TESForm* target);
     [[nodiscard]] FormID Initialize(FormID target, RefID owner, RE::ExtraDataList* instance);
     [[nodiscard]] bool DeRegister(FormID target);
-    [[nodiscard]] bool BeforePickup(RE::TESObjectREFR* actor, RE::TESObjectREFR* object, Count count);
+    [[nodiscard]] bool BeforePickup(RE::TESObjectREFR* actor, RE::TESObjectREFR* object, Count count,
+                                    RE::TESBoundObject*& theftItem);
     [[nodiscard]] Count CanBeAdded(const RE::TESBoundObject* item, Count count, RE::TESObjectREFR* chest);
     void SetCapacityBypass(const std::pair<RefID, FormID>& target, bool enabled);
     void OnActivateContainer(RE::TESObjectREFR* target, int action, int delay = 0, bool use_quickloot = false);
