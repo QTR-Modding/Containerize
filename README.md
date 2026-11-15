@@ -1,33 +1,20 @@
-#### WINDOWS ENVIRONMENT VARIABLES TO SET
+# Containerize
 
-1. **`COMMONLIB_SSE_FOLDER`**: The path to your clone of CommonLib.
-2. **`VCPKG_ROOT`**: The path to your clone of [vcpkg](https://github.com/microsoft/vcpkg).
-3. (optional) **`SKYRIM_FOLDER`**: path of your Skyrim Special Edition folder.
-4. (optional) **`SKYRIM_MODS_FOLDER`**: path of the folder where your mods are.
+Containerize lets you use Skyrim items and furniture as storage. Download it and check the game requirements on the [Nexus mod page](https://www.nexusmods.com/skyrimspecialedition/mods/110297). Set up your first container with the [preset guide](https://github.com/QTR-Modding/Containerize/wiki).
 
-#### THINGS TO EDIT
+## Use Containerize from another SKSE plugin
 
-1. In LICENSE:
-- **`YEAR`**
-- **`YOURNAME`**
-2. CMakeLists.txt
-- **`AUTHORNAME`**
-- **`MDDNAME`**
-- (optional) Your plugin version. Default: `0.1.0.0`
-3. vcpkg.json
-- **`name`**: Your plugin's name.
-- **`version-string`**: Your plugin version. Default: `0.1.0.0`
+The [chest rental guide](https://github.com/QTR-Modding/Containerize/wiki/ChestRentalAPI) shows how to give your mod its own storage. The [linked storage guide](https://github.com/QTR-Modding/Containerize/wiki/LinkedStorageAPI) shows how to work with storage that players open through an item or furniture.
 
-#### FEATURES
-Automatically imports:
-- [CLibUtil](https://github.com/powerof3/CLibUtil) by powerof3
-- [SKSE Menu Framework](https://www.nexusmods.com/skyrimspecialedition/mods/120352) by Thiago099
+## Build from source
 
+Use CMake 3.21 or later, Ninja, and an x64 MSVC toolchain with C++23 support. Set `COMMONLIB_SSE_FOLDER` to the root of your compatible CommonLibSSE checkout and `VCPKG_ROOT` to the root of your vcpkg checkout. Run these commands from the repository root in an x64 Visual Studio developer shell.
 
-#### CONTAINERIZE API
+```powershell
+cmake --preset release
+cmake --build build/release
+```
 
-See [Containerize API](docs/ChestRentalAPI.md) to rent storage and refresh managed containers from another SKSE plugin.
+The plugin is built in `build/release`. To also copy it to your mod manager, set `SKYRIM_MODS_FOLDER` to the directory that contains your installed mods.
 
-#### PRESET GUIDE
-
-See the [Containerize wiki](https://github.com/QTR-Modding/Containerize/wiki) for YAML examples and preset options. The guide is maintained in [docs/wiki/Home.md](docs/wiki/Home.md) and syncs to the wiki after changes merge to `main`.
+The [wiki source](docs/wiki/Home.md) syncs to the published wiki when changes to it reach `main`.
