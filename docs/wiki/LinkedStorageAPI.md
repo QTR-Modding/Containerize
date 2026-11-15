@@ -18,11 +18,11 @@ RE::FormID InitializeAndGetChest(RE::FormID placedSpit) {
 }
 ```
 
-Call on the game thread after a successful `kPostLoadGame` or `kNewGame`. The example returns the reference FormID of the storage chest, ready for normal Skyrim inventory operations. Call [Refresh](#refreshing-containerize-managed-storage) after changing its contents. Containerize owns the link and the chest. Use [chest rentals](https://github.com/QTR-Modding/Containerize/wiki/ChestRentalAPI) when your mod needs storage of its own.
+Run this on the game thread once SKSE reports a successful game load (`kPostLoadGame`) or a new game (`kNewGame`). A nonzero result is the chest's FormID. To add ingredients, get the chest with `RE::TESForm::LookupByID<RE::TESObjectREFR>(chestID)` and use Skyrim's inventory functions. Call [Refresh](#refreshing-containerize-managed-storage) with the chest ID when you're done. Containerize manages this chest. Use [chest rentals](https://github.com/QTR-Modding/Containerize/wiki/ChestRentalAPI) when your mod needs its own inventory.
 
 For furniture and items configured with `world_storage: true`, `Initialize` returns the placed reference FormID. For ordinary carryable containers, it returns the form ID of the item copy that Containerize creates. The API calls this copy the **fake item**. Either result identifies the linked object for `GetChest`, `Rename`, and `DeRegister`.
 
-For a preset that keeps its storage when carried, you can also initialize an item already in an inventory. Pass the item's base FormID (the ID of its original item record) and the inventory owner's reference FormID.
+You can also give an item storage while it's already in someone's inventory. Use a preset for carryable storage, then pass the original item's base FormID and the reference FormID of the player, NPC, or chest that holds it.
 
 ```cpp
 const auto linkedForm = api->Initialize(originalItem, inventoryOwner, nullptr);

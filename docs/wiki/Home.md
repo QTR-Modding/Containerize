@@ -10,15 +10,18 @@ containers:
     weight_limit: 10
 ```
 
-Start Skyrim and look at a basket with this Form ID. Choose **Open** to use its storage. With QuickLoot IE, choose **Search** in the loot panel to reach the full menu and put items inside. The weight limit is 10.
+Start Skyrim. To get the basket from the example, enter `player.additem 000ABD30 1` in the console. Drop the basket, look at it, and choose Containerize's **Open** prompt. If QuickLoot IE opens, choose **Search** in the loot panel to open the full menu and put items inside.
 
 Add entries under `containers` for the items you want to configure. `FormEditorID` identifies the item. Here `0xABD30` is the basket's record number, and `Skyrim.esm` is the plugin that defines it. You can also use an Editor ID (the record's editor name in xEdit) or a form group (a named list of records under `SKSE/Plugins/Containerize/formGroups`).
 
 ## Weight and starting contents
 
-Add these lines below `weight_limit` in the basket preset. Half the contents' weight now counts toward the limit, and the basket starts with one gold coin the first time its storage is created.
+Replace the contents of `Basket.yml` with this example. Half the contents' weight counts toward the limit. The first time you open a fresh basket, it contains one gold coin.
 
 ```yaml
+containers:
+  - FormEditorID: 0xABD30~Skyrim.esm
+    weight_limit: 10
     cloud_storage: 0.5
     initial_items:
       - FormEditorID: 0xF~Skyrim.esm
@@ -39,9 +42,12 @@ With QuickLoot IE installed, Containerize's **Open** prompt opens its loot panel
 
 ## SkyPrompt
 
-Add these lines below `weight_limit` to show the world prompts next to the basket, label **Open** as **Open basket**, and hide **Rename**.
+Replace the contents of `Basket.yml` with this example to show prompts next to the basket, change **Open** to **Open basket**, and hide **Rename**.
 
 ```yaml
+containers:
+  - FormEditorID: 0xABD30~Skyrim.esm
+    weight_limit: 10
     skyprompt:
       attach: true
       labels:
