@@ -86,4 +86,4 @@ Use the same key (`basket` here) under both sections. Give each item its own key
 
 Set `token_mode: true` on an item whose storage another mod manages. You can still pick up, equip, and remove the item. Containerize hides its prompts, keeps players from opening its storage, and keeps its contents out of crafting menus.
 
-See the [chest rental guide](https://github.com/QTR-Modding/Containerize/blob/main/docs/ChestRentalAPI.md) to rent storage for your mod and the [linked storage guide](https://github.com/QTR-Modding/Containerize/blob/main/docs/LinkedStorageAPI.md) to manage storage attached to an item or furniture.
+See the [chest rental guide](https://github.com/QTR-Modding/Containerize/wiki/ChestRentalAPI) to rent storage for your mod and the [linked storage guide](https://github.com/QTR-Modding/Containerize/wiki/LinkedStorageAPI) to manage storage attached to an item or furniture.

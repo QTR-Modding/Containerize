@@ -18,7 +18,7 @@ RE::FormID InitializeAndGetChest(RE::FormID placedSpit) {
 }
 ```
 
-Call on the game thread after a successful `kPostLoadGame` or `kNewGame`. The example returns the reference FormID of the storage chest, ready for normal Skyrim inventory operations. Call [Refresh](#refreshing-containerize-managed-storage) after changing its contents. Containerize owns the link and the chest. Use [chest rentals](ChestRentalAPI.md) when your mod needs storage of its own.
+Call on the game thread after a successful `kPostLoadGame` or `kNewGame`. The example returns the reference FormID of the storage chest, ready for normal Skyrim inventory operations. Call [Refresh](#refreshing-containerize-managed-storage) after changing its contents. Containerize owns the link and the chest. Use [chest rentals](https://github.com/QTR-Modding/Containerize/wiki/ChestRentalAPI) when your mod needs storage of its own.
 
 For furniture and items configured with `world_storage: true`, `Initialize` returns the placed reference FormID. For ordinary carryable containers, it returns the form ID of the item copy that Containerize creates. The API calls this copy the **fake item**. Either result identifies the linked object for `GetChest`, `Rename`, and `DeRegister`.
 

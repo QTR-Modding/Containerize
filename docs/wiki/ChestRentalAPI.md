@@ -47,15 +47,15 @@ Move anything you want to keep out of the chest first. `ReturnChest(client, ches
 
 ## Containerize: linked item/furniture storage
 
-For storage that players open through an item or furniture, use the [linked storage guide](LinkedStorageAPI.md).
+For storage that players open through an item or furniture, use the [linked storage guide](https://github.com/QTR-Modding/Containerize/wiki/LinkedStorageAPI).
 
 ### Finding linked storage
 
-Use [GetChest](LinkedStorageAPI.md#finding-linked-storage) to find existing storage for an item or placed object.
+Use [GetChest](https://github.com/QTR-Modding/Containerize/wiki/LinkedStorageAPI#finding-linked-storage) to find existing storage for an item or placed object.
 
 ### Refreshing Containerize-managed storage
 
-Use [Refresh](LinkedStorageAPI.md#refreshing-containerize-managed-storage) after changing the contents.
+Use [Refresh](https://github.com/QTR-Modding/Containerize/wiki/LinkedStorageAPI#refreshing-containerize-managed-storage) after changing the contents.
 
 ## Interface availability
 

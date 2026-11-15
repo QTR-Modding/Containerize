@@ -4,7 +4,7 @@ Containerize lets you use Skyrim items and furniture as storage. Download it and
 
 ## Use Containerize from another SKSE plugin
 
-The [chest rental guide](docs/ChestRentalAPI.md) shows how to give your mod its own storage. The [linked storage guide](docs/LinkedStorageAPI.md) shows how to work with storage that players open through an item or furniture.
+The [chest rental guide](https://github.com/QTR-Modding/Containerize/wiki/ChestRentalAPI) shows how to give your mod its own storage. The [linked storage guide](https://github.com/QTR-Modding/Containerize/wiki/LinkedStorageAPI) shows how to work with storage that players open through an item or furniture.
 
 ## Build from source
 
