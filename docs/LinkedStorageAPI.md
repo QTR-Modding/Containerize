@@ -1,90 +1,62 @@
 # Containerize-linked storage
 
-The functions below are part of the same `ContainerizeAPI::Interface` as [ChestManager rentals](ChestRentalAPI.md). Call them on the game thread after a successful `kPostLoadGame` or `kNewGame` message.
-
-These calls manage storage linked to an item or furniture by Containerize. Your mod does not rent that storage or take ownership of it.
-
 ## Initializing linked storage
 
-To initialize a configured placed item or furniture without opening its menu, pass its reference FormID:
+Suppose your mod needs to place ingredients into the storage that a player opens from a cooking spit. Configure the spit in a [Containerize preset](https://github.com/QTR-Modding/Containerize/wiki), then pass its reference FormID to `Initialize` and look up its chest with `GetChest`. A reference FormID identifies that one placed spit.
 
 ```cpp
 #include "API.h"
 
-RE::FormID InitializeStorage(RE::FormID reference) {
+RE::FormID InitializeAndGetChest(RE::FormID placedSpit) {
     const auto api = ContainerizeAPI::RequestAPI();
-    return api ? api->Initialize(reference, 0, nullptr) : 0;
+    if (!api) {
+        return 0;
+    }
+
+    const auto linkedForm = api->Initialize(placedSpit, 0, nullptr);
+    return linkedForm ? api->GetChest(linkedForm) : 0;
 }
 ```
 
-The result is the fake item FormID, which you can pass to GetChest, Rename or DeRegister. The fake item is Containerize's copy of the original item, associated with that one storage chest. The object's base form must already be configured in a Containerize preset. Initial items and weight/value use normal Containerize registration.
+Call on the game thread after a successful `kPostLoadGame` or `kNewGame`. The example returns the reference FormID of the storage chest, ready for normal Skyrim inventory operations. Call [Refresh](#refreshing-containerize-managed-storage) after changing its contents. Containerize owns the link and the chest. Use [chest rentals](ChestRentalAPI.md) when your mod needs storage of its own.
 
-For one item in an inventory, pass its original base FormID and the inventory owner's reference FormID:
+For furniture and items configured with `world_storage: true`, `Initialize` returns the placed reference FormID. For ordinary carryable containers, it returns the form ID of the item copy that Containerize creates. The API calls this copy the **fake item**. Either result identifies the linked object for `GetChest`, `Rename`, and `DeRegister`.
+
+For a preset that keeps its storage when carried, you can also initialize an item already in an inventory. Pass the item's base FormID (the ID of its original item record) and the inventory owner's reference FormID.
 
 ```cpp
-const RE::FormID fake = api->Initialize(originalItem, inventoryOwner, nullptr);
+const auto linkedForm = api->Initialize(originalItem, inventoryOwner, nullptr);
 ```
 
-Each call converts one original inventory item. Null instance uses normal registration's default instance selection. To select a specific customized copy, pass its current `RE::ExtraDataList*` from that owner's inventory as the third argument. An instance belonging to another item or owner is rejected. The selected item's extra data and equipped state are preserved.
+This replaces one copy of the item and preserves its equipped state and extra data, such as its enchantment. Use `nullptr` to let Containerize choose the copy. To choose a specific copy, pass its `RE::ExtraDataList*` from that inventory as the third argument.
 
-Passing an already linked reference or fake item returns its existing fake ID without adding initial items again. Missing, unconfigured or unavailable targets return zero. Initialization never opens a menu or plays an opening animation.
+Call `Initialize` again with an already linked reference or fake item to get its existing linked ID. Starting contents are added once. Zero means initialization failed, for example because the object is missing or lacks a preset. The call leaves the container menu closed.
 
 ## Container prompts
 
-```yaml
-containers:
-- FormEditorID: MyContainer
-  quickloot: false
-  skyprompt:
-    attach: true
-    theme: mytheme
-    labels:
-      open: "Open storage"
-      rename: ""
-```
-
-`quickloot: false` makes the world Open prompt open the full container menu. The default is `true`, which opens QuickLoot when installed.
-
-`skyprompt.attach: true` attaches world prompts to the object; it defaults to `false`. Inventory-menu prompts keep their existing placement.
-
-`theme: mytheme` uses `SKSE/Plugins/SkyPrompt/themes/mytheme.json`. Omit `theme` to use the default theme.
-
-`labels` changes the Open, Rename, Weight and Value text using `open`, `rename`, `weight` and `value`. Omitted labels keep their translated text; `""` hides the prompt. The example hides Rename.
+See [QuickLoot IE](https://github.com/QTR-Modding/Containerize/wiki#quickloot-ie) and [SkyPrompt](https://github.com/QTR-Modding/Containerize/wiki#skyprompt) for preset examples.
 
 ## Token items
 
-Set `token_mode: true` in a container preset when another mod should manage its storage:
-
-```yaml
-containers:
-- FormEditorID: MyStorageToken
-  token_mode: true
-```
-
-The item can be taken, equipped or removed normally. Containerize hides its Open prompt and prevents opening the storage or using its contents as crafting ingredients. Initialize, Rename, Refresh and DeRegister work normally. Omitted or false keeps normal container behavior.
+See [Storage for other mods](https://github.com/QTR-Modding/Containerize/wiki#storage-for-other-mods) to manage storage through the API while keeping it out of the player's menus.
 
 ## Finding linked storage
 
 ```cpp
-const RE::FormID chest = api->GetChest(linkedForm);
-if (!chest) return;  // No existing linked storage.
+const auto chest = api->GetChest(linkedForm);
 ```
 
-Pass a placed item's or furniture's reference FormID, or the fake item FormID of an already containerized item in an inventory. The fake item is the copy Containerize creates and displays in place of the original item. The result is the reference FormID of that target's existing storage chest.
+Pass the placed reference FormID or the fake item FormID. `GetChest` returns the reference FormID of the existing storage chest, or zero when it finds no link.
 
-GetChest is a lookup only. It returns zero for an unregistered target, an original base FormID, missing or deleted storage, or after Containerize uninstall. Passing an actor or an ordinary container does not retrieve storage belonging to an item inside it. The call does not create storage or register the target.
-
-Linked storage belongs to Containerize. Use normal engine inventory operations for your own items, then call Refresh after changing the contents. Leave Containerize's internal original item untouched, and do not return this chest through another client's ReturnChest or Uninstall calls.
+Keep the original item copy that Containerize stores in the chest intact. Use [DeRegister](#removing-the-link) to remove the link and return its contents.
 
 ### Finding the linked item or reference
 
 ```cpp
-const RE::FormID linkedForm = api->GetLinkedForm(chest);
+const auto linkedForm = api->GetLinkedForm(chest);
 ```
 
-Pass the storage chest's reference FormID. For items, this returns the fake item FormID. For furniture, it returns the placed reference FormID. Pass the result to `GetChest`, `Rename` or `DeRegister`.
-
-Unlinked chests, including bare rentals, return zero. The call also returns zero after Containerize uninstall.
+This reverses the lookup. It returns the fake item FormID for a carryable container, the reference FormID for world storage, or zero for a chest without a link.
 
 ## Finding all linked chests for a base form
 
@@ -93,49 +65,42 @@ std::vector<RE::FormID> chests(api->GetChests(baseForm, {}));
 api->GetChests(baseForm, chests);
 ```
 
-Pass the original item's or furniture's base FormID. The first call gets the count; the second fills your buffer with chest reference FormIDs. The return value is always the total count, even when the buffer is smaller. No matches, including after uninstall, returns zero.
+Include `<vector>` for this example. Pass the original item or furniture record's FormID. Call once with an empty buffer to count its chests, then again to fill your buffer with their reference FormIDs. The return value is the total number of matches, even when the buffer holds fewer.
 
 ## Finding the original item
 
 ```cpp
-const RE::FormID original = api->GetRealID(chest);
+const auto original = api->GetRealID(chest);
 ```
 
-Pass an inventory item's storage chest reference FormID. This returns the original item's base FormID, or zero when the chest has no registered inventory item.
+For a carryable container, this returns the base FormID of the item Containerize copied. A chest without a registered carryable item, such as world storage, returns zero.
 
 ## Refreshing Containerize-managed storage
-
-Containerize-managed storage is a chest connected to an item or furniture through Containerize's own registration. After changing its contents, refresh that storage once for the completed operation:
 
 ```cpp
 const bool refreshed = api->Refresh(chest);
 ```
 
-Pass the storage chest's reference FormID. Refresh updates the associated containerized item's weight/value, then its enclosing managed containers from the inside out. It invalidates affected inventory weight caches and calls the engine's weight calculation before returning.
+Pass the storage chest's reference FormID after adding or removing items. Refresh recalculates the chest's weight. For carryable containers, it also updates the item's weight and value and works outward through any enclosing Containerize storage. An open container's item weight and value update when its menu closes.
 
-If the requested storage or an enclosing container is open, its item weight/value update waits for Containerize's normal close routine, after the internal original item is restored. The open chest's actual inventory weight is still recalculated.
-
-This does not register storage, find a furniture's linked chest or change its contents. A bare chest rented by an external client has no associated containerized item and returns false. Refresh also returns false after Containerize uninstall, for invalid storage, or if a required ancestor cannot be refreshed. Inner containers may already have been updated before an ancestor failure; the operation does not roll back those updates.
+False means the chest is unavailable, belongs to an external rental, or a required refresh failed. Updates already made stay applied.
 
 ## Renaming a linked item
 
 ```cpp
-const bool renamed = api->Rename(fake, "Travel supplies");
+const bool renamed = api->Rename(linkedForm, "Travel supplies");
 ```
 
-Pass the fake item FormID returned by Initialize and a nonempty UTF-8 name. The name is saved and retained through refresh and load. Placed objects also receive the display name. Invalid fake IDs, null names and empty names return false.
+Pass the linked ID and a nonempty UTF-8 name. For a carryable container, use its fake item ID. For world storage, use the placed reference ID. Save the game to keep the new name. Skyrim can reject a rename when a quest controls the object's display name.
 
 ## Removing the link
 
 ```cpp
-const bool removed = api->DeRegister(fake);  // A linked placed reference also works.
+const bool removed = api->DeRegister(linkedForm);
 ```
 
-For an inventory item, this replaces the fake with the original and moves the stored contents into its owning inventory. For a placed object, the original stays in the world and the contents go to the player. If the owning inventory no longer exists, the player receives the contents. Nested containerized items keep their own storage and move with their contents intact.
+For an item in an inventory, this restores the original and moves its contents into that inventory. For an object in the world, the object stays in place and the player receives the contents. The player also receives the contents when the original inventory is unavailable. Nested containers keep their own storage. Returning items can put the destination over its capacity.
 
-The storage chest is returned to ChestManager. Do not retain or use that chest reference afterward. Returning contents can put a containing container over its configured capacity; this return is not treated as a normal deposit.
+Close the storage and finish any crafting that is using its contents before calling. The call also returns false when the storage is queued to open. After it succeeds, stop using the chest reference.
 
-The call returns false without changes while that storage is open, scheduled to open/reopen, or lending items for crafting. Close/finish that operation before deregistering it. Invalid targets and Containerize uninstall also return false.
-
-True means the link was removed and the chest return accepted. If an item transfer fails, Containerize shows its existing in-game warning and leftover contents are discarded through ChestManager's disposal. Unexpected failures after work starts are not rolled back.
-
+True means the link was removed and the chest return was accepted. If an item cannot be moved, Containerize warns the player and discards the leftover contents. Transfers that already happened stay applied.
