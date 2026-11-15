@@ -10,7 +10,7 @@ containers:
     weight_limit: 10
 ```
 
-Start Skyrim and look at a basket with this Form ID. Choose **Open** to use its storage. With QuickLoot IE, choose **Search** in the loot panel to reach the full menu and put items inside. The weight limit is 10.
+Start Skyrim. To get the basket from the example, enter `player.additem 000ABD30 1` in the console. Drop the basket, look at it, and choose Containerize's **Open** prompt. If QuickLoot IE opens, choose **Search** in the loot panel to open the full menu and put items inside.
 
 Add entries under `containers` for the items you want to configure. `FormEditorID` identifies the item. Here `0xABD30` is the basket's record number, and `Skyrim.esm` is the plugin that defines it. You can also use an Editor ID (the record's editor name in xEdit) or a form group (a named list of records under `SKSE/Plugins/Containerize/formGroups`).
 

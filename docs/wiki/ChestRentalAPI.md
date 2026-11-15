@@ -2,7 +2,7 @@
 
 ## ChestManager: chest rentals
 
-Rent a chest when your SKSE plugin needs an inventory of its own. Include Containerize's `include/API.h` and call the API on the game thread after a successful `kPostLoadGame` or `kNewGame`. This example rents an empty chest and returns it.
+Rent a chest when your SKSE plugin needs an inventory of its own. Include Containerize's [`API.h`](https://github.com/QTR-Modding/Containerize/blob/main/include/API.h). Run the example on the game thread once SKSE reports a successful game load (`kPostLoadGame`) or a new game (`kNewGame`). It rents an empty chest and returns it.
 
 ```cpp
 #include "API.h"
@@ -27,11 +27,11 @@ bool TryChestRental() {
 }
 ```
 
-Replace `MyMod.Storage` with a unique, case-sensitive name for your mod. `RegisterClient` gives that name a client ID. `RentChest` returns the reference FormID of a hidden chest. Resolve that ID to a chest reference and use Skyrim's inventory operations to store or take items.
+Replace `MyMod.Storage` with a unique, case-sensitive name for your mod. `RegisterClient` returns the number Containerize uses to track your rentals. `RentChest` returns the FormID of the chest. To put items in it, use `RE::TESForm::LookupByID<RE::TESObjectREFR>(chest)` to get the chest reference and pass it to Skyrim's inventory functions before returning the chest.
 
 ### Registration and saves
 
-Register again after each load or New Game. Keep the same name across updates. The same name gets the same client ID in a save. Ask again after loading, since a different save can assign a different ID.
+Register the same name after each load or new game. Keep the name unchanged across mod updates. The same save retains its client ID, and a different save can assign a different one.
 
 Containerize saves the registered names and rented chests. To keep using a chest across loads, store its reference FormID and resolve it through SKSE's serialization interface when loading. Rent again only when you need a new chest.
 
