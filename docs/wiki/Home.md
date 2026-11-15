@@ -16,9 +16,12 @@ Add entries under `containers` for the items you want to configure. `FormEditorI
 
 ## Weight and starting contents
 
-Add these lines below `weight_limit` in the basket preset. Half the contents' weight now counts toward the limit, and the basket starts with one gold coin the first time its storage is created.
+Replace the contents of `Basket.yml` with this example. Half the contents' weight counts toward the limit. The first time you open a fresh basket, it contains one gold coin.
 
 ```yaml
+containers:
+  - FormEditorID: 0xABD30~Skyrim.esm
+    weight_limit: 10
     cloud_storage: 0.5
     initial_items:
       - FormEditorID: 0xF~Skyrim.esm
@@ -39,9 +42,12 @@ With QuickLoot IE installed, Containerize's **Open** prompt opens its loot panel
 
 ## SkyPrompt
 
-Add these lines below `weight_limit` to show the world prompts next to the basket, label **Open** as **Open basket**, and hide **Rename**.
+Replace the contents of `Basket.yml` with this example to show prompts next to the basket, change **Open** to **Open basket**, and hide **Rename**.
 
 ```yaml
+containers:
+  - FormEditorID: 0xABD30~Skyrim.esm
+    weight_limit: 10
     skyprompt:
       attach: true
       labels:
