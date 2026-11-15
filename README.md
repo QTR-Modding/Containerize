@@ -27,3 +27,7 @@ Automatically imports:
 #### CONTAINERIZE API
 
 See [Containerize API](docs/ChestRentalAPI.md) to rent storage and refresh managed containers from another SKSE plugin.
+
+#### PRESET GUIDE
+
+See the [Containerize wiki](https://github.com/QTR-Modding/Containerize/wiki) for YAML examples and preset options. The guide is maintained in [docs/wiki/Home.md](docs/wiki/Home.md) and syncs to the wiki after changes merge to `main`.
