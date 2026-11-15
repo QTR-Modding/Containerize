@@ -158,7 +158,7 @@ public:
     void UpdateExtrasAfterCrafting();
 
     void HandleDrop(RE::TESObjectREFR* fake_object);
-    void BeforePickup(RE::TESObjectREFR* picked_up_by, RE::TESObjectREFR* a_object);
+    [[nodiscard]] RE::TESBoundObject* BeforePickup(RE::TESObjectREFR* picked_up_by, RE::TESObjectREFR* a_object);
     void OnConsume(FormID fake_formid, RE::TESObjectREFR* consumed_by);
     void HandleSell(FormID a_fake, RE::TESObjectREFR* sell_ref);
 

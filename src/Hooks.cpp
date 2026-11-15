@@ -131,10 +131,16 @@ void Hooks::add_item_functor(RE::TESObjectREFR* a_this, RE::TESObjectREFR* a_obj
     if (!a_this || !a_object) {
         return add_item_functor_(a_this, a_object, a_count, a4, a5);
     }
-    if (!MainManager::GetSingleton()->BeforePickup(a_this, a_object, a_count)) {
+    const auto manager = MainManager::GetSingleton();
+    RE::TESBoundObject* theftItem = nullptr;
+    if (!manager->BeforePickup(a_this, a_object, a_count, theftItem)) {
         return;
     }
-    return add_item_functor_(a_this, a_object, a_count, a4, a5);
+    const RE::TESObjectREFRPtr source{theftItem ? a_object : nullptr};
+    add_item_functor_(a_this, a_object, a_count, a4, a5);
+    if (source) {
+        manager->ReportFakeContainerTheft(source.get(), theftItem);
+    }
 }
 
 template <typename RefType>
@@ -147,11 +153,16 @@ void Hooks::MoveItemHooks<RefType>::pickUpObject(RefType* a_this, RE::TESObjectR
     if (!a_this || !a_object) {
         return pick_up_object_(a_this, a_object, a_count, a_arg3, a_play_sound);
     }
-    if (!MainManager::GetSingleton()->BeforePickup(a_this, a_object, a_count)) {
+    const auto manager = MainManager::GetSingleton();
+    RE::TESBoundObject* theftItem = nullptr;
+    if (!manager->BeforePickup(a_this, a_object, a_count, theftItem)) {
         return;
     }
-
+    const RE::TESObjectREFRPtr source{theftItem ? a_object : nullptr};
     pick_up_object_(a_this, a_object, a_count, a_arg3, a_play_sound);
+    if (source) {
+        manager->ReportFakeContainerTheft(source.get(), theftItem);
+    }
 }
 
 template <typename RefType>

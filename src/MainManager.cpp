@@ -302,13 +302,11 @@ void MainManager::ReportFakeContainerTheft(RE::TESObjectREFR* inventory, RE::TES
         if (!player->IsAllowedToTakeItem(owner, value)) {
             const auto worldRef = RE::TESForm::LookupByID<RE::TESObjectREFR>(
                 WorldStorage::GetSingleton()->GetTarget(inventory->GetFormID()));
-            const auto handle = worldRef ? worldRef->GetHandle() : inventory->GetHandle();
+            const RE::TESObjectREFRPtr source{worldRef ? worldRef : inventory};
             constexpr std::int32_t minimumTheftValue = 1;
             const auto total = std::max(minimumTheftValue, value);
-            SKSE::GetTaskInterface()->AddTask([handle, owner, total] {
-                if (const auto target = handle.get()) {
-                    RE::PlayerCharacter::GetSingleton()->StealAlarm(target.get(), nullptr, 0, total, owner, true);
-                }
+            SKSE::GetTaskInterface()->AddTask([source, owner, total] {
+                RE::PlayerCharacter::GetSingleton()->StealAlarm(source.get(), nullptr, 0, total, owner, true);
             });
         }
         return;
@@ -396,7 +394,8 @@ FormID MainManager::Initialize(const FormID target, const RefID owner, RE::Extra
     return Manager::GetSingleton()->Initialize(target, owner, instance);
 }
 
-bool MainManager::BeforePickup(RE::TESObjectREFR* actor, RE::TESObjectREFR* object, const Count count) {
+bool MainManager::BeforePickup(RE::TESObjectREFR* actor, RE::TESObjectREFR* object, const Count count,
+                               RE::TESBoundObject*& theftItem) {
     const auto world_storage = WorldStorage::GetSingleton();
     if (const auto chest = world_storage->GetChest(object->GetFormID())) {
         if (open_chest == chest || (containermenu_owner && containermenu_owner->GetFormID() == chest)) {
@@ -411,7 +410,10 @@ bool MainManager::BeforePickup(RE::TESObjectREFR* actor, RE::TESObjectREFR* obje
         return true;
     }
     if (count <= 1) {
-        Manager::GetSingleton()->BeforePickup(actor, object);
+        const auto fake = Manager::GetSingleton()->BeforePickup(actor, object);
+        if (fake && actor->IsPlayerRef() && !object->GetOwner()) {
+            theftItem = fake;
+        }
     }
     return true;
 }
