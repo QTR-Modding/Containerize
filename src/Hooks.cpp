@@ -17,17 +17,8 @@ void Hooks::Install() {
     constexpr size_t NUM_TRAMPOLINE_HOOKS = 4;
     trampoline.create(size_per_hook * NUM_TRAMPOLINE_HOOKS);
 
-    REL::Relocation stealing_flags{REL::VariantID(50215, 51144, 0x88A979), REL::Relocate(0x159, 0x47E, 0)};
-    const REL::Relocation<std::uintptr_t> set_stealing_flags{REL::VariantID(50231, 51160, 0x88BDB0)};
-    constexpr auto call_opcode = std::byte{0xE8};
-    constexpr std::size_t call_size = 5;
-    const auto call_site = stealing_flags.address();
-    if (*reinterpret_cast<const std::byte*>(call_site) == call_opcode &&
-        call_site + call_size + *reinterpret_cast<const std::int32_t*>(call_site + sizeof(call_opcode)) == set_stealing_flags.address()) {
-        StealingFlagsHook::func = stealing_flags.write_call<call_size>(StealingFlagsHook::thunk);
-    } else {
-        logger::error("Container menu theft indicator hook has an unexpected call target.");
-    }
+    REL::Relocation stealing_flags{RE::ContainerMenu::STEALING_FLAGS_CALLER, RE::ContainerMenu::STEALING_FLAGS_CALL_OFFSET};
+    StealingFlagsHook::func = stealing_flags.write_call<5>(StealingFlagsHook::thunk);
 
     const REL::Relocation<std::uintptr_t> target4{REL::RelocationID(67315, 68617)};
     InputHook::func = trampoline.write_call<5>(target4.address() + 0x7B, InputHook::thunk);
