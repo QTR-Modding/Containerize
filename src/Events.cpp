@@ -114,7 +114,9 @@ RE::BSEventNotifyControl EventSink::ProcessEvent(const RE::MenuOpenCloseEvent* a
                                                  RE::BSTEventSource<RE::MenuOpenCloseEvent>*) {
     if (!a_event) return RE::BSEventNotifyControl::kContinue;
     RemoveMenuPrompts();
-    RemovePrompts();
+    if (!REL::Module::IsVR() || a_event->menuName != RE::WSActivateRollover::MENU_NAME) {
+        RemovePrompts();
+    }
     if (!a_event->opening) Manager::GetSingleton()->FinishUninstall();
     if (a_event->opening && std::ranges::contains(SkyPrompt::blockedMenus, a_event->menuName.c_str())) {
         QuickLootIntegration::Close();
