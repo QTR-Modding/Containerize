@@ -484,13 +484,6 @@ void xData::AddTextDisplayData(RE::ExtraDataList* extraDataList, const std::stri
     extraDataList->Add(textDisplayData);
 }
 
-// Credits and much love to digital-apple: https://github.com/digital-apple/ArcaneDisenchanterNG/blob/177f3d20d39ee2af28c786b251a09a6dbb4fae5e/source/System.cpp#L110
-RE::ExtraDataList* xData::ConstructExtraDataList() {
-    const auto memoryManager = RE::MemoryManager::GetSingleton();
-    const auto alloc = memoryManager->Allocate(0x20, 0, false);
-    return ConstructExtraDataList(alloc);
-}
-
 RE::ExtraDataList* xData::GetOrCreateExtraList(RE::InventoryEntryData* data, const bool a_create) {
     if (!data) {
         logger::error("GetOrCreateExtraList: data is null");
@@ -507,7 +500,10 @@ RE::ExtraDataList* xData::GetOrCreateExtraList(RE::InventoryEntryData* data, con
         return nullptr;
     }
 
-    const auto newList = ConstructExtraDataList();
+    const auto newList = RE::ExtraDataList::Create();
+    if (!newList) {
+        return nullptr;
+    }
 
     data->AddExtraList(newList);
     return newList;

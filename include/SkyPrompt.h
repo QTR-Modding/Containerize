@@ -10,9 +10,10 @@ namespace SkyPrompt {
         inline std::string value = "$quantCTRZValue";
     };
 
-    inline std::array<std::pair<RE::INPUT_DEVICE, uint32_t>, 2> akatosh_keys = {{
+    inline std::array<std::pair<RE::INPUT_DEVICE, uint32_t>, 3> akatosh_keys = {{
         std::make_pair(RE::INPUT_DEVICE::kKeyboard, SkyPromptAPI::kSkyrim),
-        std::make_pair(RE::INPUT_DEVICE::kGamepad, SkyPromptAPI::kSkyrim)
+        std::make_pair(RE::INPUT_DEVICE::kGamepad, SkyPromptAPI::kSkyrim),
+        std::make_pair(RE::INPUT_DEVICE::kVivePrimary, SkyPromptAPI::kSkyrim)
     }};
 
     class RefPromptSink final : public SkyPromptAPI::PromptSink,
@@ -30,6 +31,7 @@ namespace SkyPrompt {
                                           akatosh_keys};
 
         std::vector<SkyPromptAPI::Prompt> prompts;
+        RE::ObjectRefHandle vr_target;
 
     public:
         void Start(RE::TESObjectREFR* a_ref);

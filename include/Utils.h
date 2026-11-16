@@ -398,15 +398,6 @@ namespace xData {
 
     void AddTextDisplayData(RE::ExtraDataList* extraDataList, const std::string& displayName);
 
-    inline RE::ExtraDataList* ConstructExtraDataList(void* a_this) {
-        using func_t = decltype(&ConstructExtraDataList);
-        // ReSharper disable once CppLocalVariableMayBeConst
-        REL::Relocation<func_t> func{RELOCATION_ID(11437, 11583)};
-        return func(a_this);
-    }
-
-    RE::ExtraDataList* ConstructExtraDataList();
-
     RE::ExtraDataList* GetOrCreateExtraList(RE::InventoryEntryData* data, bool a_create = true);
     RE::ExtraDataList* GetExtraList(const RE::InventoryEntryData* data);
 

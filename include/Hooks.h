@@ -42,7 +42,7 @@ namespace Hooks {
 
     // Credits: SkyrimThiago
     struct InventoryHoverHook {
-        static int64_t thunk(RE::InventoryEntryData* a1);
+        static std::int32_t thunk(RE::InventoryEntryData* a1);
         static inline REL::Relocation<decltype(thunk)> originalFunction;
     };
 
@@ -67,7 +67,10 @@ namespace Hooks {
         static void install(const bool is_actor = true) {
             REL::Relocation<std::uintptr_t> _vtbl{RefType::VTABLE[0]};
             if (is_actor) {
-                pick_up_object_ = _vtbl.write_vfunc(0xCC, pickUpObject);
+                const auto pickup_slot = REL::Relocate(RE::Actor::PICK_UP_OBJECT_VTABLE_SLOT_FLAT,
+                                                       RE::Actor::PICK_UP_OBJECT_VTABLE_SLOT_FLAT,
+                                                       RE::Actor::PICK_UP_OBJECT_VTABLE_SLOT_VR);
+                pick_up_object_ = _vtbl.write_vfunc(pickup_slot, pickUpObject);
             }
             remove_item_ = _vtbl.write_vfunc(0x56, RemoveItem);
             add_object_to_container_ = _vtbl.write_vfunc(0x5A, addObjectToContainer);

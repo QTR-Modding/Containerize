@@ -86,8 +86,11 @@ void RefPromptSink::Start(RE::TESObjectREFR* a_ref) {
     const auto source = manager->GetSource(a_ref);
     if (source->token_mode) {
         SkyPromptAPI::RemovePrompt(this, g_clientID);
-        prompts.clear();
+        Stop();
         return;
+    }
+    if (REL::Module::IsVR()) {
+        vr_target = a_ref->GetHandle();
     }
     const auto& settings = source->skyprompt;
     const RefID refid = settings.attach ? a_ref->GetFormID() : 0;
@@ -108,23 +111,26 @@ void RefPromptSink::Start(RE::TESObjectREFR* a_ref) {
     UpdatePrompts(this, prompts, settings, {open_prompt, rename_prompt, weight_prompt, value_prompt});
 }
 
-void RefPromptSink::Stop() { prompts.clear(); }
+void RefPromptSink::Stop() {
+    prompts.clear();
+    vr_target.reset();
+}
 
 void RefPromptSink::ProcessEvent(const SkyPromptAPI::PromptEvent event) const {
     if (event.type) {
         return;
     }
+    const auto target = vr_target;
     EventSink::RemovePrompts();
 
-    if (const auto crosshairref = RE::CrosshairPickData::GetSingleton()->target) {
-        if (const auto a_ref = crosshairref->get().get()) {
-            if (const auto prompt_eventid = event.prompt.eventID; prompt_eventid == 0) {
-                if (MainManager::GetSingleton()->IsTokenMode(a_ref)) return;
-                const auto duration = Animations::SetUpAnimationOnOpen(a_ref, true);
-                MainManager::GetSingleton()->OnActivateContainer(a_ref, 0, duration, true);
-            } else if (prompt_eventid == 1) {
-                MainManager::GetSingleton()->OnActivateContainer(a_ref, 1);
-            }
+    const auto reference = REL::Module::IsVR() ? target.get() : RE::CrosshairPickData::GetSingleton()->GetActiveTarget().get();
+    if (const auto a_ref = reference.get()) {
+        if (const auto prompt_eventid = event.prompt.eventID; prompt_eventid == 0) {
+            if (MainManager::GetSingleton()->IsTokenMode(a_ref)) return;
+            const auto duration = Animations::SetUpAnimationOnOpen(a_ref, true);
+            MainManager::GetSingleton()->OnActivateContainer(a_ref, 0, duration, true);
+        } else if (prompt_eventid == 1) {
+            MainManager::GetSingleton()->OnActivateContainer(a_ref, 1);
         }
     }
 }

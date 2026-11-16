@@ -322,7 +322,7 @@ void Manager::FakePlacement_Sub(RE::TESObjectREFR* chest, RE::TESObjectREFR* sav
     if (real_bound) {
         const auto inventory = chest->GetInventory();
         if (inventory.contains(real_bound)) {
-            xList_fake = xData::ConstructExtraDataList();
+            xList_fake = RE::ExtraDataList::Create();
             const auto real_entry = inventory.at(real_bound).second.get();
             const auto xList_real = xData::GetExtraList(real_entry);
             if (!xData::UpdateExtras(xList_real, xList_fake)) {
@@ -460,7 +460,7 @@ bool Manager::HandleRegistration(RE::TESObjectREFR* a_item) {
             }
             return false;
         }
-        RE::ExtraDataList* xList_copy = xData::ConstructExtraDataList();
+        RE::ExtraDataList* xList_copy = RE::ExtraDataList::Create();
         if (!xData::UpdateExtras(&a_item->extraList, xList_copy)) {
             logger::warn("Failed to copy extra data list.");
         }
@@ -1545,7 +1545,7 @@ RE::TESBoundObject* Manager::RegisterFromMenu(RE::InventoryEntryData* a_real_ent
     RE::ExtraDataList* xList_fake = nullptr;
     if (instance || Inventory::EntryHasXDataList(a_real_entry)) {
         xList_real = instance ? instance : a_real_entry->extraLists->front();
-        xList_fake = xData::ConstructExtraDataList();
+        xList_fake = RE::ExtraDataList::Create();
         if (!xData::UpdateExtras(xList_real, xList_fake)) {
             logger::error("Failed to update extras for fake object.");
         }
