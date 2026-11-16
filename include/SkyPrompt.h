@@ -93,6 +93,7 @@ namespace SkyPrompt {
         RE::BarterMenu::MENU_NAME,
         RE::CraftingMenu::MENU_NAME,
         RE::InventoryMenu::MENU_NAME,
+        RE::FavoritesMenu::MENU_NAME,
         RE::TweenMenu::MENU_NAME,
         RE::TrainingMenu::MENU_NAME,
         RE::TutorialMenu::MENU_NAME,
