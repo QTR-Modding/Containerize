@@ -20,15 +20,16 @@ void Hooks::Install() {
     REL::Relocation stealing_flags{RE::ContainerMenu::STEALING_FLAGS_CALLER, RE::ContainerMenu::STEALING_FLAGS_CALL_OFFSET};
     StealingFlagsHook::func = stealing_flags.write_call<5>(StealingFlagsHook::thunk);
 
-    const REL::Relocation<std::uintptr_t> target4{REL::RelocationID(67315, 68617)};
-    InputHook::func = trampoline.write_call<5>(target4.address() + 0x7B, InputHook::thunk);
+    REL::Relocation send_input_events{RE::BSInputDeviceManager::POLL_INPUT_DEVICES,
+                                      RE::BSInputDeviceManager::SEND_INPUT_EVENTS_CALL_OFFSET};
+    InputHook::func = send_input_events.write_call<5>(InputHook::thunk);
 
-    const REL::Relocation<std::uintptr_t> add_item_functor_hook{RELOCATION_ID(55946, 56490)};
-    add_item_functor_ = trampoline.write_call<5>(add_item_functor_hook.address() + 0x15D, add_item_functor);
+    REL::Relocation pickup_item_reference{RE::TESObjectREFR::ADD_ITEM_REFERENCE,
+                                          RE::TESObjectREFR::ADD_ITEM_REFERENCE_PICKUP_CALL_OFFSET};
+    add_item_functor_ = pickup_item_reference.write_call<5>(add_item_functor);
 
-    const REL::Relocation<std::uintptr_t> function{REL::RelocationID(51019, 51897)};
-    InventoryHoverHook::originalFunction = trampoline.write_call<5>(function.address() + REL::Relocate(0x114, 0x22c),
-                                                                    InventoryHoverHook::thunk);
+    REL::Relocation item_card_count{RE::ItemCard::SET_ITEM, RE::ItemCard::GET_ITEM_COUNT_CALL_OFFSET};
+    InventoryHoverHook::originalFunction = item_card_count.write_call<5>(InventoryHoverHook::thunk);
 }
 
 void Hooks::InstallUseOrTakeHooks() {
@@ -387,7 +388,7 @@ void Hooks::MenuHook<MenuType>::InstallHook(const REL::VariantID& varID) {
     _ProcessMessage = vTable.write_vfunc(0x4, &MenuHook<MenuType>::ProcessMessage_Hook);
 }
 
-int64_t Hooks::InventoryHoverHook::thunk(RE::InventoryEntryData* a1) {
+std::int32_t Hooks::InventoryHoverHook::thunk(RE::InventoryEntryData* a1) {
     OnHoverItem(a1->GetObject());
     return originalFunction(a1);
 }

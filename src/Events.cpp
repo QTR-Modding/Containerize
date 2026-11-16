@@ -38,8 +38,11 @@ void EventSink::Reset() {
 RE::BSEventNotifyControl EventSink::ProcessEvent(const SKSE::CrosshairRefEvent* a_event,
                                                  RE::BSTEventSource<SKSE::CrosshairRefEvent>*) {
     const auto a_crosshairRef = a_event->crosshairRef.get();
+    const auto player = RE::PlayerCharacter::GetSingleton();
     if (Manager::GetSingleton()->isUninstalled.load() || !a_crosshairRef ||
-        RE::PlayerCharacter::GetSingleton()->GetGrabbedRef().get() == a_crosshairRef) {
+        player->GetGrabbedRef().get() == a_crosshairRef ||
+        (REL::Module::IsVR() && (player->GetGrabbedRef(RE::VR_DEVICE::kRightController).get() == a_crosshairRef ||
+                                player->GetGrabbedRef(RE::VR_DEVICE::kHeadset).get() == a_crosshairRef))) {
         QuickLootIntegration::Close();
         RemovePrompts();
         return RE::BSEventNotifyControl::kContinue;
@@ -111,9 +114,12 @@ RE::BSEventNotifyControl EventSink::ProcessEvent(const RE::MenuOpenCloseEvent* a
                                                  RE::BSTEventSource<RE::MenuOpenCloseEvent>*) {
     if (!a_event) return RE::BSEventNotifyControl::kContinue;
     RemoveMenuPrompts();
-    RemovePrompts();
+    const bool blocksPrompts = std::ranges::contains(SkyPrompt::blockedMenus, a_event->menuName.c_str());
+    if (blocksPrompts) {
+        RemovePrompts();
+    }
     if (!a_event->opening) Manager::GetSingleton()->FinishUninstall();
-    if (a_event->opening && std::ranges::contains(SkyPrompt::blockedMenus, a_event->menuName.c_str())) {
+    if (a_event->opening && blocksPrompts) {
         QuickLootIntegration::Close();
     }
 
