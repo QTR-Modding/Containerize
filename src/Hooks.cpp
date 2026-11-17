@@ -17,7 +17,7 @@ void Hooks::Install() {
     constexpr size_t NUM_TRAMPOLINE_HOOKS = 4;
     trampoline.create(size_per_hook * NUM_TRAMPOLINE_HOOKS);
 
-    REL::Relocation stealing_flags{RE::ContainerMenu::STEALING_FLAGS_CALLER, RE::ContainerMenu::STEALING_FLAGS_CALL_OFFSET};
+    REL::Relocation stealing_flags{RE::ContainerMenu::STEALING_FLAGS_CALLER, RE::ContainerMenu::GetStealingFlagsCallOffset()};
     StealingFlagsHook::func = stealing_flags.write_call<5>(StealingFlagsHook::thunk);
 
     REL::Relocation send_input_events{RE::BSInputDeviceManager::POLL_INPUT_DEVICES,
